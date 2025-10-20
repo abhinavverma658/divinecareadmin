@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { FaSave, FaArrowLeft, FaChartBar } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
+import { useGetAboutCompanyDataMutation, useUpdateAboutCompanyDataMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
 const EditCompanyStatistics = () => {
@@ -24,9 +24,9 @@ const EditCompanyStatistics = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   
-  // API mutations - using existing About Us endpoints
-  const [getAboutUsData] = useGetAboutUsDataMutation();
-  const [updateAboutUsData] = useUpdateAboutUsDataMutation();
+  // API mutations - using Company endpoints
+  const [getAboutCompanyData] = useGetAboutCompanyDataMutation();
+  const [updateAboutCompanyData] = useUpdateAboutCompanyDataMutation();
 
   // Demo data for testing
   const demoData = {
@@ -57,26 +57,33 @@ const EditCompanyStatistics = () => {
   const fetchStatisticsData = async () => {
     try {
       setIsLoading(true);
-      const response = await getAboutUsData().unwrap();
-      if (response?.data) {
+      const response = await getAboutCompanyData().unwrap();
+      console.log('📥 About Company Data Response:', response);
+      
+      if (response?.success && response?.data) {
+        const data = response.data;
         setFormData({
-          statsHeading: response.data.statsHeading || '',
-          statsDescription: response.data.statsDescription || '',
-          ctaButtonText: response.data.ctaButtonText || '',
-          ctaButtonLink: response.data.ctaButtonLink || '',
-          stat1Number: response.data.stat1Number || '',
-          stat1Label: response.data.stat1Label || '',
-          stat2Number: response.data.stat2Number || '',
-          stat2Label: response.data.stat2Label || '',
-          stat3Number: response.data.stat3Number || '',
-          stat3Label: response.data.stat3Label || '',
-          stat4Number: response.data.stat4Number || '',
-          stat4Label: response.data.stat4Label || ''
+          statsHeading: data.statsHeading || '',
+          statsDescription: data.statsDescription || '',
+          ctaButtonText: data.ctaButtonText || '',
+          ctaButtonLink: data.ctaButtonLink || '',
+          stat1Number: data.stat1Number || '',
+          stat1Label: data.stat1Label || '',
+          stat2Number: data.stat2Number || '',
+          stat2Label: data.stat2Label || '',
+          stat3Number: data.stat3Number || '',
+          stat3Label: data.stat3Label || '',
+          stat4Number: data.stat4Number || '',
+          stat4Label: data.stat4Label || ''
         });
+        toast.success('Company statistics data loaded successfully');
+      } else {
+        console.log('⚠️ No company statistics data found, keeping demo data');
+        toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching statistics data:', error);
-      toast.error('Failed to load statistics data');
+      console.error('Error fetching company statistics data:', error);
+      toast.error('Failed to load company statistics data. Using demo data.');
     } finally {
       setIsLoading(false);
     }
@@ -131,15 +138,26 @@ const EditCompanyStatistics = () => {
 
     try {
       setIsLoading(true);
-      const response = await updateAboutUsData(formData).unwrap();
+      console.log('📤 Updating About Company Data:', formData);
       
-      if (response?.message) {
-        toast.success(response.message);
+      const response = await updateAboutCompanyData({ 
+        id: "68ee145370e1bfc20b375419", 
+        data: formData 
+      }).unwrap();
+      
+      console.log('✅ Update Response:', response);
+      
+      if (response?.success) {
+        toast.success(response.message || 'Company Statistics updated successfully!');
+        // Refresh data to show updated values
+        setTimeout(() => {
+          fetchStatisticsData();
+        }, 1000);
       } else {
-        toast.success('Company Statistics updated successfully!');
+        toast.error('Failed to update company statistics section');
       }
     } catch (error) {
-      console.error('Error updating statistics data:', error);
+      console.error('❌ Error updating company statistics data:', error);
       toast.error(error?.data?.message || 'Failed to update statistics section');
     } finally {
       setIsLoading(false);
@@ -237,6 +255,36 @@ const EditCompanyStatistics = () => {
                     required
                   />
                 </Form.Group>
+
+                {/* CTA Button */}
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>CTA Button Text <span className="text-danger">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="ctaButtonText"
+                        value={formData.ctaButtonText}
+                        onChange={handleChange}
+                        placeholder="e.g., Donate Now"
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>CTA Button Link <span className="text-danger">*</span></Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="ctaButtonLink"
+                        value={formData.ctaButtonLink}
+                        onChange={handleChange}
+                        placeholder="e.g., /donate or https://example.com"
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
               </Card.Body>
             </Card>
           </Col>

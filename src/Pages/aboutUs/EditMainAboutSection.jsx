@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner } from 'react-bootstrap';
 import { FaSave, FaUpload, FaTrash, FaPlus, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
+import { useGetAboutMainDataMutation, useUpdateAboutMainDataMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
 const EditMainAboutSection = () => {
@@ -20,8 +20,8 @@ const EditMainAboutSection = () => {
   const [isDemoMode, setIsDemoMode] = useState(false);
   
   // API mutations
-  const [getAboutUsData] = useGetAboutUsDataMutation();
-  const [updateAboutUsData] = useUpdateAboutUsDataMutation();
+  const [getAboutMainData] = useGetAboutMainDataMutation();
+  const [updateAboutMainData] = useUpdateAboutMainDataMutation();
 
   // Demo data for testing
   const demoData = {
@@ -51,21 +51,30 @@ const EditMainAboutSection = () => {
   const fetchAboutUsData = async () => {
     try {
       setIsLoading(true);
-      const response = await getAboutUsData().unwrap();
-      if (response?.data) {
+      const response = await getAboutMainData().unwrap();
+      console.log('📥 About Main Data Response:', response);
+      
+      if (response?.success && response?.data) {
+        const data = response.data;
         setFormData({
-          heading: response.data.heading || '',
-          smallDescription: response.data.smallDescription || '',
-          leftImage1: response.data.leftImage1 || '',
-          leftImage2: response.data.leftImage2 || '',
-          rightImage: response.data.rightImage || '',
-          description: response.data.description || '',
-          keyPoints: response.data.keyPoints || ['', '', '']
+          heading: data.heading || '',
+          smallDescription: data.smallDescription || '',
+          leftImage1: data.leftImage1 || '',
+          leftImage2: data.leftImage2 || '',
+          rightImage: data.rightImage || '',
+          description: data.description || '',
+          keyPoints: data.keyPoints || ['', '', '']
         });
+        toast.success('Main About section data loaded successfully');
+      } else {
+        // No data found, show message and keep demo data
+        console.log('⚠️ No main about data found, keeping demo data');
+        toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching about us data:', error);
-      toast.error('Failed to load about us data');
+      console.error('Error fetching about main data:', error);
+      toast.error('Failed to load about main data. Using demo data.');
+      // Keep demo data on error
     } finally {
       setIsLoading(false);
     }
@@ -141,16 +150,27 @@ const EditMainAboutSection = () => {
 
     try {
       setIsLoading(true);
-      const response = await updateAboutUsData(formData).unwrap();
+      console.log('📤 Updating About Main Data:', formData);
       
-      if (response?.message) {
-        toast.success(response.message);
+      const response = await updateAboutMainData({ 
+        id: "68ee09ee70e1bfc20b375410", 
+        data: formData 
+      }).unwrap();
+      
+      console.log('✅ Update Response:', response);
+      
+      if (response?.success) {
+        toast.success(response.message || 'Main About section updated successfully!');
+        // Refresh data to show updated values
+        setTimeout(() => {
+          fetchAboutUsData();
+        }, 1000);
       } else {
-        toast.success('About Us section updated successfully!');
+        toast.error('Failed to update main about section');
       }
     } catch (error) {
-      console.error('Error updating about us data:', error);
-      toast.error(error?.data?.message || 'Failed to update about us section');
+      console.error('❌ Error updating about main data:', error);
+      toast.error(error?.data?.message || 'Failed to update main about section');
     } finally {
       setIsLoading(false);
     }

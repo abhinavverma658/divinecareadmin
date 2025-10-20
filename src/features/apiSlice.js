@@ -997,6 +997,51 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
 
+    // About Main Section endpoints
+    getAboutMainData: builder.mutation({
+      query: () => ({
+        url: "/about/main",
+        method: "GET",
+      }),
+    }),
+    updateAboutMainData: builder.mutation({
+      query: ({ id = "68ee09ee70e1bfc20b375410", data }) => ({
+        url: `/about/main/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+    }),
+
+    // About Vision endpoints
+    getAboutVisionData: builder.mutation({
+      query: () => ({
+        url: "/about/vision",
+        method: "GET",
+      }),
+    }),
+    updateAboutVisionData: builder.mutation({
+      query: ({ id = "68ee0dce70e1bfc20b375416", data }) => ({
+        url: `/about/vision/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+    }),
+
+    // About Company Statistics endpoints
+    getAboutCompanyData: builder.mutation({
+      query: () => ({
+        url: "/about/company",
+        method: "GET",
+      }),
+    }),
+    updateAboutCompanyData: builder.mutation({
+      query: ({ id = "68ee145370e1bfc20b375419", data }) => ({
+        url: `/about/company/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+    }),
+
     // Contact page content
     getContactPageData: builder.mutation({
       query: () => ({
@@ -1702,6 +1747,12 @@ export const {
   useUpdateAboutUsDataMutation,
   useGetSpecificAboutUsDataMutation,
   useUpdateSpecificAboutUsDataMutation,
+  useGetAboutMainDataMutation,
+  useUpdateAboutMainDataMutation,
+  useGetAboutVisionDataMutation,
+  useUpdateAboutVisionDataMutation,
+  useGetAboutCompanyDataMutation,
+  useUpdateAboutCompanyDataMutation,
   useGetContactPageDataMutation,
   useUpdateContactPageDataMutation,
   useGetEventsDataMutation,

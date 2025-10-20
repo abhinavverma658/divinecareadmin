@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner, Nav, Tab } from 'react-bootstrap';
 import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
+import { useGetAboutVisionDataMutation, useUpdateAboutVisionDataMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
 const EditMissionVision = () => {
@@ -28,9 +28,9 @@ const EditMissionVision = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   
-  // API mutations - using existing About Us endpoints
-  const [getAboutUsData] = useGetAboutUsDataMutation();
-  const [updateAboutUsData] = useUpdateAboutUsDataMutation();
+  // API mutations - using Vision endpoints
+  const [getAboutVisionData] = useGetAboutVisionDataMutation();
+  const [updateAboutVisionData] = useUpdateAboutVisionDataMutation();
 
   // Demo data for testing
   const demoData = {
@@ -64,20 +64,27 @@ const EditMissionVision = () => {
   const fetchMissionVisionData = async () => {
     try {
       setIsLoading(true);
-      const response = await getAboutUsData().unwrap();
-      if (response?.data) {
+      const response = await getAboutVisionData().unwrap();
+      console.log('📥 About Vision Data Response:', response);
+      
+      if (response?.success && response?.data) {
+        const data = response.data;
         setFormData({
-          mvHeading: response.data.mvHeading || '',
-          mvDescription: response.data.mvDescription || '',
-          mvImage: response.data.mvImage || '',
-          ourMissionTab: response.data.ourMissionTab || { title: '', content: '' },
-          ourVisionTab: response.data.ourVisionTab || { title: '', content: '' },
-          charityHistoryTab: response.data.charityHistoryTab || { title: '', content: '' }
+          mvHeading: data.mvHeading || '',
+          mvDescription: data.mvDescription || '',
+          mvImage: data.mvImage || '',
+          ourMissionTab: data.ourMissionTab || { title: '', content: '' },
+          ourVisionTab: data.ourVisionTab || { title: '', content: '' },
+          charityHistoryTab: data.charityHistoryTab || { title: '', content: '' }
         });
+        toast.success('Vision section data loaded successfully');
+      } else {
+        console.log('⚠️ No vision data found, keeping demo data');
+        toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching mission vision data:', error);
-      toast.error('Failed to load mission vision data');
+      console.error('Error fetching vision data:', error);
+      toast.error('Failed to load vision data. Using demo data.');
     } finally {
       setIsLoading(false);
     }
@@ -152,16 +159,27 @@ const EditMissionVision = () => {
 
     try {
       setIsLoading(true);
-      const response = await updateAboutUsData(formData).unwrap();
+      console.log('📤 Updating About Vision Data:', formData);
       
-      if (response?.message) {
-        toast.success(response.message);
+      const response = await updateAboutVisionData({ 
+        id: "68ee0dce70e1bfc20b375416", 
+        data: formData 
+      }).unwrap();
+      
+      console.log('✅ Update Response:', response);
+      
+      if (response?.success) {
+        toast.success(response.message || 'Mission & Vision section updated successfully!');
+        // Refresh data to show updated values
+        setTimeout(() => {
+          fetchMissionVisionData();
+        }, 1000);
       } else {
-        toast.success('Mission & Vision section updated successfully!');
+        toast.error('Failed to update mission & vision section');
       }
     } catch (error) {
-      console.error('Error updating mission vision data:', error);
-      toast.error(error?.data?.message || 'Failed to update mission vision section');
+      console.error('❌ Error updating vision data:', error);
+      toast.error(error?.data?.message || 'Failed to update mission & vision section');
     } finally {
       setIsLoading(false);
     }

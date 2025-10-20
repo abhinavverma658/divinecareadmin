@@ -105,6 +105,15 @@ function Auth() {
                     dispatch(setToken(directToken));
                     dispatch(setUser(user));
                     toast.success('Login successful!');
+                        
+                    // Notify user that token is available for website
+                    setTimeout(() => {
+                        toast.info('✅ Token shared with website! Frontend will auto-sync.', {
+                            autoClose: 5000,
+                            position: 'bottom-right'
+                        });
+                    }, 1000);
+                    
                     navigate('/dash/home');
                 } else {
                     // If no token in signin response, try to generate one
