@@ -1042,6 +1042,21 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
 
+    // About Mission endpoints
+    getAboutMissionData: builder.mutation({
+      query: () => ({
+        url: "/about/mission",
+        method: "GET",
+      }),
+    }),
+    updateAboutMissionData: builder.mutation({
+      query: ({ id = "68ee0bc170e1bfc20b375413", data }) => ({
+        url: `/about/mission/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+    }),
+
     // Contact page content
     getContactPageData: builder.mutation({
       query: () => ({
@@ -1753,6 +1768,8 @@ export const {
   useUpdateAboutVisionDataMutation,
   useGetAboutCompanyDataMutation,
   useUpdateAboutCompanyDataMutation,
+  useGetAboutMissionDataMutation,
+  useUpdateAboutMissionDataMutation,
   useGetContactPageDataMutation,
   useUpdateContactPageDataMutation,
   useGetEventsDataMutation,

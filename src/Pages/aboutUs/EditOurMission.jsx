@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner } from 'react-bootstrap';
 import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
+import { useGetAboutMissionDataMutation, useUpdateAboutMissionDataMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
 const EditOurMission = () => {
@@ -15,10 +15,12 @@ const EditOurMission = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
-  // API mutations - using existing About Us endpoints
-  const [getAboutUsData] = useGetAboutUsDataMutation();
-  const [updateAboutUsData] = useUpdateAboutUsDataMutation();
+  // API mutations - using Mission endpoints
+  const [getAboutMissionData] = useGetAboutMissionDataMutation();
+  const [updateAboutMissionData] = useUpdateAboutMissionDataMutation();
+  const [uploadImage] = useUploadImageMutation();
 
   // Demo data for testing
   const demoData = {
@@ -38,26 +40,99 @@ const EditOurMission = () => {
     if (!token || token === '"demo-token"') {
       setIsDemoMode(true);
       setFormData(demoData);
+      console.log('🎭 Demo mode activated for mission, using demo data');
     } else {
+      console.log('🔐 Real token found for mission, fetching from API');
       fetchMissionData();
     }
   }, []);
 
+  // Debug form data changes for mission
+  useEffect(() => {
+    console.log('🔄 Mission form data updated:', {
+      missionHeading: formData.missionHeading,
+      missionDescription: formData.missionDescription?.substring(0, 50) + '...',
+      hasImage: !!formData.missionImage,
+      pointsCount: formData.missionPoints?.length,
+      points: formData.missionPoints?.map(p => p.substring(0, 30) + '...')
+    });
+  }, [formData]);
+
   const fetchMissionData = async () => {
     try {
       setIsLoading(true);
-      const response = await getAboutUsData().unwrap();
-      if (response?.data) {
-        setFormData({
-          missionHeading: response.data.missionHeading || '',
-          missionDescription: response.data.missionDescription || '',
-          missionImage: response.data.missionImage || '',
-          missionPoints: response.data.missionPoints || ['', '', '', '']
+      console.log('🔄 Starting About Mission Data fetch...');
+      
+      const response = await getAboutMissionData().unwrap();
+      console.log('📥 About Mission Data Response:', response);
+      console.log('📊 Response keys:', Object.keys(response || {}));
+      console.log('📋 Response type:', typeof response);
+      
+      // Check multiple possible response structures
+      let data = null;
+      
+      console.log('🔍 Analyzing mission response structure:');
+      console.log('📊 Response:', JSON.stringify(response, null, 2));
+      console.log('🔑 Response keys:', response ? Object.keys(response) : 'No keys');
+      
+      if (response?.success && response?.mission) {
+        data = response.mission;
+        console.log('✅ Using response.mission structure (success + mission)');
+      } else if (response?.mission) {
+        data = response.mission;
+        console.log('✅ Using response.mission structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        data = response.data;
+        console.log('✅ Using response.data structure (with success flag)');
+      } else if (response?.data && !response?.success) {
+        data = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response) && response.length > 0) {
+        data = response[0];
+        console.log('✅ Using first array item');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        data = response;
+        console.log('✅ Using response directly as data');
+      }
+      
+      console.log('📝 Extracted mission data:', data);
+      console.log('🔑 Mission data keys:', data ? Object.keys(data) : 'No data keys');
+      
+      if (data && Object.keys(data).length > 0) {
+        console.log('📝 Setting mission form data with:', {
+          missionHeading: data.missionHeading || data.heading || 'MISSING',
+          missionDescription: data.missionDescription || data.description || 'MISSING',
+          missionImage: data.missionImage || data.image || 'MISSING',
+          missionPoints: data.missionPoints || data.points || 'MISSING'
         });
+        
+        const newFormData = {
+          missionHeading: data.missionHeading || data.heading || '',
+          missionDescription: data.missionDescription || data.description || '',
+          missionImage: data.missionImage || data.image || '',
+          missionPoints: Array.isArray(data.missionPoints) ? data.missionPoints : 
+                        Array.isArray(data.points) ? data.points : 
+                        ['', '', '', '']
+        };
+        
+        console.log('🎯 Final mission form data to set:', newFormData);
+        setFormData(newFormData);
+        toast.success('Mission section data loaded successfully');
+      } else {
+        console.log('⚠️ No mission data found or empty data object');
+        console.log('📊 Full mission response debug:', JSON.stringify(response, null, 2));
+        setFormData(demoData);
+        toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching mission data:', error);
-      toast.error('Failed to load mission data');
+      console.error('❌ Error fetching mission data:', error);
+      console.log('📊 Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
+      toast.error('Failed to load mission data. Using demo data.');
+      setFormData(demoData);
     } finally {
       setIsLoading(false);
     }
@@ -80,16 +155,50 @@ const EditOurMission = () => {
     }));
   };
 
-  const handleImageUpload = (file) => {
-    if (file) {
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    
+    if (isDemoMode) {
+      // Demo mode - use base64
       const reader = new FileReader();
       reader.onload = (e) => {
         setFormData(prev => ({
           ...prev,
           missionImage: e.target.result
         }));
+        toast.success('Mission image uploaded successfully (Demo mode)');
       };
       reader.readAsDataURL(file);
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      
+      // Create FormData for API upload
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'about-us/mission');
+      
+      console.log('🖼️ Uploading mission image:', file.name);
+      
+      const response = await uploadImage(formData).unwrap();
+      
+      if (response?.imageUrl) {
+        setFormData(prev => ({
+          ...prev,
+          missionImage: response.imageUrl
+        }));
+        toast.success('Mission image uploaded successfully!');
+        console.log('✅ Mission image uploaded:', response.imageUrl);
+      } else {
+        throw new Error('No image URL returned from server');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading mission image:', error);
+      toast.error('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -128,15 +237,26 @@ const EditOurMission = () => {
 
     try {
       setIsLoading(true);
-      const response = await updateAboutUsData(formData).unwrap();
+      console.log('📤 Updating About Mission Data:', formData);
       
-      if (response?.message) {
-        toast.success(response.message);
+      const response = await updateAboutMissionData({ 
+        id: "68ee0bc170e1bfc20b375413", 
+        data: formData 
+      }).unwrap();
+      
+      console.log('✅ Update Response:', response);
+      
+      if (response?.success) {
+        toast.success(response.message || 'Mission section updated successfully!');
+        // Refresh data to show updated values
+        setTimeout(() => {
+          fetchMissionData();
+        }, 1000);
       } else {
-        toast.success('Our Mission section updated successfully!');
+        toast.error('Failed to update mission section');
       }
     } catch (error) {
-      console.error('Error updating mission data:', error);
+      console.error('❌ Error updating mission data:', error);
       toast.error(error?.data?.message || 'Failed to update mission section');
     } finally {
       setIsLoading(false);
@@ -273,7 +393,14 @@ const EditOurMission = () => {
                       accept="image/*"
                       onChange={(e) => handleImageUpload(e.target.files[0])}
                       className="mb-3"
+                      disabled={uploadingImage}
                     />
+                    {uploadingImage && (
+                      <div className="text-center mb-3">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <small className="text-muted">Uploading...</small>
+                      </div>
+                    )}
                     <Form.Text className="text-muted">
                       This image will appear on the left column of the mission section
                     </Form.Text>
