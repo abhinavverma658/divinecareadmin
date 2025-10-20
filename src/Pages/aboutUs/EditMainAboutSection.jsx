@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner } from 'react-bootstrap';
 import { FaSave, FaUpload, FaTrash, FaPlus, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutMainDataMutation, useUpdateAboutMainDataMutation } from '../../features/apiSlice';
+import { useGetAboutMainDataMutation, useUpdateAboutMainDataMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
 const EditMainAboutSection = () => {
@@ -18,10 +18,16 @@ const EditMainAboutSection = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState({
+    leftImage1: false,
+    leftImage2: false,
+    rightImage: false
+  });
   
   // API mutations
   const [getAboutMainData] = useGetAboutMainDataMutation();
   const [updateAboutMainData] = useUpdateAboutMainDataMutation();
+  const [uploadImage] = useUploadImageMutation();
 
   // Demo data for testing
   const demoData = {
@@ -53,9 +59,28 @@ const EditMainAboutSection = () => {
       setIsLoading(true);
       const response = await getAboutMainData().unwrap();
       console.log('📥 About Main Data Response:', response);
+      console.log('📊 Response keys:', Object.keys(response || {}));
+      console.log('📋 Response type:', typeof response);
+      
+      // Check multiple possible response structures
+      let data = null;
       
       if (response?.success && response?.data) {
-        const data = response.data;
+        data = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data) {
+        data = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response) && response.length > 0) {
+        data = response[0];
+        console.log('✅ Using first array item');
+      } else if (response && typeof response === 'object' && !response.error) {
+        data = response;
+        console.log('✅ Using response directly as data');
+      }
+      
+      if (data) {
+        console.log('📝 Data to populate:', data);
         setFormData({
           heading: data.heading || '',
           smallDescription: data.smallDescription || '',
@@ -69,10 +94,16 @@ const EditMainAboutSection = () => {
       } else {
         // No data found, show message and keep demo data
         console.log('⚠️ No main about data found, keeping demo data');
+        console.log('📊 Full response:', JSON.stringify(response, null, 2));
         toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching about main data:', error);
+      console.error('❌ Error fetching about main data:', error);
+      console.log('📊 Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
       toast.error('Failed to load about main data. Using demo data.');
       // Keep demo data on error
     } finally {
@@ -97,16 +128,50 @@ const EditMainAboutSection = () => {
     }));
   };
 
-  const handleImageUpload = (field, file) => {
-    if (file) {
+  const handleImageUpload = async (field, file) => {
+    if (!file) return;
+    
+    if (isDemoMode) {
+      // Demo mode - use base64
       const reader = new FileReader();
       reader.onload = (e) => {
         setFormData(prev => ({
           ...prev,
           [field]: e.target.result
         }));
+        toast.success(`${field} uploaded successfully (Demo mode)`);
       };
       reader.readAsDataURL(file);
+      return;
+    }
+
+    try {
+      setUploadingImages(prev => ({ ...prev, [field]: true }));
+      
+      // Create FormData for API upload
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'about-us'); // Optional: organize uploads
+      
+      console.log(`🖼️ Uploading ${field}:`, file.name);
+      
+      const response = await uploadImage(formData).unwrap();
+      
+      if (response?.imageUrl) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: response.imageUrl
+        }));
+        toast.success(`${field} uploaded successfully!`);
+        console.log(`✅ ${field} uploaded:`, response.imageUrl);
+      } else {
+        throw new Error('No image URL returned from server');
+      }
+    } catch (error) {
+      console.error(`❌ Error uploading ${field}:`, error);
+      toast.error(`Failed to upload ${field}. Please try again.`);
+    } finally {
+      setUploadingImages(prev => ({ ...prev, [field]: false }));
     }
   };
 
@@ -316,7 +381,14 @@ const EditMainAboutSection = () => {
                           accept="image/*"
                           onChange={(e) => handleImageUpload('leftImage1', e.target.files[0])}
                           className="mb-2"
+                          disabled={uploadingImages.leftImage1}
                         />
+                        {uploadingImages.leftImage1 && (
+                          <div className="text-center">
+                            <Spinner animation="border" size="sm" className="me-2" />
+                            <small className="text-muted">Uploading...</small>
+                          </div>
+                        )}
                       </div>
                     </Form.Group>
                   </Col>
@@ -337,7 +409,14 @@ const EditMainAboutSection = () => {
                           accept="image/*"
                           onChange={(e) => handleImageUpload('leftImage2', e.target.files[0])}
                           className="mb-2"
+                          disabled={uploadingImages.leftImage2}
                         />
+                        {uploadingImages.leftImage2 && (
+                          <div className="text-center">
+                            <Spinner animation="border" size="sm" className="me-2" />
+                            <small className="text-muted">Uploading...</small>
+                          </div>
+                        )}
                       </div>
                     </Form.Group>
                   </Col>
@@ -360,7 +439,14 @@ const EditMainAboutSection = () => {
                       accept="image/*"
                       onChange={(e) => handleImageUpload('rightImage', e.target.files[0])}
                       className="mb-2"
+                      disabled={uploadingImages.rightImage}
                     />
+                    {uploadingImages.rightImage && (
+                      <div className="text-center">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <small className="text-muted">Uploading...</small>
+                      </div>
+                    )}
                   </div>
                 </Form.Group>
               </Card.Body>

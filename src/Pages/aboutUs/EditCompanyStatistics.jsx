@@ -59,9 +59,27 @@ const EditCompanyStatistics = () => {
       setIsLoading(true);
       const response = await getAboutCompanyData().unwrap();
       console.log('📥 About Company Data Response:', response);
+      console.log('📊 Response keys:', Object.keys(response || {}));
+      
+      // Check multiple possible response structures
+      let data = null;
       
       if (response?.success && response?.data) {
-        const data = response.data;
+        data = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data) {
+        data = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response) && response.length > 0) {
+        data = response[0];
+        console.log('✅ Using first array item');
+      } else if (response && typeof response === 'object' && !response.error) {
+        data = response;
+        console.log('✅ Using response directly as data');
+      }
+      
+      if (data) {
+        console.log('📝 Company statistics data to populate:', data);
         setFormData({
           statsHeading: data.statsHeading || '',
           statsDescription: data.statsDescription || '',
@@ -79,10 +97,16 @@ const EditCompanyStatistics = () => {
         toast.success('Company statistics data loaded successfully');
       } else {
         console.log('⚠️ No company statistics data found, keeping demo data');
+        console.log('📊 Full response:', JSON.stringify(response, null, 2));
         toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching company statistics data:', error);
+      console.error('❌ Error fetching company statistics data:', error);
+      console.log('📊 Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
       toast.error('Failed to load company statistics data. Using demo data.');
     } finally {
       setIsLoading(false);

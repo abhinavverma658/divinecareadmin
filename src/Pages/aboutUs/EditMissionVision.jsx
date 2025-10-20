@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner, Nav, Tab } from 'react-bootstrap';
 import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutVisionDataMutation, useUpdateAboutVisionDataMutation } from '../../features/apiSlice';
+import { useGetAboutVisionDataMutation, useUpdateAboutVisionDataMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
 const EditMissionVision = () => {
@@ -27,10 +27,12 @@ const EditMissionVision = () => {
   const [activeTab, setActiveTab] = useState('mission');
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   // API mutations - using Vision endpoints
   const [getAboutVisionData] = useGetAboutVisionDataMutation();
   const [updateAboutVisionData] = useUpdateAboutVisionDataMutation();
+  const [uploadImage] = useUploadImageMutation();
 
   // Demo data for testing
   const demoData = {
@@ -66,9 +68,27 @@ const EditMissionVision = () => {
       setIsLoading(true);
       const response = await getAboutVisionData().unwrap();
       console.log('📥 About Vision Data Response:', response);
+      console.log('📊 Response keys:', Object.keys(response || {}));
+      
+      // Check multiple possible response structures
+      let data = null;
       
       if (response?.success && response?.data) {
-        const data = response.data;
+        data = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data) {
+        data = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response) && response.length > 0) {
+        data = response[0];
+        console.log('✅ Using first array item');
+      } else if (response && typeof response === 'object' && !response.error) {
+        data = response;
+        console.log('✅ Using response directly as data');
+      }
+      
+      if (data) {
+        console.log('📝 Vision data to populate:', data);
         setFormData({
           mvHeading: data.mvHeading || '',
           mvDescription: data.mvDescription || '',
@@ -80,10 +100,16 @@ const EditMissionVision = () => {
         toast.success('Vision section data loaded successfully');
       } else {
         console.log('⚠️ No vision data found, keeping demo data');
+        console.log('📊 Full response:', JSON.stringify(response, null, 2));
         toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
-      console.error('Error fetching vision data:', error);
+      console.error('❌ Error fetching vision data:', error);
+      console.log('📊 Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
       toast.error('Failed to load vision data. Using demo data.');
     } finally {
       setIsLoading(false);
@@ -108,16 +134,50 @@ const EditMissionVision = () => {
     }));
   };
 
-  const handleImageUpload = (file) => {
-    if (file) {
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    
+    if (isDemoMode) {
+      // Demo mode - use base64
       const reader = new FileReader();
       reader.onload = (e) => {
         setFormData(prev => ({
           ...prev,
           mvImage: e.target.result
         }));
+        toast.success('Mission & Vision image uploaded successfully (Demo mode)');
       };
       reader.readAsDataURL(file);
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      
+      // Create FormData for API upload
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'about-us/mission-vision');
+      
+      console.log('🖼️ Uploading mission & vision image:', file.name);
+      
+      const response = await uploadImage(formData).unwrap();
+      
+      if (response?.imageUrl) {
+        setFormData(prev => ({
+          ...prev,
+          mvImage: response.imageUrl
+        }));
+        toast.success('Mission & Vision image uploaded successfully!');
+        console.log('✅ Mission & Vision image uploaded:', response.imageUrl);
+      } else {
+        throw new Error('No image URL returned from server');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading mission & vision image:', error);
+      toast.error('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -389,7 +449,14 @@ const EditMissionVision = () => {
                       accept="image/*"
                       onChange={(e) => handleImageUpload(e.target.files[0])}
                       className="mb-3"
+                      disabled={uploadingImage}
                     />
+                    {uploadingImage && (
+                      <div className="text-center mb-3">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <small className="text-muted">Uploading...</small>
+                      </div>
+                    )}
                     <Form.Text className="text-muted">
                       This image will appear on the left side of the mission & vision section
                     </Form.Text>
