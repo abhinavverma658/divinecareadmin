@@ -4,6 +4,7 @@ import { FaSave, FaUpload, FaTrash, FaPlus, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useGetAboutMainDataMutation, useUpdateAboutMainDataMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
+import { store } from '../../store';
 
 const EditMainAboutSection = () => {
   const [formData, setFormData] = useState({
@@ -57,6 +58,37 @@ const EditMainAboutSection = () => {
   const fetchAboutUsData = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 Starting About Main Data fetch...');
+      
+      // Direct fetch test for debugging
+      const state = store.getState();
+      const token = state?.auth?.token;
+      const cleanToken = token ? token.replace(/"/g, '') : null;
+      
+      console.log('🔑 Using token (first 20 chars):', cleanToken?.substring(0, 20) + '...');
+      console.log('🌐 Backend URL:', 'https://divinecare-backend.onrender.com/api/about/main');
+      
+      // Test direct fetch first
+      try {
+        const directResponse = await fetch('https://divinecare-backend.onrender.com/api/about/main', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` })
+          }
+        });
+        
+        const directData = await directResponse.json();
+        console.log('🧪 Direct fetch result:', {
+          status: directResponse.status,
+          ok: directResponse.ok,
+          data: directData
+        });
+      } catch (directError) {
+        console.error('🧪 Direct fetch failed:', directError);
+      }
+      
+      // Now try RTK Query mutation
       const response = await getAboutMainData().unwrap();
       console.log('📥 About Main Data Response:', response);
       console.log('📊 Response keys:', Object.keys(response || {}));
