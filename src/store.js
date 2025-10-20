@@ -22,4 +22,6 @@ export const setupStore = preloadedState => {
   })
 };
 
+// Export both as named export and default export
+export { store };
 export default store;

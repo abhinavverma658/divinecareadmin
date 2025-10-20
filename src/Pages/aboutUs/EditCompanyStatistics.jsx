@@ -49,55 +49,112 @@ const EditCompanyStatistics = () => {
     if (!token || token === '"demo-token"') {
       setIsDemoMode(true);
       setFormData(demoData);
+      console.log('🎭 Demo mode activated for statistics, using demo data');
     } else {
+      console.log('🔐 Real token found for statistics, fetching from API');
       fetchStatisticsData();
     }
   }, []);
 
+  // Debug form data changes for statistics
+  useEffect(() => {
+    console.log('🔄 Statistics form data updated:', {
+      statsHeading: formData.statsHeading,
+      statsDescription: formData.statsDescription?.substring(0, 50) + '...',
+      ctaButton: formData.ctaButtonText,
+      statistics: {
+        stat1: `${formData.stat1Number} - ${formData.stat1Label}`,
+        stat2: `${formData.stat2Number} - ${formData.stat2Label}`,
+        stat3: `${formData.stat3Number} - ${formData.stat3Label}`,
+        stat4: `${formData.stat4Number} - ${formData.stat4Label}`
+      }
+    });
+  }, [formData]);
+
   const fetchStatisticsData = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 Starting About Company Data fetch...');
+      
       const response = await getAboutCompanyData().unwrap();
       console.log('📥 About Company Data Response:', response);
       console.log('📊 Response keys:', Object.keys(response || {}));
+      console.log('📋 Response type:', typeof response);
       
       // Check multiple possible response structures
       let data = null;
       
-      if (response?.success && response?.data) {
+      console.log('🔍 Analyzing company response structure:');
+      console.log('📊 Response:', JSON.stringify(response, null, 2));
+      console.log('🔑 Response keys:', response ? Object.keys(response) : 'No keys');
+      
+      if (response?.success && response?.company) {
+        data = response.company;
+        console.log('✅ Using response.company structure (success + company)');
+      } else if (response?.company) {
+        data = response.company;
+        console.log('✅ Using response.company structure (no success flag)');
+      } else if (response?.success && response?.statistics) {
+        data = response.statistics;
+        console.log('✅ Using response.statistics structure (success + statistics)');
+      } else if (response?.statistics) {
+        data = response.statistics;
+        console.log('✅ Using response.statistics structure (no success flag)');
+      } else if (response?.success && response?.data) {
         data = response.data;
-        console.log('✅ Using response.data structure');
-      } else if (response?.data) {
+        console.log('✅ Using response.data structure (with success flag)');
+      } else if (response?.data && !response?.success) {
         data = response.data;
         console.log('✅ Using response.data structure (no success flag)');
       } else if (Array.isArray(response) && response.length > 0) {
         data = response[0];
         console.log('✅ Using first array item');
-      } else if (response && typeof response === 'object' && !response.error) {
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
         data = response;
         console.log('✅ Using response directly as data');
       }
       
-      if (data) {
-        console.log('📝 Company statistics data to populate:', data);
-        setFormData({
-          statsHeading: data.statsHeading || '',
-          statsDescription: data.statsDescription || '',
-          ctaButtonText: data.ctaButtonText || '',
-          ctaButtonLink: data.ctaButtonLink || '',
-          stat1Number: data.stat1Number || '',
-          stat1Label: data.stat1Label || '',
-          stat2Number: data.stat2Number || '',
-          stat2Label: data.stat2Label || '',
-          stat3Number: data.stat3Number || '',
-          stat3Label: data.stat3Label || '',
-          stat4Number: data.stat4Number || '',
-          stat4Label: data.stat4Label || ''
+      console.log('📝 Extracted company data:', data);
+      console.log('🔑 Company data keys:', data ? Object.keys(data) : 'No data keys');
+      
+      if (data && Object.keys(data).length > 0) {
+        console.log('📝 Setting company form data with:', {
+          statsHeading: data.statsHeading || data.heading || 'MISSING',
+          statsDescription: data.statsDescription || data.description || 'MISSING',
+          ctaButtonText: data.ctaButtonText || data.buttonText || 'MISSING',
+          ctaButtonLink: data.ctaButtonLink || data.buttonLink || 'MISSING',
+          stat1Number: data.stat1Number || data.statistics?.[0]?.number || 'MISSING',
+          stat1Label: data.stat1Label || data.statistics?.[0]?.label || 'MISSING',
+          stat2Number: data.stat2Number || data.statistics?.[1]?.number || 'MISSING',
+          stat2Label: data.stat2Label || data.statistics?.[1]?.label || 'MISSING',
+          stat3Number: data.stat3Number || data.statistics?.[2]?.number || 'MISSING',
+          stat3Label: data.stat3Label || data.statistics?.[2]?.label || 'MISSING',
+          stat4Number: data.stat4Number || data.statistics?.[3]?.number || 'MISSING',
+          stat4Label: data.stat4Label || data.statistics?.[3]?.label || 'MISSING'
         });
+        
+        const newFormData = {
+          statsHeading: data.statsHeading || data.heading || '',
+          statsDescription: data.statsDescription || data.description || '',
+          ctaButtonText: data.ctaButtonText || data.buttonText || '',
+          ctaButtonLink: data.ctaButtonLink || data.buttonLink || '',
+          stat1Number: data.stat1Number || data.statistics?.[0]?.number || '',
+          stat1Label: data.stat1Label || data.statistics?.[0]?.label || '',
+          stat2Number: data.stat2Number || data.statistics?.[1]?.number || '',
+          stat2Label: data.stat2Label || data.statistics?.[1]?.label || '',
+          stat3Number: data.stat3Number || data.statistics?.[2]?.number || '',
+          stat3Label: data.stat3Label || data.statistics?.[2]?.label || '',
+          stat4Number: data.stat4Number || data.statistics?.[3]?.number || '',
+          stat4Label: data.stat4Label || data.statistics?.[3]?.label || ''
+        };
+        
+        console.log('🎯 Final company form data to set:', newFormData);
+        setFormData(newFormData);
         toast.success('Company statistics data loaded successfully');
       } else {
-        console.log('⚠️ No company statistics data found, keeping demo data');
-        console.log('📊 Full response:', JSON.stringify(response, null, 2));
+        console.log('⚠️ No company statistics data found or empty data object');
+        console.log('📊 Full company response debug:', JSON.stringify(response, null, 2));
+        setFormData(demoData);
         toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
@@ -108,6 +165,7 @@ const EditCompanyStatistics = () => {
         data: error.data
       });
       toast.error('Failed to load company statistics data. Using demo data.');
+      setFormData(demoData);
     } finally {
       setIsLoading(false);
     }

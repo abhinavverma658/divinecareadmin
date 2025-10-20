@@ -50,10 +50,27 @@ const EditMainAboutSection = () => {
     if (!token || token === '"demo-token"') {
       setIsDemoMode(true);
       setFormData(demoData);
+      console.log('🎭 Demo mode activated, using demo data');
     } else {
+      console.log('🔐 Real token found, fetching from API');
       fetchAboutUsData();
     }
   }, []);
+
+  // Debug form data changes
+  useEffect(() => {
+    console.log('🔄 Form data updated:', {
+      heading: formData.heading,
+      smallDescription: formData.smallDescription,
+      hasImages: {
+        leftImage1: !!formData.leftImage1,
+        leftImage2: !!formData.leftImage2, 
+        rightImage: !!formData.rightImage
+      },
+      description: formData.description?.substring(0, 50) + '...',
+      keyPointsCount: formData.keyPoints?.length
+    });
+  }, [formData]);
 
   const fetchAboutUsData = async () => {
     try {
@@ -97,36 +114,63 @@ const EditMainAboutSection = () => {
       // Check multiple possible response structures
       let data = null;
       
-      if (response?.success && response?.data) {
+      console.log('🔍 Analyzing response structure:');
+      console.log('📊 Response:', JSON.stringify(response, null, 2));
+      console.log('📋 Response type:', typeof response);
+      console.log('🔑 Response keys:', response ? Object.keys(response) : 'No keys');
+      
+      if (response?.success && response?.about) {
+        data = response.about;
+        console.log('✅ Using response.about structure (success + about)');
+      } else if (response?.about) {
+        data = response.about;
+        console.log('✅ Using response.about structure (no success flag)');
+      } else if (response?.success && response?.data) {
         data = response.data;
-        console.log('✅ Using response.data structure');
-      } else if (response?.data) {
+        console.log('✅ Using response.data structure (with success flag)');
+      } else if (response?.data && !response?.success) {
         data = response.data;
         console.log('✅ Using response.data structure (no success flag)');
       } else if (Array.isArray(response) && response.length > 0) {
         data = response[0];
         console.log('✅ Using first array item');
-      } else if (response && typeof response === 'object' && !response.error) {
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
         data = response;
         console.log('✅ Using response directly as data');
       }
       
-      if (data) {
-        console.log('📝 Data to populate:', data);
-        setFormData({
+      console.log('📝 Extracted data:', data);
+      console.log('🔑 Data keys:', data ? Object.keys(data) : 'No data keys');
+      
+      if (data && Object.keys(data).length > 0) {
+        console.log('📝 Setting form data with:', {
+          heading: data.heading || 'MISSING',
+          smallDescription: data.smallDescription || 'MISSING', 
+          leftImage1: data.images?.[0] || data.leftImage1 || 'MISSING',
+          leftImage2: data.images?.[1] || data.leftImage2 || 'MISSING',
+          rightImage: data.images?.[2] || data.rightImage || 'MISSING',
+          description: data.mainDescription || data.description || 'MISSING',
+          keyPoints: data.keyPoints || 'MISSING'
+        });
+        
+        const newFormData = {
           heading: data.heading || '',
           smallDescription: data.smallDescription || '',
-          leftImage1: data.leftImage1 || '',
-          leftImage2: data.leftImage2 || '',
-          rightImage: data.rightImage || '',
-          description: data.description || '',
-          keyPoints: data.keyPoints || ['', '', '']
-        });
+          leftImage1: data.images?.[0] || data.leftImage1 || '',
+          leftImage2: data.images?.[1] || data.leftImage2 || '',
+          rightImage: data.images?.[2] || data.rightImage || '',
+          description: data.mainDescription || data.description || '',
+          keyPoints: Array.isArray(data.keyPoints) ? data.keyPoints : ['', '', '']
+        };
+        
+        console.log('🎯 Final form data to set:', newFormData);
+        setFormData(newFormData);
         toast.success('Main About section data loaded successfully');
       } else {
         // No data found, show message and keep demo data
-        console.log('⚠️ No main about data found, keeping demo data');
-        console.log('📊 Full response:', JSON.stringify(response, null, 2));
+        console.log('⚠️ No main about data found or empty data object');
+        console.log('📊 Full response debug:', JSON.stringify(response, null, 2));
+        setFormData(demoData);
         toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {

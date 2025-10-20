@@ -58,49 +58,93 @@ const EditMissionVision = () => {
     if (!token || token === '"demo-token"') {
       setIsDemoMode(true);
       setFormData(demoData);
+      console.log('🎭 Demo mode activated for vision, using demo data');
     } else {
+      console.log('🔐 Real token found for vision, fetching from API');
       fetchMissionVisionData();
     }
   }, []);
 
+  // Debug form data changes for vision
+  useEffect(() => {
+    console.log('🔄 Vision form data updated:', {
+      mvHeading: formData.mvHeading,
+      mvDescription: formData.mvDescription?.substring(0, 50) + '...',
+      hasImage: !!formData.mvImage,
+      tabs: {
+        mission: formData.ourMissionTab?.title || 'Empty',
+        vision: formData.ourVisionTab?.title || 'Empty',
+        history: formData.charityHistoryTab?.title || 'Empty'
+      }
+    });
+  }, [formData]);
+
   const fetchMissionVisionData = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 Starting About Vision Data fetch...');
+      
       const response = await getAboutVisionData().unwrap();
       console.log('📥 About Vision Data Response:', response);
       console.log('📊 Response keys:', Object.keys(response || {}));
+      console.log('📋 Response type:', typeof response);
       
       // Check multiple possible response structures
       let data = null;
       
-      if (response?.success && response?.data) {
+      console.log('🔍 Analyzing vision response structure:');
+      console.log('📊 Response:', JSON.stringify(response, null, 2));
+      console.log('🔑 Response keys:', response ? Object.keys(response) : 'No keys');
+      
+      if (response?.success && response?.vision) {
+        data = response.vision;
+        console.log('✅ Using response.vision structure (success + vision)');
+      } else if (response?.vision) {
+        data = response.vision;
+        console.log('✅ Using response.vision structure (no success flag)');
+      } else if (response?.success && response?.data) {
         data = response.data;
-        console.log('✅ Using response.data structure');
-      } else if (response?.data) {
+        console.log('✅ Using response.data structure (with success flag)');
+      } else if (response?.data && !response?.success) {
         data = response.data;
         console.log('✅ Using response.data structure (no success flag)');
       } else if (Array.isArray(response) && response.length > 0) {
         data = response[0];
         console.log('✅ Using first array item');
-      } else if (response && typeof response === 'object' && !response.error) {
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
         data = response;
         console.log('✅ Using response directly as data');
       }
       
-      if (data) {
-        console.log('📝 Vision data to populate:', data);
-        setFormData({
-          mvHeading: data.mvHeading || '',
-          mvDescription: data.mvDescription || '',
-          mvImage: data.mvImage || '',
-          ourMissionTab: data.ourMissionTab || { title: '', content: '' },
-          ourVisionTab: data.ourVisionTab || { title: '', content: '' },
-          charityHistoryTab: data.charityHistoryTab || { title: '', content: '' }
+      console.log('📝 Extracted vision data:', data);
+      console.log('🔑 Vision data keys:', data ? Object.keys(data) : 'No data keys');
+      
+      if (data && Object.keys(data).length > 0) {
+        console.log('📝 Setting vision form data with:', {
+          mvHeading: data.mvHeading || data.heading || 'MISSING',
+          mvDescription: data.mvDescription || data.description || 'MISSING',
+          mvImage: data.mvImage || data.image || 'MISSING',
+          ourMissionTab: data.ourMissionTab || data.missionTab || 'MISSING',
+          ourVisionTab: data.ourVisionTab || data.visionTab || 'MISSING',
+          charityHistoryTab: data.charityHistoryTab || data.historyTab || 'MISSING'
         });
+        
+        const newFormData = {
+          mvHeading: data.mvHeading || data.heading || '',
+          mvDescription: data.mvDescription || data.description || '',
+          mvImage: data.mvImage || data.image || '',
+          ourMissionTab: data.ourMissionTab || data.missionTab || { title: '', content: '' },
+          ourVisionTab: data.ourVisionTab || data.visionTab || { title: '', content: '' },
+          charityHistoryTab: data.charityHistoryTab || data.historyTab || { title: '', content: '' }
+        };
+        
+        console.log('🎯 Final vision form data to set:', newFormData);
+        setFormData(newFormData);
         toast.success('Vision section data loaded successfully');
       } else {
-        console.log('⚠️ No vision data found, keeping demo data');
-        console.log('📊 Full response:', JSON.stringify(response, null, 2));
+        console.log('⚠️ No vision data found or empty data object');
+        console.log('📊 Full vision response debug:', JSON.stringify(response, null, 2));
+        setFormData(demoData);
         toast.info('No saved data found. Using demo data.');
       }
     } catch (error) {
@@ -111,6 +155,7 @@ const EditMissionVision = () => {
         data: error.data
       });
       toast.error('Failed to load vision data. Using demo data.');
+      setFormData(demoData);
     } finally {
       setIsLoading(false);
     }
