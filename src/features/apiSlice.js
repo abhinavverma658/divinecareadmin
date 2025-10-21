@@ -576,53 +576,53 @@ const baseQuery = async (args, api, extraOptions) => {
     // Events
     getEvents: builder.mutation({
       query: () => ({
-        url: "/events/get-events",
+        url: "/events",
         method: "GET",
       }),
     }),
     getEventById: builder.mutation({
       query: (id) => ({
-        url: `/events/get-event/${id}`,
+        url: `/events/${id}`,
         method: "GET",
       }),
     }),
     createEvent: builder.mutation({
       query: (data) => ({
-        url: "/events/create-event",
+        url: "/events",
         method: "POST",
         body: data,
       }),
     }),
-    updateEvent: builder.mutation({
+   updateEvent: builder.mutation({
       query: ({ id, data }) => ({
-        url: `/events/update-event/${id}`,
-        method: "PATCH",
+        url: `/events/${id}`,
+        method: "PUT",
         body: data,
-      }),
+      }), 
     }),
     deleteEvent: builder.mutation({
       query: (id) => ({
-        url: `/events/delete-event/${id}`,
+        url: `/events/${id}`,
         method: "DELETE",
       }),
     }),
     toggleEventStatus: builder.mutation({
       query: ({ id, isActive }) => ({
-        url: `/events/toggle-event-status/${id}`,
+        url: `/api/events/toggle-event-status/${id}`,
         method: "PATCH",
         body: { isActive },
       }),
     }),
     toggleEventFeatured: builder.mutation({
       query: ({ id, featured }) => ({
-        url: `/events/toggle-event-featured/${id}`,
+        url: `/api/events/toggle-event-featured/${id}`,
         method: "PATCH",
         body: { featured },
       }),
     }),
     updateEventOrder: builder.mutation({
       query: (data) => ({
-        url: "/events/update-event-order",
+        url: "/api/events/update-event-order",
         method: "PATCH",
         body: data,
       }),

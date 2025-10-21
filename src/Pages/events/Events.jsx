@@ -42,175 +42,80 @@ const Events = () => {
     featured: 0
   });
 
-  // Demo data for events
-  const demoEvents = [
-    {
-      _id: '1',
-      title: 'Financial Planning Webinar',
-      description: 'Join our comprehensive webinar on personal financial planning strategies for 2024. Learn from industry experts about investment opportunities, retirement planning, and wealth management.',
-      shortDescription: 'Learn essential financial planning strategies from industry experts',
-      startDate: '2025-11-15T14:00:00Z',
-      endDate: '2025-11-15T16:00:00Z',
-      registrationDeadline: '2025-11-14T23:59:59Z',
-      location: 'Virtual - Zoom Platform',
-      venue: 'Online Meeting Room',
-      images: [
-        'https://creative-story.s3.amazonaws.com/events/financial-planning-webinar.jpg',
-        'https://creative-story.s3.amazonaws.com/events/webinar-speakers.jpg'
-      ],
-      featuredImage: 'https://creative-story.s3.amazonaws.com/events/financial-planning-webinar.jpg',
-      isActive: true,
-      featured: true,
-      status: 'upcoming',
-      priority: 'high',
-      maxAttendees: 100,
-      currentAttendees: 45,
-      createdAt: '2024-01-15T10:00:00Z',
-      updatedAt: '2024-01-15T10:00:00Z'
-    },
-    {
-      _id: '2',
-      title: 'SAYV Financial Summit 2024',
-      description: 'Annual financial summit bringing together industry leaders, financial advisors, and investors. Network with professionals and discover the latest trends in financial services.',
-      shortDescription: 'Annual summit for financial professionals and investors',
-      startDate: '2025-12-20T09:00:00Z',
-      endDate: '2025-12-22T17:00:00Z',
-      registrationDeadline: '2025-12-15T23:59:59Z',
-      location: 'New York Convention Center, NY',
-      venue: 'Grand Ballroom, 2nd Floor',
-      images: [
-        'https://creative-story.s3.amazonaws.com/events/financial-summit-2024.jpg',
-        'https://creative-story.s3.amazonaws.com/events/summit-venue.jpg',
-        'https://creative-story.s3.amazonaws.com/events/networking-session.jpg'
-      ],
-      featuredImage: 'https://creative-story.s3.amazonaws.com/events/financial-summit-2024.jpg',
-      isActive: true,
-      featured: true,
-      status: 'upcoming',
-      priority: 'high',
-      maxAttendees: 500,
-      currentAttendees: 287,
-      createdAt: '2024-01-10T12:00:00Z',
-      updatedAt: '2024-01-20T15:30:00Z'
-    },
-    {
-      _id: '3',
-      title: 'Small Business Financial Workshop',
-      description: 'Interactive workshop designed for small business owners to learn about business financial management, cash flow optimization, and growth funding strategies.',
-      shortDescription: 'Financial management workshop for small business owners',
-      startDate: '2025-11-28T13:00:00Z',
-      endDate: '2025-11-28T17:00:00Z',
-      registrationDeadline: '2025-11-26T23:59:59Z',
-      location: 'SAYV Financial Office & Online',
-      venue: 'Conference Room A',
-      images: [
-        'https://creative-story.s3.amazonaws.com/events/small-business-workshop.jpg',
-        'https://creative-story.s3.amazonaws.com/events/workshop-materials.jpg'
-      ],
-      featuredImage: 'https://creative-story.s3.amazonaws.com/events/small-business-workshop.jpg',
-      isActive: true,
-      featured: false,
-      status: 'upcoming',
-      priority: 'medium',
-      maxAttendees: 50,
-      currentAttendees: 32,
-      createdAt: '2024-01-08T09:00:00Z',
-      updatedAt: '2024-01-18T14:20:00Z'
-    },
-    {
-      _id: '4',
-      title: 'Retirement Planning Seminar',
-      description: 'Comprehensive seminar covering retirement planning strategies, social security optimization, and healthcare considerations for retirees.',
-      shortDescription: 'Complete guide to retirement planning and preparation',
-      startDate: '2024-01-25T10:00:00Z',
-      endDate: '2024-01-25T15:00:00Z',
-      registrationDeadline: '2024-01-23T23:59:59Z',
-      location: 'Community Center, Downtown',
-      venue: 'Main Auditorium',
-      images: [
-        'https://creative-story.s3.amazonaws.com/events/retirement-seminar.jpg'
-      ],
-      featuredImage: 'https://creative-story.s3.amazonaws.com/events/retirement-seminar.jpg',
-      isActive: false,
-      featured: false,
-      status: 'completed',
-      priority: 'medium',
-      maxAttendees: 75,
-      currentAttendees: 68,
-      createdAt: '2023-12-15T11:00:00Z',
-      updatedAt: '2024-01-26T16:00:00Z'
-    },
-    {
-      _id: '5',
-      title: 'Youth Financial Literacy Camp',
-      description: 'Fun and educational camp for teenagers to learn basic financial concepts, budgeting, saving, and responsible spending habits.',
-      shortDescription: 'Financial education camp for teenagers',
-      startDate: '2025-01-10T09:00:00Z',
-      endDate: '2025-01-12T15:00:00Z',
-      registrationDeadline: '2025-01-05T23:59:59Z',
-      location: 'Youth Community Center',
-      venue: 'Activity Hall',
-      images: [
-        'https://creative-story.s3.amazonaws.com/events/youth-financial-camp.jpg',
-        'https://creative-story.s3.amazonaws.com/events/financial-games.jpg'
-      ],
-      featuredImage: 'https://creative-story.s3.amazonaws.com/events/youth-financial-camp.jpg',
-      isActive: true,
-      featured: false,
-      status: 'cancelled',
-      priority: 'low',
-      maxAttendees: 30,
-      currentAttendees: 12,
-      createdAt: '2024-01-05T10:00:00Z',
-      updatedAt: '2024-02-01T12:00:00Z'
-    },
-    {
-      _id: '6',
-      title: 'Investment Strategy Masterclass',
-      description: 'Advanced masterclass for experienced investors looking to enhance their portfolio management skills and learn about emerging market opportunities.',
-      shortDescription: 'Advanced investment strategies for experienced investors',
-      startDate: '2025-12-05T10:00:00Z',
-      endDate: '2025-12-05T16:00:00Z',
-      registrationDeadline: '2025-12-03T23:59:59Z',
-      location: 'Financial District Conference Center',
-      venue: 'Executive Board Room',
-      images: [
-        'https://creative-story.s3.amazonaws.com/events/investment-masterclass.jpg'
-      ],
-      featuredImage: 'https://creative-story.s3.amazonaws.com/events/investment-masterclass.jpg',
-      isActive: true,
-      featured: true,
-      status: 'upcoming',
-      priority: 'high',
-      maxAttendees: 25,
-      currentAttendees: 18,
-      createdAt: '2024-10-01T09:00:00Z',
-      updatedAt: '2024-10-08T14:30:00Z'
-    }
-  ];
-
   const fetchEvents = async () => {
     setIsLoading(true);
+    
     try {
-      // Always use demo data for now (remove this condition later when API is ready)
-      // if (token && token.startsWith("demo-token")) {
-        setEvents(demoEvents);
-        setFilteredEvents(demoEvents);
-        calculateStats(demoEvents);
-        setIsLoading(false);
-        return;
-      // }
-
-      // Real API call for production (commented out for now)
-      // const data = await getEvents().unwrap();
-      // const eventsData = data?.events || [];
-      // setEvents(eventsData);
-      // setFilteredEvents(eventsData);
-      // calculateStats(eventsData);
-      // setIsLoading(false);
+      console.log('🔄 Starting Events Data fetch...');
+      
+      const response = await getEvents().unwrap();
+      console.log('📥 Events Data Response:', response);
+      console.log('📊 Response keys:', Object.keys(response || {}));
+      console.log('📋 Response type:', typeof response);
+      
+      // Check multiple possible response structures
+      let eventsData = null;
+      
+      console.log('🔍 Analyzing events response structure:');
+      console.log('📊 Response:', JSON.stringify(response, null, 2));
+      console.log('🔑 Response keys:', response ? Object.keys(response) : 'No keys');
+      
+      if (response?.success && response?.events) {
+        eventsData = response.events;
+        console.log('✅ Using response.events structure (success + events)');
+      } else if (response?.events) {
+        eventsData = response.events;
+        console.log('✅ Using response.events structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        eventsData = response.data;
+        console.log('✅ Using response.data structure (with success flag)');
+      } else if (response?.data && !response?.success) {
+        eventsData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response)) {
+        eventsData = response;
+        console.log('✅ Using response directly as array');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        eventsData = response;
+        console.log('✅ Using response directly as data');
+      }
+      
+      console.log('📝 Extracted events data:', eventsData);
+      console.log('🔑 Events data type:', Array.isArray(eventsData) ? 'Array' : typeof eventsData);
+      console.log('📊 Events count:', Array.isArray(eventsData) ? eventsData.length : 'Not an array');
+      
+      if (Array.isArray(eventsData) && eventsData.length >= 0) {
+        console.log('🎯 Setting events data:', eventsData);
+        setEvents(eventsData);
+        setFilteredEvents(eventsData);
+        calculateStats(eventsData);
+        
+        if (eventsData.length === 0) {
+          toast.info('No events found. Create your first event!');
+        } else {
+          toast.success(`${eventsData.length} events loaded successfully`);
+        }
+      } else {
+        console.log('⚠️ No events data found or invalid format');
+        console.log('📊 Full events response debug:', JSON.stringify(response, null, 2));
+        setEvents([]);
+        setFilteredEvents([]);
+        calculateStats([]);
+        toast.info('No events found.');
+      }
     } catch (error) {
+      console.error('❌ Error fetching events data:', error);
+      console.log('📊 Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
+      toast.error('Failed to load events. Please try again.');
+      setEvents([]);
+      setFilteredEvents([]);
+      calculateStats([]);
+    } finally {
       setIsLoading(false);
-      getError(error);
     }
   };
 
@@ -272,49 +177,41 @@ const Events = () => {
 
   const handleToggleStatus = async (eventId, currentStatus) => {
     try {
-      // Always use demo mode for now
-      // if (token && token.startsWith("demo-token")) {
-        const updatedEvents = events.map(event =>
-          event._id === eventId ? { ...event, isActive: !currentStatus } : event
-        );
-        setEvents(updatedEvents);
-        calculateStats(updatedEvents);
-        toast.success(`Event ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-        return;
-      // }
-
-      // Real API call (commented out for now)
-      // await toggleEventStatus({ id: eventId, isActive: !currentStatus }).unwrap();
-      // toast.success(`Event ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      // fetchEvents();
+      console.log('🔄 Toggling event status:', eventId, 'to:', !currentStatus);
+      
+      const response = await toggleEventStatus({ id: eventId, isActive: !currentStatus }).unwrap();
+      console.log('✅ Toggle Response:', response);
+      
+      toast.success(`Event ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+      
+      // Refresh events list
+      fetchEvents();
     } catch (error) {
-      getError(error);
+      console.error('❌ Error toggling event status:', error);
+      toast.error(error?.data?.message || 'Failed to update event status');
     }
   };
 
   const handleDelete = async () => {
-    try {
-      // Always use demo mode for now
-      // if (token && token.startsWith("demo-token")) {
-        const updatedEvents = events.filter(event => event._id !== selectedEvent._id);
-        setEvents(updatedEvents);
-        setFilteredEvents(updatedEvents);
-        calculateStats(updatedEvents);
-        toast.success('Event deleted successfully');
-        setShowDeleteModal(false);
-        setSelectedEvent(null);
-        return;
-      // }
+    if (!selectedEvent) return;
 
-      // Real API call (commented out for now)
-      // await deleteEvent(selectedEvent._id).unwrap();
-      // toast.success('Event deleted successfully');
-      // setShowDeleteModal(false);
-      // setSelectedEvent(null);
-      // fetchEvents();
-    } catch (error) {
+    try {
+      console.log('🗑️ Deleting event:', selectedEvent._id);
+      
+      const response = await deleteEvent(selectedEvent._id).unwrap();
+      console.log('✅ Delete Response:', response);
+      
+      toast.success(response?.message || 'Event deleted successfully');
+      
+      // Refresh events list
+      fetchEvents();
+      
       setShowDeleteModal(false);
-      getError(error);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error('❌ Error deleting event:', error);
+      toast.error(error?.data?.message || 'Failed to delete event');
+      setShowDeleteModal(false);
     }
   };
 
@@ -725,10 +622,13 @@ const Events = () => {
         <DeleteModal
           show={showDeleteModal}
           onHide={() => setShowDeleteModal(false)}
-          onDelete={handleDelete}
+          onDiscard={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
           title="Delete Event"
-          message={`Are you sure you want to delete "${selectedEvent?.title}"? This action cannot be undone and all registrations will be lost.`}
-          isLoading={deleteLoading}
+          description={`Are you sure you want to delete "${selectedEvent?.title}"? This action cannot be undone and all registrations will be lost.`}
+          loading={deleteLoading}
+          buttonCancelTxt="Cancel"
+          buttonConfirmTxt="Delete"
         />
       </Container>
     </MotionDiv>

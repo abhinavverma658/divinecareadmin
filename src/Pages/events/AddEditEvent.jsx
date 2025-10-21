@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Badge, Image, InputGroup, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Badge, Image, InputGroup, Alert, Spinner } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGetEventByIdMutation, useCreateEventMutation, useUpdateEventMutation } from '../../features/apiSlice';
+import { useGetEventByIdMutation, useCreateEventMutation, useUpdateEventMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -22,6 +22,7 @@ const AddEditEvent = () => {
   const [getEventById, { isLoading }] = useGetEventByIdMutation();
   const [createEvent, { isLoading: createLoading }] = useCreateEventMutation();
   const [updateEvent, { isLoading: updateLoading }] = useUpdateEventMutation();
+  const [uploadImage] = useUploadImageMutation();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -29,17 +30,21 @@ const AddEditEvent = () => {
     shortDescription: '',
     startDate: '',
     endDate: '',
+    registrationDeadline: '',
     location: '',
     venue: '',
     images: [],
     featuredImage: '',
     isActive: true,
     featured: false,
-    priority: 'medium'
+    priority: 'medium',
+    maxAttendees: '',
+    currentAttendees: 0
   });
 
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [uploadingImages, setUploadingImages] = useState({});
 
   const priorities = [
     { value: 'low', label: 'Low Priority' },
@@ -51,55 +56,62 @@ const AddEditEvent = () => {
     if (!id) return;
 
     try {
-      // Check if demo mode
-      if (token && token.startsWith("demo-token")) {
-        // Set demo data based on id
-        const demoData = {
-          _id: id,
-          title: 'Financial Planning Webinar',
-          description: 'Join our comprehensive webinar on personal financial planning strategies for 2024. Learn from industry experts about investment opportunities, retirement planning, and wealth management. This interactive session will cover essential topics including portfolio diversification, tax optimization, and risk assessment.',
-          shortDescription: 'Learn essential financial planning strategies from industry experts',
-          startDate: '2024-02-15T14:00:00',
-          endDate: '2024-02-15T16:00:00',
-          registrationDeadline: '2024-02-14T23:59:59',
-          location: 'Virtual - Zoom Platform',
-          venue: 'Online Meeting Room',
-          images: [
-            'https://creative-story.s3.amazonaws.com/events/financial-planning-webinar.jpg',
-            'https://creative-story.s3.amazonaws.com/events/webinar-speakers.jpg'
-          ],
-          featuredImage: 'https://creative-story.s3.amazonaws.com/events/financial-planning-webinar.jpg',
-          isActive: true,
-          featured: true,
-          priority: 'high'
-        };
-        
-        setFormData({
-          ...demoData,
-          startDate: demoData.startDate.slice(0, 10), // Format for date input (YYYY-MM-DD)
-          endDate: demoData.endDate.slice(0, 10),
-          registrationDeadline: demoData.registrationDeadline.slice(0, 10)
-        });
-        setImagePreviews(demoData.images);
-        return;
+      console.log('🔄 Starting Event Data fetch for ID:', id);
+      
+      const response = await getEventById(id).unwrap();
+      console.log('📥 Event Data Response:', response);
+      console.log('📊 Response keys:', Object.keys(response || {}));
+      
+      // Check multiple possible response structures
+      let eventData = null;
+      
+      console.log('🔍 Analyzing event response structure:');
+      console.log('📊 Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.success && response?.event) {
+        eventData = response.event;
+        console.log('✅ Using response.event structure (success + event)');
+      } else if (response?.event) {
+        eventData = response.event;
+        console.log('✅ Using response.event structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        eventData = response.data;
+        console.log('✅ Using response.data structure (with success flag)');
+      } else if (response?.data && !response?.success) {
+        eventData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        eventData = response;
+        console.log('✅ Using response directly as data');
       }
-
-      // Real API call for production
-      const data = await getEventById(id).unwrap();
-      const eventData = data?.event || {};
       
-      setFormData({
-        ...eventData,
-        startDate: eventData.startDate ? new Date(eventData.startDate).toISOString().slice(0, 10) : '',
-        endDate: eventData.endDate ? new Date(eventData.endDate).toISOString().slice(0, 10) : '',
-        registrationDeadline: eventData.registrationDeadline ? new Date(eventData.registrationDeadline).toISOString().slice(0, 10) : ''
-      });
+      console.log('📝 Extracted event data:', eventData);
       
-      if (eventData.images) {
-        setImagePreviews(eventData.images);
+      if (eventData && Object.keys(eventData).length > 0) {
+        setFormData({
+          ...eventData,
+          startDate: eventData.startDate ? new Date(eventData.startDate).toISOString().slice(0, 16) : '',
+          endDate: eventData.endDate ? new Date(eventData.endDate).toISOString().slice(0, 16) : '',
+          registrationDeadline: eventData.registrationDeadline ? new Date(eventData.registrationDeadline).toISOString().slice(0, 16) : '',
+          maxAttendees: eventData.maxAttendees || '',
+          currentAttendees: eventData.currentAttendees || 0
+        });
+        
+        if (eventData.images && Array.isArray(eventData.images)) {
+          setImagePreviews(eventData.images);
+        }
+        
+        console.log('🎯 Event data populated successfully');
+        toast.success('Event data loaded successfully');
+      } else {
+        console.log('⚠️ No event data found');
+        toast.error('Event not found');
+        navigate('/dash/events');
       }
     } catch (error) {
-      getError(error);
+      console.error('❌ Error fetching event data:', error);
+      toast.error(error?.data?.message || 'Failed to load event');
+      navigate('/dash/events');
     }
   };
 
@@ -122,7 +134,7 @@ const AddEditEvent = () => {
     setFormData(prev => ({ ...prev, description: content }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     
     if (files.length === 0) return;
@@ -142,16 +154,44 @@ const AddEditEvent = () => {
 
     if (validFiles.length === 0) return;
 
-    setImageFiles(prevFiles => [...prevFiles, ...validFiles]);
+    // Upload images
+    for (const file of validFiles) {
+      const fileId = Date.now() + Math.random();
+      setUploadingImages(prev => ({ ...prev, [fileId]: true }));
 
-    // Create previews
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreviews(prev => [...prev, e.target.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        console.log('🖼️ Uploading event image:', file.name);
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('folder', 'events');
+        
+        const response = await uploadImage(formData).unwrap();
+        
+        if (response?.imageUrl) {
+          setImagePreviews(prev => [...prev, response.imageUrl]);
+          
+          // Set as featured image if no featured image is set
+          if (!formData.featuredImage) {
+            setFormData(prev => ({ ...prev, featuredImage: response.imageUrl }));
+          }
+          
+          console.log('✅ Event image uploaded:', response.imageUrl);
+          toast.success(`${file.name} uploaded successfully!`);
+        } else {
+          throw new Error('No image URL returned from server');
+        }
+      } catch (error) {
+        console.error('❌ Error uploading event image:', error);
+        toast.error(`Failed to upload ${file.name}. Please try again.`);
+      } finally {
+        setUploadingImages(prev => {
+          const newState = { ...prev };
+          delete newState[fileId];
+          return newState;
+        });
+      }
+    }
   };
 
   const removeImage = (index) => {
@@ -202,35 +242,30 @@ const AddEditEvent = () => {
         ...formData,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
-        registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : null
+        registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : null,
+        images: imagePreviews,
+        maxAttendees: parseInt(formData.maxAttendees) || 0
       };
 
-      // Handle image uploads
-      if (imageFiles.length > 0) {
-        // In a real application, you would upload the images to a service like AWS S3
-        // For demo purposes, we'll use placeholder URLs
-        const uploadedImages = imageFiles.map((file, index) => 
-          `https://creative-story.s3.amazonaws.com/events/${Date.now()}-${index}-${file.name}`
-        );
-        
-        submitData.images = [...imagePreviews.filter(img => img.startsWith('https')), ...uploadedImages];
-        
-        // Set featured image if not already set
-        if (!submitData.featuredImage && submitData.images.length > 0) {
-          submitData.featuredImage = submitData.images[0];
-        }
-      } else {
-        submitData.images = imagePreviews.filter(img => img.startsWith('https'));
+      // Set featured image if not already set but images exist
+      if (!submitData.featuredImage && submitData.images.length > 0) {
+        submitData.featuredImage = submitData.images[0];
       }
 
-      const data = id 
+      console.log('📤 Submitting event data:', submitData);
+
+      // API call
+      const response = id 
         ? await updateEvent({ id, data: submitData }).unwrap()
         : await createEvent(submitData).unwrap();
       
-      toast.success(data?.message || `Event ${id ? 'updated' : 'created'} successfully`);
+      console.log('✅ Submit Response:', response);
+      
+      toast.success(response?.message || `Event ${id ? 'updated' : 'created'} successfully`);
       navigate('/dash/events');
     } catch (error) {
-      getError(error);
+      console.error('❌ Error submitting event:', error);
+      toast.error(error?.data?.message || `Failed to ${id ? 'update' : 'create'} event`);
     }
   };
 
@@ -386,10 +421,17 @@ const AddEditEvent = () => {
                       accept="image/*"
                       multiple
                       onChange={handleImageChange}
+                      disabled={Object.keys(uploadingImages).length > 0}
                     />
                     <Form.Text className="text-muted">
                       Upload event images (Max 5MB each, JPG/PNG recommended)
                     </Form.Text>
+                    {Object.keys(uploadingImages).length > 0 && (
+                      <div className="mt-2">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <small className="text-muted">Uploading images...</small>
+                      </div>
+                    )}
                   </Form.Group>
 
                   {imagePreviews.length > 0 && (
