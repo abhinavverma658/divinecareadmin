@@ -610,46 +610,46 @@ const baseQuery = async (args, api, extraOptions) => {
     // Stories
     getStories: builder.mutation({
       query: () => ({
-        url: "/stories/get-stories",
+        url: "/stories",
         method: "GET",
       }),
     }),
     getStoryById: builder.mutation({
       query: (id) => ({
-        url: `/stories/get-story/${id}`,
+        url: `/stories/${id}`,
         method: "GET",
       }),
     }),
     createStory: builder.mutation({
       query: (data) => ({
-        url: "/stories/create-story",
+        url: "/stories",
         method: "POST",
         body: data,
       }),
     }),
     updateStory: builder.mutation({
       query: ({ id, data }) => ({
-        url: `/stories/update-story/${id}`,
-        method: "PATCH",
+        url: `/stories/${id}`,
+        method: "PUT",
         body: data,
       }),
     }),
     deleteStory: builder.mutation({
       query: (id) => ({
-        url: `/stories/delete-story/${id}`,
+        url: `/stories/${id}`,
         method: "DELETE",
       }),
     }),
     toggleStoryStatus: builder.mutation({
       query: ({ id, isPublished }) => ({
-        url: `/stories/toggle-story-status/${id}`,
+        url: `/stories/${id}/toggle-status`,
         method: "PATCH",
         body: { isPublished },
       }),
     }),
     toggleStoryFeatured: builder.mutation({
       query: ({ id, featured }) => ({
-        url: `/stories/toggle-story-featured/${id}`,
+        url: `/stories/${id}/toggle-featured`,
         method: "PATCH",
         body: { featured },
       }),
@@ -1039,14 +1039,14 @@ const baseQuery = async (args, api, extraOptions) => {
     // Contact page content
     getContactPageData: builder.mutation({
       query: () => ({
-        url: "/contact-page/get-contact-data",
+        url: "/contact-page",
         method: "GET",
       }),
     }),
     updateContactPageData: builder.mutation({
       query: (data) => ({
-        url: "/contact-page/update-contact-data",
-        method: "PATCH",
+        url: "/contact-page",
+        method: "PUT",
         body: data,
       }),
     }),

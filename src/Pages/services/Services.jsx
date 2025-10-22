@@ -66,6 +66,7 @@ const Services = () => {
       
       if (Array.isArray(servicesData) && servicesData.length >= 0) {
         console.log('🎯 Setting services data:', servicesData);
+        console.log('🔍 First service structure:', servicesData[0]);
         setServices(servicesData);
         setFilteredServices(servicesData);
         calculateStats(servicesData);
@@ -111,8 +112,9 @@ const Services = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(service =>
-        service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        service.description.toLowerCase().includes(searchTerm.toLowerCase())
+        service.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        service.shortDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (service.description || service.detailedDescription || '')?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -150,86 +152,6 @@ const Services = () => {
       setShowDeleteModal(false);
     }
   };
-
-  const columns = [
-    {
-      header: 'Service',
-      render: (service) => (
-        <div className="d-flex align-items-center">
-          <Image
-            src={service.image}
-            alt={service.title}
-            width={50}
-            height={50}
-            className="rounded me-3"
-            style={{ objectFit: 'cover' }}
-          />
-          <div>
-            <h6 className="mb-1">{service.title}</h6>
-            <small className="text-muted">{service.shortDescription}</small>
-          </div>
-        </div>
-      )
-    },
-    {
-      header: 'Duration',
-      render: (service) => (
-        <div className="text-center">
-          <span className="text-muted">{service.duration}</span>
-        </div>
-      )
-    },
-    {
-      header: 'Status',
-      render: (service) => (
-        <div className="text-center">
-          <Badge bg={service.isActive ? 'success' : 'secondary'} className="me-1">
-            {service.isActive ? 'Active' : 'Inactive'}
-          </Badge>
-          {service.featured && (
-            <Badge bg="warning" className="text-dark">
-              <FaStar className="me-1" />
-              Featured
-            </Badge>
-          )}
-        </div>
-      )
-    },
-    {
-      header: 'Actions',
-      render: (service) => (
-        <div className="d-flex gap-2">
-          <Button
-            size="sm"
-            variant="outline-info"
-            onClick={() => {
-              setSelectedService(service);
-              setShowViewModal(true);
-            }}
-          >
-            <FaEye />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-primary"
-            onClick={() => navigate(`/dash/services/edit/${service._id}`)}
-          >
-            <FaEdit />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-danger"
-            onClick={() => {
-              setSelectedService(service);
-              setShowDeleteModal(true);
-            }}
-          >
-            <FaTrash />
-          </Button>
-        </div>
-      )
-    }
-  ];
 
   const StatCard = ({ title, value, icon, color, bgColor }) => (
     <Card className="h-100 border-0 shadow-sm">
@@ -349,11 +271,86 @@ const Services = () => {
           </Card.Header>
           <Card.Body className="p-0">
             <CustomTable
-              data={filteredServices}
-              columns={columns}
-              isLoading={isLoading}
-              emptyMessage="No services found"
-            />
+              column={['Service', 'Description', 'Status', 'Actions']}
+              isSearch={false}
+              loading={isLoading}
+            >
+              {filteredServices && filteredServices.map((service, index) => (
+                <tr key={service._id || index}>
+                  <td>
+                    <div className="d-flex align-items-center">
+                      {service.image && (
+                        <Image
+                          src={service.image}
+                          alt={service.title}
+                          width={50}
+                          height={50}
+                          className="rounded me-3"
+                          style={{ objectFit: 'cover' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div>
+                        <h6 className="mb-1">{service.title}</h6>
+                        <small className="text-muted">{service.shortDescription}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="text-start">
+                      <span className="text-muted">
+                        {(service.description || service.detailedDescription || '').substring(0, 100)}
+                        {(service.description || service.detailedDescription || '').length > 100 ? '...' : ''}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="text-center">
+                    <Badge bg={service.isActive ? 'success' : 'secondary'} className="me-1">
+                      {service.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {service.featured && (
+                      <Badge bg="warning" className="text-dark">
+                        <FaStar className="me-1" />
+                        Featured
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="text-center">
+                    <div className="d-flex gap-2 justify-content-center">
+                      <Button
+                        size="sm"
+                        variant="outline-info"
+                        onClick={() => {
+                          setSelectedService(service);
+                          setShowViewModal(true);
+                        }}
+                      >
+                        <FaEye />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => navigate(`/dash/services/edit/${service._id}`)}
+                      >
+                        <FaEdit />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline-danger"
+                        onClick={() => {
+                          setSelectedService(service);
+                          setShowDeleteModal(true);
+                        }}
+                      >
+                        <FaTrash />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </CustomTable>
           </Card.Body>
         </Card>
 
@@ -366,13 +363,18 @@ const Services = () => {
             {selectedService && (
               <Row>
                 <Col md={4}>
-                  <Image
-                    src={selectedService.image}
-                    alt={selectedService.title}
-                    fluid
-                    rounded
-                    className="mb-3"
-                  />
+                  {selectedService.image && (
+                    <Image
+                      src={selectedService.image}
+                      alt={selectedService.title}
+                      fluid
+                      rounded
+                      className="mb-3"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  )}
                   <div className="text-center">
                     <div>
                       <Badge bg={selectedService.isActive ? 'success' : 'secondary'} className="me-1">
@@ -390,9 +392,9 @@ const Services = () => {
                 <Col md={8}>
                   <h4>{selectedService.title}</h4>
                   <p className="text-muted mb-3">
-                    <strong>Duration:</strong> {selectedService.duration}
+                    <strong>Short Description:</strong> {selectedService.shortDescription}
                   </p>
-                  <p>{selectedService.description}</p>
+                  <p>{selectedService.description || selectedService.detailedDescription}</p>
                   
                   <small className="text-muted">
                     Created: {new Date(selectedService.createdAt).toLocaleDateString()}

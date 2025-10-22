@@ -6,7 +6,6 @@ import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
 import FormField from '../../Components/FormField';
-import TextEditor from '../../Components/TextEditor';
 import { FaSave, FaArrowLeft, FaUpload, FaTrash } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
@@ -64,8 +63,12 @@ const AddEditService = () => {
       }
       
       if (serviceData && Object.keys(serviceData).length > 0) {
+        // Handle different field names for description
+        const description = serviceData.description || serviceData.detailedDescription || '';
+        
         setFormData({
-          ...serviceData
+          ...serviceData,
+          description: description // Always use 'description' internally in form
         });
         
         if (serviceData.image) {
@@ -98,10 +101,6 @@ const AddEditService = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-  };
-
-  const handleDescriptionChange = (content) => {
-    setFormData(prev => ({ ...prev, description: content }));
   };
 
   const handleImageChange = async (e) => {
@@ -156,7 +155,7 @@ const AddEditService = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    // Enhanced validation
     if (!formData.title.trim()) {
       toast.error('Service title is required');
       return;
@@ -165,11 +164,34 @@ const AddEditService = () => {
       toast.error('Service description is required');
       return;
     }
+    if (!formData.shortDescription.trim()) {
+      toast.error('Short description is required');
+      return;
+    }
 
     try {
-      let submitData = { ...formData };
+      // Prepare data with correct field mapping for backend
+      let submitData = {
+        title: formData.title.trim(),
+        detailedDescription: formData.description.trim(), // Backend expects 'detailedDescription'
+        shortDescription: formData.shortDescription.trim(),
+      };
+
+      // Add optional fields only if they have values
+      if (formData.image) {
+        submitData.image = formData.image;
+      }
+
+      // Add boolean fields with default values
+      submitData.isActive = Boolean(formData.isActive);
+      submitData.featured = Boolean(formData.featured);
 
       console.log('📤 Submitting service data:', submitData);
+      console.log('📤 Request type:', id ? 'UPDATE' : 'CREATE');
+      console.log('📤 Service ID:', id || 'N/A');
+      console.log('📤 Data types:', Object.keys(submitData).map(key => 
+        `${key}: ${typeof submitData[key]} (${submitData[key]})`
+      ));
 
       const response = id 
         ? await updateService({ id, data: submitData }).unwrap()
@@ -181,7 +203,20 @@ const AddEditService = () => {
       navigate('/dash/services');
     } catch (error) {
       console.error('❌ Error submitting service:', error);
-      toast.error(error?.data?.message || `Failed to ${id ? 'update' : 'create'} service`);
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+      
+      // Better error handling
+      let errorMessage = `Failed to ${id ? 'update' : 'create'} service`;
+      
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.status) {
+        errorMessage = `Server error (${error.status}): ${errorMessage}`;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -239,10 +274,14 @@ const AddEditService = () => {
 
                   <Form.Group className="mb-3">
                     <Form.Label>Detailed Description <span className="text-danger">*</span></Form.Label>
-                    <TextEditor
+                    <Form.Control
+                      as="textarea"
+                      rows={6}
+                      name="description"
                       value={formData.description}
-                      onChange={handleDescriptionChange}
+                      onChange={handleChange}
                       placeholder="Write a detailed description of the service..."
+                      style={{ minHeight: '150px' }}
                     />
                   </Form.Group>
                 </Card.Body>

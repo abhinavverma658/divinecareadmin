@@ -68,31 +68,55 @@ const EditContactPage = () => {
   const fetchContactPageData = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 Fetching contact page data...');
+      
       const response = await getContactPageData().unwrap();
-      if (response?.data) {
+      console.log('📥 Contact page response:', response);
+      
+      // Handle different response structures
+      let contactData = null;
+      
+      if (response?.success && response?.data) {
+        contactData = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data && !response?.success) {
+        contactData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        contactData = response;
+        console.log('✅ Using response directly as data');
+      }
+      
+      if (contactData && Object.keys(contactData).length > 0) {
         setFormData({
-          heading: response.data.contactHeading || '',
-          description: response.data.contactDescription || '',
-          mapLink: response.data.contactMapLink || '',
+          heading: contactData.pageHeading || contactData.contactHeading || contactData.heading || '',
+          description: contactData.pageDescription || contactData.contactDescription || contactData.description || '',
+          mapLink: contactData.googleMapsEmbedLink || contactData.contactMapLink || contactData.mapLink || '',
           // Call Us Today section
-          serviceTitle: response.data.serviceTitle || '',
-          serviceSubtitle: response.data.serviceSubtitle || '',
-          phone1: response.data.phone1 || '',
-          phone2: response.data.phone2 || '',
+          serviceTitle: contactData.callUs?.serviceTitle || contactData.serviceTitle || '',
+          serviceSubtitle: contactData.callUs?.serviceSubtitle || contactData.serviceSubtitle || '',
+          phone1: contactData.callUs?.phoneNumber1 || contactData.phone1 || '',
+          phone2: contactData.callUs?.phoneNumber2 || contactData.phone2 || '',
           // Mail Information section
-          emailTitle: response.data.emailTitle || '',
-          emailSubtitle: response.data.emailSubtitle || '',
-          email1: response.data.email1 || '',
-          email2: response.data.email2 || '',
+          emailTitle: contactData.mailInfo?.emailTitle || contactData.emailTitle || '',
+          emailSubtitle: contactData.mailInfo?.emailSubtitle || contactData.emailSubtitle || '',
+          email1: contactData.mailInfo?.emailAddress1 || contactData.email1 || '',
+          email2: contactData.mailInfo?.emailAddress2 || contactData.email2 || '',
           // Our Location section
-          addressTitle: response.data.addressTitle || '',
-          addressSubtitle: response.data.addressSubtitle || '',
-          fullAddress: response.data.fullAddress || ''
+          addressTitle: contactData.location?.addressTitle || contactData.addressTitle || '',
+          addressSubtitle: contactData.location?.addressSubtitle || contactData.addressSubtitle || '',
+          fullAddress: contactData.location?.fullAddress || contactData.fullAddress || ''
         });
+        
+        console.log('🎯 Contact page data populated successfully');
+        toast.success('Contact page data loaded successfully');
+      } else {
+        console.log('⚠️ No contact page data found, using defaults');
+        toast.info('No existing contact page data found');
       }
     } catch (error) {
-      console.error('Error fetching contact page data:', error);
-      toast.error('Failed to load contact page data');
+      console.error('❌ Error fetching contact page data:', error);
+      toast.error(error?.data?.message || 'Failed to load contact page data');
     } finally {
       setIsLoading(false);
     }
@@ -157,34 +181,55 @@ const EditContactPage = () => {
     try {
       setIsLoading(true);
       
-      const response = await updateContactPageData({
-        contactHeading: formData.heading,
-        contactDescription: formData.description,
-        contactMapLink: formData.mapLink,
-        // Call Us Today section
-        serviceTitle: formData.serviceTitle,
-        serviceSubtitle: formData.serviceSubtitle,
-        phone1: formData.phone1,
-        phone2: formData.phone2,
-        // Mail Information section
-        emailTitle: formData.emailTitle,
-        emailSubtitle: formData.emailSubtitle,
-        email1: formData.email1,
-        email2: formData.email2,
-        // Our Location section
-        addressTitle: formData.addressTitle,
-        addressSubtitle: formData.addressSubtitle,
-        fullAddress: formData.fullAddress
-      }).unwrap();
+      console.log('📤 Submitting contact page data...');
       
-      if (response?.message) {
-        toast.success(response.message);
-      } else {
-        toast.success('Contact page updated successfully!');
-      }
+      const submitData = {
+        pageHeading: formData.heading,
+        pageDescription: formData.description,
+        googleMapsEmbedLink: formData.mapLink,
+        // Call Us Today section - nested structure
+        callUs: {
+          serviceTitle: formData.serviceTitle,
+          serviceSubtitle: formData.serviceSubtitle,
+          phoneNumber1: formData.phone1,
+          phoneNumber2: formData.phone2
+        },
+        // Mail Information section - nested structure
+        mailInfo: {
+          emailTitle: formData.emailTitle,
+          emailSubtitle: formData.emailSubtitle,
+          emailAddress1: formData.email1,
+          emailAddress2: formData.email2
+        },
+        // Our Location section - nested structure
+        location: {
+          addressTitle: formData.addressTitle,
+          addressSubtitle: formData.addressSubtitle,
+          fullAddress: formData.fullAddress
+        }
+      };
+      
+      console.log('📤 Submit data:', submitData);
+      
+      const response = await updateContactPageData(submitData).unwrap();
+      console.log('✅ Update Response:', response);
+      
+      toast.success(response?.message || 'Contact page updated successfully!');
     } catch (error) {
-      console.error('Error updating contact page:', error);
-      toast.error(error?.data?.message || 'Failed to update contact page');
+      console.error('❌ Error updating contact page:', error);
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Failed to update contact page';
+      
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.status) {
+        errorMessage = `Server error (${error.status}): ${errorMessage}`;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

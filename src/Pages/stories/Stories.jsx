@@ -29,71 +29,55 @@ const Stories = () => {
 
   const fetchStories = async () => {
     try {
-      // Check if demo mode
-      if (token && token.startsWith("demo-token")) {
-        // Set demo stories data
-        const demoStories = [
-          {
-            _id: 'story1',
-            title: 'Our Journey to Success',
-            content: 'This is the story of how our company started from a small idea and grew into what we are today. It began with a simple vision to help people achieve their financial goals...',
-            image: '/demo-images/story1.jpg',
-            author: 'Admin User',
-            isPublished: true,
-            createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-            updatedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            readTime: '5 min read',
-            tags: ['company', 'journey', 'success']
-          },
-          {
-            _id: 'story2',
-            title: 'Innovation in Financial Services',
-            content: 'The financial industry is constantly evolving, and we pride ourselves on staying ahead of the curve. Our latest innovations have revolutionized how people manage their money...',
-            image: '/demo-images/story2.jpg',
-            author: 'Sarah Johnson',
-            isPublished: true,
-            createdAt: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
-            updatedAt: new Date(Date.now() - 86400000 * 3).toISOString(), // 3 days ago
-            readTime: '8 min read',
-            tags: ['innovation', 'technology', 'finance']
-          },
-          {
-            _id: 'story3',
-            title: 'Customer Success Stories',
-            content: 'Nothing makes us happier than seeing our clients achieve their dreams. Here are some amazing success stories from people who trusted us with their financial future...',
-            image: '/demo-images/story3.jpg',
-            author: 'Mike Chen',
-            isPublished: false,
-            createdAt: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
-            updatedAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-            readTime: '12 min read',
-            tags: ['customers', 'success', 'testimonials']
-          },
-          {
-            _id: 'story4',
-            title: 'Building Trust in Digital Age',
-            content: 'In an era where digital transformation is reshaping every industry, building and maintaining trust has become more crucial than ever. Our approach to digital security...',
-            image: '/demo-images/story4.jpg',
-            author: 'Jennifer Williams',
-            isPublished: true,
-            createdAt: new Date(Date.now() - 86400000 * 7).toISOString(), // 7 days ago
-            updatedAt: new Date(Date.now() - 86400000 * 6).toISOString(), // 6 days ago
-            readTime: '6 min read',
-            tags: ['trust', 'security', 'digital']
-          }
-        ];
-        
-        setStories(demoStories);
-        setFilteredStories(demoStories);
-        return;
+      console.log('🔄 Starting Stories Data fetch...');
+      
+      const response = await getStories().unwrap();
+      console.log('📥 Stories Data Response:', response);
+      
+      // Check multiple possible response structures
+      let storiesData = null;
+      
+      if (response?.success && response?.stories) {
+        storiesData = response.stories;
+        console.log('✅ Using response.stories structure');
+      } else if (response?.stories) {
+        storiesData = response.stories;
+        console.log('✅ Using response.stories structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        storiesData = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data && !response?.success) {
+        storiesData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response)) {
+        storiesData = response;
+        console.log('✅ Using response directly as array');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        storiesData = response;
+        console.log('✅ Using response directly as data');
       }
-
-      // Real API call for production
-      const data = await getStories().unwrap();
-      setStories(data?.stories || []);
-      setFilteredStories(data?.stories || []);
+      
+      if (Array.isArray(storiesData) && storiesData.length >= 0) {
+        console.log('🎯 Setting stories data:', storiesData);
+        setStories(storiesData);
+        setFilteredStories(storiesData);
+        
+        if (storiesData.length === 0) {
+          toast.info('No stories found. Create your first story!');
+        } else {
+          toast.success(`${storiesData.length} stories loaded successfully`);
+        }
+      } else {
+        console.log('⚠️ No stories data found');
+        setStories([]);
+        setFilteredStories([]);
+        toast.info('No stories found.');
+      }
     } catch (error) {
-      getError(error);
+      console.error('❌ Error fetching stories data:', error);
+      toast.error('Failed to load stories. Please try again.');
+      setStories([]);
+      setFilteredStories([]);
     }
   };
 
@@ -142,18 +126,18 @@ const Stories = () => {
       if (token && token.startsWith("demo-token")) {
         // Demo mode - simulate status toggle
         const updatedStories = stories.map(s => 
-          s._id === story._id ? { ...s, isPublished: !s.isPublished } : s
+          s._id === story._id ? { ...s, isPublished: !(s.isPublished === true) } : s
         );
         setStories(updatedStories);
         setFilteredStories(updatedStories);
-        toast.success(`Story ${story.isPublished ? 'unpublished' : 'published'} successfully (Demo)`);
+        toast.success(`Story ${story.isPublished === true ? 'unpublished' : 'published'} successfully (Demo)`);
         return;
       }
 
       // Real API call
       const data = await toggleStoryStatus({ 
         id: story._id, 
-        isPublished: !story.isPublished 
+        isPublished: !(story.isPublished === true)
       }).unwrap();
       toast.success(data?.message || 'Story status updated successfully');
       fetchStories();
@@ -178,8 +162,8 @@ const Stories = () => {
   };
 
   const getStats = () => {
-    const published = stories.filter(story => story.isPublished).length;
-    const drafts = stories.filter(story => !story.isPublished).length;
+    const published = stories.filter(story => story.isPublished === true).length;
+    const drafts = stories.filter(story => story.isPublished !== true).length;
     const totalViews = stories.reduce((sum, story) => sum + (story.views || 0), 0);
     
     return { published, drafts, total: stories.length, totalViews };
@@ -369,8 +353,8 @@ const Stories = () => {
                           </div>
                         </td>
                         <td>
-                          <Badge bg={story.isPublished ? 'success' : 'warning'}>
-                            {story.isPublished ? 'Published' : 'Draft'}
+                          <Badge bg={story.isPublished === true ? 'success' : 'warning'}>
+                            {story.isPublished === true ? 'Published' : 'Draft'}
                           </Badge>
                         </td>
                         <td>
@@ -400,13 +384,13 @@ const Stories = () => {
                               <FaEdit />
                             </Button>
                             <Button
-                              variant={story.isPublished ? 'outline-warning' : 'outline-success'}
+                              variant={story.isPublished === true ? 'outline-warning' : 'outline-success'}
                               size="sm"
                               onClick={() => handleToggleStatus(story)}
                               disabled={toggleLoading}
-                              title={story.isPublished ? 'Unpublish' : 'Publish'}
+                              title={story.isPublished === true ? 'Unpublish' : 'Publish'}
                             >
-                              {story.isPublished ? <FaEyeSlash /> : <FaEye />}
+                              {story.isPublished === true ? <FaEyeSlash /> : <FaEye />}
                             </Button>
                             <Button
                               variant="outline-danger"
