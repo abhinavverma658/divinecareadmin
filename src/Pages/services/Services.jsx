@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Form, Modal, Image } from 'react-bootstrap';
-import { useGetServicesMutation, useDeleteServiceMutation, useToggleServiceStatusMutation } from '../../features/apiSlice';
+import { useGetServicesMutation, useDeleteServiceMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +19,6 @@ const Services = () => {
   
   const [getServices, { isLoading }] = useGetServicesMutation();
   const [deleteService, { isLoading: deleteLoading }] = useDeleteServiceMutation();
-  const [toggleServiceStatus, { isLoading: toggleLoading }] = useToggleServiceStatusMutation();
   
   const [services, setServices] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
@@ -35,88 +34,60 @@ const Services = () => {
     featured: 0
   });
 
-  // Demo data for services
-  const demoServices = [
-    {
-      _id: '1',
-      title: 'Financial Planning',
-      description: 'Comprehensive financial planning services to help you achieve your financial goals.',
-      shortDescription: 'Complete financial planning solutions',
-      image: 'https://creative-story.s3.amazonaws.com/services/financial-planning.jpg',
-      isActive: true,
-      featured: true,
-      duration: '2-3 hours',
-      createdAt: '2024-01-15T10:00:00Z',
-      updatedAt: '2024-01-15T10:00:00Z'
-    },
-    {
-      _id: '2',
-      title: 'Investment Advisory',
-      description: 'Expert investment advice tailored to your risk tolerance and financial objectives.',
-      shortDescription: 'Professional investment guidance',
-      image: 'https://creative-story.s3.amazonaws.com/services/investment-advisory.jpg',
-      isActive: true,
-      featured: false,
-      duration: 'Ongoing',
-      createdAt: '2024-01-10T14:30:00Z',
-      updatedAt: '2024-01-10T14:30:00Z'
-    },
-    {
-      _id: '3',
-      title: 'Retirement Planning',
-      description: 'Strategic retirement planning to ensure a comfortable and secure retirement.',
-      shortDescription: 'Secure your retirement future',
-      image: 'https://creative-story.s3.amazonaws.com/services/retirement-planning.jpg',
-      isActive: true,
-      featured: true,
-      duration: '3-4 hours',
-      createdAt: '2024-01-05T09:15:00Z',
-      updatedAt: '2024-01-05T09:15:00Z'
-    },
-    {
-      _id: '4',
-      title: 'Tax Consultation',
-      description: 'Professional tax consultation and planning services to minimize your tax burden.',
-      shortDescription: 'Expert tax planning services',
-      image: 'https://creative-story.s3.amazonaws.com/services/tax-consultation.jpg',
-      isActive: false,
-      featured: false,
-      duration: '1-2 hours',
-      createdAt: '2024-01-01T16:45:00Z',
-      updatedAt: '2024-01-01T16:45:00Z'
-    },
-    {
-      _id: '5',
-      title: 'Estate Planning',
-      description: 'Comprehensive estate planning to protect your assets and ensure your legacy.',
-      shortDescription: 'Protect your legacy',
-      image: 'https://creative-story.s3.amazonaws.com/services/estate-planning.jpg',
-      isActive: true,
-      featured: false,
-      duration: '4-5 hours',
-      createdAt: '2023-12-20T11:20:00Z',
-      updatedAt: '2023-12-20T11:20:00Z'
-    }
-  ];
-
   const fetchServices = async () => {
     try {
-      // Check if demo mode
-      if (token && token.startsWith("demo-token")) {
-        setServices(demoServices);
-        setFilteredServices(demoServices);
-        calculateStats(demoServices);
-        return;
+      console.log('🔄 Starting Services Data fetch...');
+      
+      const response = await getServices().unwrap();
+      console.log('📥 Services Data Response:', response);
+      
+      // Check multiple possible response structures
+      let servicesData = null;
+      
+      if (response?.success && response?.services) {
+        servicesData = response.services;
+        console.log('✅ Using response.services structure');
+      } else if (response?.services) {
+        servicesData = response.services;
+        console.log('✅ Using response.services structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        servicesData = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data && !response?.success) {
+        servicesData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (Array.isArray(response)) {
+        servicesData = response;
+        console.log('✅ Using response directly as array');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        servicesData = response;
+        console.log('✅ Using response directly as data');
       }
-
-      // Real API call for production
-      const data = await getServices().unwrap();
-      const servicesData = data?.services || [];
-      setServices(servicesData);
-      setFilteredServices(servicesData);
-      calculateStats(servicesData);
+      
+      if (Array.isArray(servicesData) && servicesData.length >= 0) {
+        console.log('🎯 Setting services data:', servicesData);
+        setServices(servicesData);
+        setFilteredServices(servicesData);
+        calculateStats(servicesData);
+        
+        if (servicesData.length === 0) {
+          toast.info('No services found. Create your first service!');
+        } else {
+          toast.success(`${servicesData.length} services loaded successfully`);
+        }
+      } else {
+        console.log('⚠️ No services data found');
+        setServices([]);
+        setFilteredServices([]);
+        calculateStats([]);
+        toast.info('No services found.');
+      }
     } catch (error) {
-      getError(error);
+      console.error('❌ Error fetching services data:', error);
+      toast.error('Failed to load services. Please try again.');
+      setServices([]);
+      setFilteredServices([]);
+      calculateStats([]);
     }
   };
 
@@ -159,51 +130,24 @@ const Services = () => {
     setFilteredServices(filtered);
   }, [services, searchTerm, statusFilter]);
 
-  const handleToggleStatus = async (serviceId, currentStatus) => {
-    try {
-      // Demo mode handling
-      if (token && token.startsWith("demo-token")) {
-        const updatedServices = services.map(service =>
-          service._id === serviceId ? { ...service, isActive: !currentStatus } : service
-        );
-        setServices(updatedServices);
-        calculateStats(updatedServices);
-        toast.success(`Service ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-        return;
-      }
-
-      // Real API call
-      await toggleServiceStatus({ id: serviceId, isActive: !currentStatus }).unwrap();
-      toast.success(`Service ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      fetchServices();
-    } catch (error) {
-      getError(error);
-    }
-  };
-
   const handleDelete = async () => {
-    try {
-      // Demo mode handling
-      if (token && token.startsWith("demo-token")) {
-        const updatedServices = services.filter(service => service._id !== selectedService._id);
-        setServices(updatedServices);
-        setFilteredServices(updatedServices);
-        calculateStats(updatedServices);
-        toast.success('Service deleted successfully');
-        setShowDeleteModal(false);
-        setSelectedService(null);
-        return;
-      }
+    if (!selectedService) return;
 
-      // Real API call
-      await deleteService(selectedService._id).unwrap();
-      toast.success('Service deleted successfully');
+    try {
+      console.log('🗑️ Deleting service:', selectedService._id);
+      
+      const response = await deleteService(selectedService._id).unwrap();
+      console.log('✅ Delete Response:', response);
+      
+      toast.success(response?.message || 'Service deleted successfully');
+      
       setShowDeleteModal(false);
       setSelectedService(null);
       fetchServices();
     } catch (error) {
+      console.error('❌ Error deleting service:', error);
+      toast.error(error?.data?.message || 'Failed to delete service');
       setShowDeleteModal(false);
-      getError(error);
     }
   };
 
@@ -271,14 +215,6 @@ const Services = () => {
             onClick={() => navigate(`/dash/services/edit/${service._id}`)}
           >
             <FaEdit />
-          </Button>
-          <Button
-            size="sm"
-            variant={service.isActive ? 'outline-warning' : 'outline-success'}
-            onClick={() => handleToggleStatus(service._id, service.isActive)}
-            disabled={toggleLoading}
-          >
-            {service.isActive ? <FaToggleOff /> : <FaToggleOn />}
           </Button>
           <Button
             size="sm"
@@ -486,10 +422,13 @@ const Services = () => {
         <DeleteModal
           show={showDeleteModal}
           onHide={() => setShowDeleteModal(false)}
-          onDelete={handleDelete}
+          onDiscard={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
           title="Delete Service"
-          message={`Are you sure you want to delete "${selectedService?.title}"? This action cannot be undone.`}
-          isLoading={deleteLoading}
+          description={`Are you sure you want to delete "${selectedService?.title}"? This action cannot be undone.`}
+          loading={deleteLoading}
+          buttonCancelTxt="Cancel"
+          buttonConfirmTxt="Delete"
         />
       </Container>
     </MotionDiv>

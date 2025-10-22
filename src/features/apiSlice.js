@@ -521,55 +521,34 @@ const baseQuery = async (args, api, extraOptions) => {
     // Services
     getServices: builder.mutation({
       query: () => ({
-        url: "/services/get-services",
+        url: "/services",
         method: "GET",
       }),
     }),
     getServiceById: builder.mutation({
       query: (id) => ({
-        url: `/services/get-service/${id}`,
+        url: `/services/${id}`,
         method: "GET",
       }),
     }),
     createService: builder.mutation({
       query: (data) => ({
-        url: "/services/create-service",
+        url: "/services",
         method: "POST",
         body: data,
       }),
     }),
     updateService: builder.mutation({
       query: ({ id, data }) => ({
-        url: `/services/update-service/${id}`,
-        method: "PATCH",
+        url: `/services/${id}`,
+        method: "PUT",
         body: data,
       }),
     }),
     deleteService: builder.mutation({
       query: (id) => ({
-        url: `/services/delete-service/${id}`,
+        url: `/services/${id}`,
         method: "DELETE",
-      }),
-    }),
-    toggleServiceStatus: builder.mutation({
-      query: ({ id, isActive }) => ({
-        url: `/services/toggle-service-status/${id}`,
-        method: "PATCH",
-        body: { isActive },
-      }),
-    }),
-    toggleServiceFeatured: builder.mutation({
-      query: ({ id, featured }) => ({
-        url: `/services/toggle-service-featured/${id}`,
-        method: "PATCH",
-        body: { featured },
-      }),
-    }),
-    updateServiceOrder: builder.mutation({
-      query: (data) => ({
-        url: "/services/update-service-order",
-        method: "PATCH",
-        body: data,
       }),
     }),
 
@@ -1734,9 +1713,6 @@ export const {
   useCreateServiceMutation,
   useUpdateServiceMutation,
   useDeleteServiceMutation,
-  useToggleServiceStatusMutation,
-  useToggleServiceFeaturedMutation,
-  useUpdateServiceOrderMutation,
   useGetEventsMutation,
   useGetEventByIdMutation,
   useCreateEventMutation,

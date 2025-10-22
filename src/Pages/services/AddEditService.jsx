@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Badge, Image, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Card, Form, Button, Badge, Image, InputGroup, Spinner } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useGetServiceByIdMutation, useCreateServiceMutation, useUpdateServiceMutation } from '../../features/apiSlice';
+import { useGetServiceByIdMutation, useCreateServiceMutation, useUpdateServiceMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -19,6 +19,7 @@ const AddEditService = () => {
   const [getServiceById, { isLoading }] = useGetServiceByIdMutation();
   const [createService, { isLoading: createLoading }] = useCreateServiceMutation();
   const [updateService, { isLoading: updateLoading }] = useUpdateServiceMutation();
+  const [uploadImage] = useUploadImageMutation();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -31,43 +32,57 @@ const AddEditService = () => {
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchService = async () => {
     if (!id) return;
 
     try {
-      // Check if demo mode
-      if (token && token.startsWith("demo-token")) {
-        // Set demo data based on id
-        const demoData = {
-          _id: id,
-          title: 'Financial Planning',
-          description: 'Comprehensive financial planning services to help you achieve your financial goals. Our expert advisors will work with you to create a personalized financial roadmap.',
-          shortDescription: 'Complete financial planning solutions',
-          image: 'https://creative-story.s3.amazonaws.com/services/financial-planning.jpg',
-          isActive: true,
-          featured: true,
-          duration: '2-3 hours'
-        };
-        
-        setFormData(demoData);
-        setImagePreview(demoData.image);
-        return;
+      console.log('🔄 Starting Service Data fetch for ID:', id);
+      
+      const response = await getServiceById(id).unwrap();
+      console.log('📥 Service Data Response:', response);
+      
+      // Check multiple possible response structures
+      let serviceData = null;
+      
+      if (response?.success && response?.service) {
+        serviceData = response.service;
+        console.log('✅ Using response.service structure');
+      } else if (response?.service) {
+        serviceData = response.service;
+        console.log('✅ Using response.service structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        serviceData = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data && !response?.success) {
+        serviceData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        serviceData = response;
+        console.log('✅ Using response directly as data');
       }
-
-      // Real API call for production
-      const data = await getServiceById(id).unwrap();
-      const serviceData = data?.service || {};
       
-      setFormData({
-        ...serviceData
-      });
-      
-      if (serviceData.image) {
-        setImagePreview(serviceData.image);
+      if (serviceData && Object.keys(serviceData).length > 0) {
+        setFormData({
+          ...serviceData
+        });
+        
+        if (serviceData.image) {
+          setImagePreview(serviceData.image);
+        }
+        
+        console.log('🎯 Service data populated successfully');
+        toast.success('Service data loaded successfully');
+      } else {
+        console.log('⚠️ No service data found');
+        toast.error('Service not found');
+        navigate('/dash/services');
       }
     } catch (error) {
-      getError(error);
+      console.error('❌ Error fetching service data:', error);
+      toast.error(error?.data?.message || 'Failed to load service');
+      navigate('/dash/services');
     }
   };
 
@@ -89,29 +104,46 @@ const AddEditService = () => {
     setFormData(prev => ({ ...prev, description: content }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please select a valid image file');
-        return;
-      }
-      
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
-        return;
-      }
+    if (!file) return;
 
-      setImageFile(file);
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      console.log('🖼️ Uploading service image:', file.name);
       
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target.result);
-      };
-      reader.readAsDataURL(file);
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'services');
+      
+      const response = await uploadImage(formData).unwrap();
+      
+      if (response?.imageUrl) {
+        setImagePreview(response.imageUrl);
+        setFormData(prev => ({ ...prev, image: response.imageUrl }));
+        console.log('✅ Service image uploaded:', response.imageUrl);
+        toast.success(`${file.name} uploaded successfully!`);
+      } else {
+        throw new Error('No image URL returned from server');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading service image:', error);
+      toast.error(`Failed to upload ${file.name}. Please try again.`);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -135,38 +167,25 @@ const AddEditService = () => {
     }
 
     try {
-      // Demo mode handling
-      if (token && token.startsWith("demo-token")) {
-        toast.success(`Service ${id ? 'updated' : 'created'} successfully`);
-        navigate('/dash/services');
-        return;
-      }
-
       let submitData = { ...formData };
 
-      // Handle image upload
-      if (imageFile) {
-        // In a real application, you would upload the image to a service like AWS S3
-        // For demo purposes, we'll use a placeholder URL
-        const formDataUpload = new FormData();
-        formDataUpload.append('image', imageFile);
-        
-        // This would be replaced with actual image upload logic
-        submitData.image = `https://creative-story.s3.amazonaws.com/services/${Date.now()}-${imageFile.name}`;
-      }
+      console.log('📤 Submitting service data:', submitData);
 
-      const data = id 
+      const response = id 
         ? await updateService({ id, data: submitData }).unwrap()
         : await createService(submitData).unwrap();
       
-      toast.success(data?.message || `Service ${id ? 'updated' : 'created'} successfully`);
+      console.log('✅ Submit Response:', response);
+      
+      toast.success(response?.message || `Service ${id ? 'updated' : 'created'} successfully`);
       navigate('/dash/services');
     } catch (error) {
-      getError(error);
+      console.error('❌ Error submitting service:', error);
+      toast.error(error?.data?.message || `Failed to ${id ? 'update' : 'create'} service`);
     }
   };
 
-  const isLoading_ = isLoading || createLoading || updateLoading;
+  const isLoading_ = isLoading || createLoading || updateLoading || uploadingImage;
 
   return (
     <MotionDiv>
@@ -272,10 +291,17 @@ const AddEditService = () => {
                       accept="image/*"
                       onChange={handleImageChange}
                       className="mb-2"
+                      disabled={uploadingImage}
                     />
                     <Form.Text className="text-muted">
                       Upload service image (Max 5MB, JPG/PNG recommended)
                     </Form.Text>
+                    {uploadingImage && (
+                      <div className="mt-2">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <small className="text-muted">Uploading image...</small>
+                      </div>
+                    )}
                   </Form.Group>
                 </Card.Body>
               </Card>
