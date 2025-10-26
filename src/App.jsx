@@ -28,8 +28,6 @@ import WebsitePages from './Pages/websitePages/WebsitePages.jsx'
 import EditWebsitePage from './Pages/websitePages/EditWebsitePage.jsx'
 import NavigationMenu from './Pages/navigationMenu/NavigationMenu.jsx'
 import AddEditMenuItem from './Pages/navigationMenu/AddEditMenuItem.jsx'
-import TeamMembers from './Pages/teamMembers/TeamMembers.jsx'
-import AddEditTeamMember from './Pages/teamMembers/AddEditTeamMember.jsx'
 import Services from './Pages/services/Services.jsx'
 import AddEditService from './Pages/services/AddEditService.jsx'
 import JobApplications from './Pages/jobApplications/JobApplications.jsx'
@@ -79,9 +77,6 @@ function App() {
     { path: "/dash/navigation-menu", comp: <NavigationMenu /> },
     { path: "/dash/navigation-menu/add", comp: <AddEditMenuItem /> },
     { path: "/dash/navigation-menu/edit/:id", comp: <AddEditMenuItem /> },
-    { path: "/dash/team-members", comp: <TeamMembers /> },
-    { path: "/dash/team-members/add", comp: <AddEditTeamMember /> },
-    { path: "/dash/team-members/edit/:id", comp: <AddEditTeamMember /> },
     { path: "/dash/services", comp: <Services /> },
     { path: "/dash/services/add", comp: <AddEditService /> },
     { path: "/dash/services/edit/:id", comp: <AddEditService /> },

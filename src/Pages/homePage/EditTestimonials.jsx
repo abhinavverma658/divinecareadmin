@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useGetTestimonialsDataMutation, useUpdateTestimonialsDataMutation } from '../../features/apiSlice';
+import { useGetTestimonialsDataMutation, useCreateTestimonialsMutation, useUpdateTestimonialsByIdMutation, useDeleteTestimonialsByIdMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -15,7 +15,9 @@ const EditTestimonials = () => {
   const { token } = useSelector(selectAuth);
   
   const [getTestimonialsData, { isLoading: loadingTestimonials }] = useGetTestimonialsDataMutation();
-  const [updateTestimonialsData, { isLoading: updateLoading }] = useUpdateTestimonialsDataMutation();
+  const [createTestimonials, { isLoading: creating }] = useCreateTestimonialsMutation();
+  const [updateTestimonialsById, { isLoading: updateLoading }] = useUpdateTestimonialsByIdMutation();
+  const [deleteTestimonialsById, { isLoading: deleting }] = useDeleteTestimonialsByIdMutation();
   
   const [formData, setFormData] = useState({
     heading: '',
@@ -41,8 +43,11 @@ const EditTestimonials = () => {
 
   const fetchTestimonialsData = async () => {
     try {
+      console.log('🔄 Fetching testimonials data...');
+      
       // Check if demo mode
       if (token && token.startsWith("demo-token")) {
+        console.log('📊 Using demo mode');
         // Set demo testimonials data
         const demoData = {
           heading: 'Stories from the Heart',
@@ -64,12 +69,116 @@ const EditTestimonials = () => {
       }
 
       // Real API call for production
-      const data = await getTestimonialsData().unwrap();
-      if (data?.testimonialsData) {
-        setFormData(data.testimonialsData);
+      const response = await getTestimonialsData().unwrap();
+      console.log('📥 Raw API response:', response);
+
+      // Handle the new response format from backend
+      let testimonialsData = null;
+      
+      // The response might be wrapped in { data: ... }
+      const data = response.data || response;
+      console.log('📋 Processed data:', data);
+      
+      // Handle the specific backend structure: { success: true, section: { ... } }
+      if (data.success && data.section) {
+        const section = data.section;
+        testimonialsData = {
+          heading: section.sectionHeading || 'Client Testimonials',
+          description: section.sectionDescription || 'Client testimonials and feedback',
+          testimonials: (section.testimonials || []).map((testimonial, index) => ({
+            id: testimonial._id || testimonial.id || index + 1,
+            rating: testimonial.rating || 5,
+            content: testimonial.content || '',
+            name: testimonial.name || '',
+            designation: testimonial.designation || '',
+            profilePhoto: testimonial.image || testimonial.profilePhoto || ''
+          })),
+          isActive: true
+        };
       }
+      // Handle fallback structures
+      else if (data.testimonialsData) {
+        testimonialsData = data.testimonialsData;
+      } else if (data.testimonials || data.heading || data.description) {
+        testimonialsData = data;
+      } else if (Array.isArray(data)) {
+        // If it's just an array of testimonials
+        testimonialsData = {
+          heading: 'Stories from the Heart',
+          description: 'Client testimonials and feedback',
+          testimonials: data.map((item, index) => ({
+            ...item,
+            id: item.id || item._id || index + 1,
+            profilePhoto: item.image || item.profilePhoto || ''
+          })),
+          isActive: true
+        };
+      } else {
+        // Use fallback data structure
+        testimonialsData = {
+          heading: 'Stories from the Heart',
+          description: 'Client testimonials and feedback',
+          testimonials: [
+            {
+              id: 1,
+              rating: 5,
+              content: '',
+              name: '',
+              designation: '',
+              profilePhoto: ''
+            }
+          ],
+          isActive: true
+        };
+      }
+
+      // Ensure testimonials array exists and has proper structure
+      if (!testimonialsData.testimonials || !Array.isArray(testimonialsData.testimonials)) {
+        testimonialsData.testimonials = [
+          {
+            id: 1,
+            rating: 5,
+            content: '',
+            name: '',
+            designation: '',
+            profilePhoto: ''
+          }
+        ];
+      }
+
+      // Ensure each testimonial has required fields and normalize field names
+      testimonialsData.testimonials = testimonialsData.testimonials.map((testimonial, index) => ({
+        id: testimonial.id || testimonial._id || index + 1,
+        rating: testimonial.rating || 5,
+        content: testimonial.content || '',
+        name: testimonial.name || '',
+        designation: testimonial.designation || '',
+        profilePhoto: testimonial.image || testimonial.profilePhoto || ''
+      }));
+
+      console.log('✅ Final testimonials data:', testimonialsData);
+      setFormData(testimonialsData);
+
     } catch (error) {
+      console.error('❌ Error fetching testimonials:', error);
       getError(error);
+      
+      // Set fallback data on error
+      setFormData({
+        heading: 'Stories from the Heart',
+        description: 'Client testimonials and feedback',
+        testimonials: [
+          {
+            id: 1,
+            rating: 5,
+            content: '',
+            name: '',
+            designation: '',
+            profilePhoto: ''
+          }
+        ],
+        isActive: true
+      });
     }
   };
 
@@ -84,19 +193,29 @@ const EditTestimonials = () => {
   };
 
   const handleTestimonialChange = (testimonialId, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      testimonials: prev.testimonials.map(testimonial => 
+    console.log('🔄 Updating testimonial:', { testimonialId, field, value });
+    
+    setFormData(prev => {
+      const updatedTestimonials = prev.testimonials.map(testimonial => 
         testimonial.id === testimonialId 
           ? { ...testimonial, [field]: value }
           : testimonial
-      )
-    }));
+      );
+      
+      const updatedData = {
+        ...prev,
+        testimonials: updatedTestimonials
+      };
+      
+      console.log('✅ Updated testimonial data:', updatedData);
+      return updatedData;
+    });
     setHasChanges(true);
   };
 
   const addTestimonial = () => {
-    const newId = Math.max(...formData.testimonials.map(t => t.id)) + 1;
+    // Generate a truly unique ID using timestamp + random number
+    const newId = Date.now() + Math.floor(Math.random() * 1000);
     const newTestimonial = {
       id: newId,
       rating: 5,
@@ -106,10 +225,16 @@ const EditTestimonials = () => {
       profilePhoto: ''
     };
     
-    setFormData(prev => ({
-      ...prev,
-      testimonials: [...prev.testimonials, newTestimonial]
-    }));
+    console.log('🔄 Adding new testimonial:', newTestimonial);
+    
+    setFormData(prev => {
+      const updatedData = {
+        ...prev,
+        testimonials: [...prev.testimonials, newTestimonial]
+      };
+      console.log('✅ Updated formData:', updatedData);
+      return updatedData;
+    });
     setHasChanges(true);
   };
 
@@ -145,7 +270,7 @@ const EditTestimonials = () => {
   };
 
   const isFormValid = () => {
-    // Check section header
+    // Check hheader
     if (!formData.heading.trim() || !formData.description.trim()) {
       return false;
     }
@@ -217,6 +342,8 @@ const EditTestimonials = () => {
     }
 
     try {
+      console.log('🔄 Submitting testimonials data:', formData);
+      
       // Check if demo mode
       if (token && token.startsWith("demo-token")) {
         // Simulate API call
@@ -225,11 +352,128 @@ const EditTestimonials = () => {
         return;
       }
 
-      // Real API call
-      const data = await updateTestimonialsData(formData).unwrap();
-      toast.success(data?.message || 'Testimonial section updated successfully!');
+      // Transform data to match backend expected format
+      const backendData = {
+        sectionHeading: formData.heading,
+        sectionDescription: formData.description,
+        testimonials: formData.testimonials.map(testimonial => ({
+          _id: testimonial.id !== 1 ? testimonial.id : undefined, // Don't send _id for new items
+          rating: testimonial.rating,
+          content: testimonial.content,
+          name: testimonial.name,
+          designation: testimonial.designation,
+          image: testimonial.profilePhoto
+        })),
+        isActive: formData.isActive
+      };
+
+      console.log('📤 Sending backend data:', backendData);
+
+      // Real API call - update the canonical testimonials document on the backend
+      const id = '68f0f57e8514acf4a6b66b99';
+      const response = await updateTestimonialsById({ id, data: backendData }).unwrap();
+      
+      console.log('✅ Update response:', response);
+      
+      // Handle response data
+      const result = response.data || response;
+      const message = result?.message || 'Testimonial section updated successfully!';
+      
+      toast.success(message);
+      setHasChanges(false);
       navigate('/dash/homepage');
     } catch (error) {
+      console.error('❌ Submit error:', error);
+      getError(error);
+    }
+  };
+
+  const handleCreate = async () => {
+    try {
+      console.log('🔄 Creating testimonials:', formData);
+      
+      if (token && token.startsWith("demo-token")) {
+        toast.success('Testimonial section created successfully! (Demo Mode)');
+        setHasChanges(false);
+        return;
+      }
+      
+      // Transform data to match backend expected format
+      const backendData = {
+        sectionHeading: formData.heading,
+        sectionDescription: formData.description,
+        testimonials: formData.testimonials.map(testimonial => ({
+          rating: testimonial.rating,
+          content: testimonial.content,
+          name: testimonial.name,
+          designation: testimonial.designation,
+          image: testimonial.profilePhoto
+        })),
+        isActive: formData.isActive
+      };
+
+      console.log('📤 Creating with backend data:', backendData);
+      
+      const response = await createTestimonials(backendData).unwrap();
+      console.log('✅ Create response:', response);
+      
+      const result = response.data || response;
+      const message = result?.message || 'Testimonial section created successfully!';
+      
+      toast.success(message);
+      setHasChanges(false);
+      
+      // Refresh data after creation
+      if (result?.testimonials || result?.testimonialsData || result?.data || result?.section) {
+        fetchTestimonialsData();
+      }
+    } catch (error) {
+      console.error('❌ Create error:', error);
+      getError(error);
+    }
+  };
+
+  const handleDeleteSection = async () => {
+    const confirmDelete = window.confirm('Delete the testimonials section from backend? This cannot be undone.');
+    if (!confirmDelete) return;
+
+    try {
+      console.log('🔄 Deleting testimonials section...');
+      
+      if (token && token.startsWith("demo-token")) {
+        toast.success('Testimonial section deleted successfully! (Demo Mode)');
+        setFormData({
+          heading: '',
+          description: '',
+          testimonials: [
+            { id: 1, rating: 5, content: '', name: '', designation: '', profilePhoto: '' }
+          ],
+          isActive: false
+        });
+        setHasChanges(false);
+        return;
+      }
+      
+      const id = '68e6a7051da9fcca3f194a7b';
+      const response = await deleteTestimonialsById(id).unwrap();
+      
+      console.log('✅ Delete response:', response);
+      
+      const result = response.data || response;
+      const message = result?.message || 'Testimonial section deleted successfully!';
+      
+      toast.success(message);
+      setFormData({
+        heading: '',
+        description: '',
+        testimonials: [
+          { id: 1, rating: 5, content: '', name: '', designation: '', profilePhoto: '' }
+        ],
+        isActive: false
+      });
+      setHasChanges(false);
+    } catch (error) {
+      console.error('❌ Delete error:', error);
       getError(error);
     }
   };
@@ -253,7 +497,7 @@ const EditTestimonials = () => {
             </h2>
             {hasChanges && <Badge bg="warning" className="ms-2">Unsaved Changes</Badge>}
           </div>
-          <div>
+          <div className="d-flex gap-2 align-items-center">
             <Button
               variant="primary"
               onClick={handleSubmit}
@@ -334,10 +578,12 @@ const EditTestimonials = () => {
                   </Button>
                 </Card.Header>
                 <Card.Body>
-                  {formData.testimonials.map((testimonial, index) => (
-                    <Card key={testimonial.id} className="mb-3">
+                  {formData.testimonials.map((testimonial, index) => {
+                    console.log('🎨 Rendering testimonial:', { index, testimonial });
+                    return (
+                    <Card key={`testimonial-${testimonial.id}-${index}`} className="mb-3">
                       <Card.Header className="d-flex justify-content-between align-items-center">
-                        <div className="flex-grow-1">
+                        <div className="grow">
                           <h6 className="mb-0">
                             Testimonial {index + 1}
                             {testimonial.name && (
@@ -369,22 +615,36 @@ const EditTestimonials = () => {
                               type="textarea"
                               name={`testimonial_${testimonial.id}_content`}
                               label="Testimonial Content *"
-                              value={testimonial.content}
-                              onChange={(e) => handleTestimonialChange(testimonial.id, 'content', e.target.value)}
+                              value={testimonial.content || ''}
+                              onChange={(e) => {
+                                console.log('📝 Content field change:', { 
+                                  id: testimonial.id, 
+                                  value: e.target.value,
+                                  currentContent: testimonial.content 
+                                });
+                                handleTestimonialChange(testimonial.id, 'content', e.target.value);
+                              }}
                               placeholder="Enter the testimonial content..."
                               rows={3}
                               required={true}
                               maxLength={167}
                             />
-                            <small className="text-muted">{testimonial.content.length}/167 characters</small>
+                            <small className="text-muted">{(testimonial.content || '').length}/167 characters</small>
                           </Col>
                           <Col md={6}>
                             <FormField
                               type="text"
                               name={`testimonial_${testimonial.id}_name`}
                               label="Name *"
-                              value={testimonial.name}
-                              onChange={(e) => handleTestimonialChange(testimonial.id, 'name', e.target.value)}
+                              value={testimonial.name || ''}
+                              onChange={(e) => {
+                                console.log('📝 Name field change:', { 
+                                  id: testimonial.id, 
+                                  value: e.target.value,
+                                  currentName: testimonial.name 
+                                });
+                                handleTestimonialChange(testimonial.id, 'name', e.target.value);
+                              }}
                               placeholder="Enter person's name..."
                               required={true}
                             />
@@ -394,8 +654,15 @@ const EditTestimonials = () => {
                               type="text"
                               name={`testimonial_${testimonial.id}_designation`}
                               label="Designation *"
-                              value={testimonial.designation}
-                              onChange={(e) => handleTestimonialChange(testimonial.id, 'designation', e.target.value)}
+                              value={testimonial.designation || ''}
+                              onChange={(e) => {
+                                console.log('📝 Designation field change:', { 
+                                  id: testimonial.id, 
+                                  value: e.target.value,
+                                  currentDesignation: testimonial.designation 
+                                });
+                                handleTestimonialChange(testimonial.id, 'designation', e.target.value);
+                              }}
                               placeholder="e.g., Volunteer, Client, etc."
                               required={true}
                             />
@@ -431,7 +698,8 @@ const EditTestimonials = () => {
                         </Row>
                       </Card.Body>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </Card.Body>
               </Card>
             </Form>

@@ -2,20 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner } from 'react-bootstrap';
 import { FaSave, FaArrowLeft, FaStar, FaRegStar, FaPlus, FaTrash } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
+import { 
+  useGetAboutTestimonialsMutation, 
+  useUpdateAboutTestimonialsSectionMutation,
+  useCreateAboutTestimonialMutation,
+  useUpdateAboutTestimonialMutation,
+  useDeleteAboutTestimonialMutation
+} from '../../features/apiSlice';
 import { toast } from 'react-toastify';
+import { useSelector } from 'react-redux';
+import { selectAuth } from '../../features/authSlice';
 
 const EditTestimonialSection = () => {
+  const { token } = useSelector(selectAuth);
+  
   const [formData, setFormData] = useState({
+    _id: null, // Backend section ID
     // Left side - Multiple Testimonials
     testimonials: [
       {
         id: 1,
+        _id: null, // Backend testimonial ID
         profileImage: '',
         starRating: 5,
         name: '',
         role: '',
-        content: ''
+        content: '',
+        isNew: true, // Track if this is a new testimonial
+        isSaving: false // Track saving state
       }
     ],
     // Right side - Content
@@ -31,37 +45,51 @@ const EditTestimonialSection = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [savedTestimonials, setSavedTestimonials] = useState([]);
   
-  // API mutations - using existing About Us endpoints
-  const [getAboutUsData] = useGetAboutUsDataMutation();
-  const [updateAboutUsData] = useUpdateAboutUsDataMutation();
+  // API mutations - using new About Us testimonials endpoints
+  const [getAboutTestimonials] = useGetAboutTestimonialsMutation();
+  const [updateAboutTestimonialsSection] = useUpdateAboutTestimonialsSectionMutation();
+  const [createAboutTestimonial] = useCreateAboutTestimonialMutation();
+  const [updateAboutTestimonial] = useUpdateAboutTestimonialMutation();
+  const [deleteAboutTestimonial] = useDeleteAboutTestimonialMutation();
 
   // Demo data for testing
   const demoData = {
+    _id: 'demo-about-testimonials-section',
     testimonials: [
       {
         id: 1,
+        _id: 'demo-testimonial-1',
         profileImage: 'https://creative-story.s3.amazonaws.com/testimonials/sharon-mcclure.jpg',
         starRating: 5,
         name: 'Sharon McClure',
         role: 'Volunteer',
-        content: '"Through their words, we\'re reminded that a legacy isn\'t just something you leave behind it\'s something you create every day inspiring all generations to follow in their footsteps."'
+        content: '"Through their words, we\'re reminded that a legacy isn\'t just something you leave behind it\'s something you create every day inspiring all generations to follow in their footsteps."',
+        isNew: false,
+        isSaving: false
       },
       {
         id: 2,
+        _id: 'demo-testimonial-2',
         profileImage: 'https://creative-story.s3.amazonaws.com/testimonials/john-doe.jpg',
         starRating: 4,
         name: 'John Doe',
         role: 'Community Leader',
-        content: '"The impact this organization has made in our community is truly remarkable. They have brought hope and positive change to countless lives."'
+        content: '"The impact this organization has made in our community is truly remarkable. They have brought hope and positive change to countless lives."',
+        isNew: false,
+        isSaving: false
       },
       {
         id: 3,
+        _id: 'demo-testimonial-3',
         profileImage: 'https://creative-story.s3.amazonaws.com/testimonials/mary-smith.jpg',
         starRating: 5,
         name: 'Mary Smith',
         role: 'Beneficiary',
-        content: '"Thanks to their support, I was able to rebuild my life and give back to others in need. Their compassion knows no bounds."'
+        content: '"Thanks to their support, I was able to rebuild my life and give back to others in need. Their compassion knows no bounds."',
+        isNew: false,
+        isSaving: false
       }
     ],
     sectionHeading: 'Lifelong Lessons: Stories from Our Elders',
@@ -75,10 +103,11 @@ const EditTestimonialSection = () => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token || token === '"demo-token"') {
+    if (token && token.startsWith("demo-token")) {
       setIsDemoMode(true);
       setFormData(demoData);
+      // Mark all demo testimonials as saved
+      setSavedTestimonials(demoData.testimonials.map(t => t.id));
     } else {
       fetchTestimonialData();
     }
@@ -87,32 +116,60 @@ const EditTestimonialSection = () => {
   const fetchTestimonialData = async () => {
     try {
       setIsLoading(true);
-      const response = await getAboutUsData().unwrap();
-      if (response?.data) {
+      console.log('📄 Fetching about testimonials data...');
+      
+      const response = await getAboutTestimonials().unwrap();
+      
+      if (response?.success && response?.section) {
+        // Convert backend testimonials to frontend format
+        const convertedTestimonials = response.section.testimonials?.map((testimonial, index) => ({
+          id: index + 1, // Frontend ID
+          _id: testimonial._id, // Backend ID
+          profileImage: testimonial.image || testimonial.profileImage || '',
+          starRating: testimonial.rating || testimonial.starRating || 5,
+          name: testimonial.name || '',
+          role: testimonial.title || testimonial.role || '',
+          content: testimonial.content || '',
+          isNew: false, // Existing testimonial
+          isSaving: false
+        })) || [];
+        
         setFormData({
-          testimonials: response.data.testimonials || [
+          _id: response.section._id, // Store backend section ID
+          testimonials: convertedTestimonials.length > 0 ? convertedTestimonials : [
             {
               id: 1,
+              _id: null,
               profileImage: '',
               starRating: 5,
               name: '',
               role: '',
-              content: ''
+              content: '',
+              isNew: true,
+              isSaving: false
             }
           ],
-          sectionHeading: response.data.testimonialSectionHeading || '',
-          sectionDescription: response.data.testimonialSectionDescription || '',
-          ctaButtonText: response.data.testimonialCtaButtonText || '',
-          ctaButtonLink: response.data.testimonialCtaButtonLink || '',
-          stat1Number: response.data.testimonialStat1Number || '',
-          stat1Label: response.data.testimonialStat1Label || '',
-          stat2Number: response.data.testimonialStat2Number || '',
-          stat2Label: response.data.testimonialStat2Label || ''
+          sectionHeading: response.section.sectionHeading || '',
+          sectionDescription: response.section.sectionDescription || '',
+          ctaButtonText: response.section.ctaButtonText || '',
+          ctaButtonLink: response.section.ctaButtonLink || '',
+          stat1Number: response.section.stat1Number || '',
+          stat1Label: response.section.stat1Label || '',
+          stat2Number: response.section.stat2Number || '',
+          stat2Label: response.section.stat2Label || ''
         });
+        
+        // Track all existing testimonials as saved
+        setSavedTestimonials(convertedTestimonials.map(t => t.id));
+        
+        console.log('✅ About testimonials data loaded successfully');
+      } else {
+        console.log('📄 No existing about testimonials section found, starting fresh');
+        // Initialize with default structure if no data exists
       }
     } catch (error) {
-      console.error('Error fetching testimonial data:', error);
-      toast.error('Failed to load testimonial data');
+      console.error('Error fetching about testimonials data:', error);
+      toast.info('Starting with a fresh testimonials form. Add your testimonials and save them individually.');
     } finally {
       setIsLoading(false);
     }
@@ -164,23 +221,153 @@ const EditTestimonialSection = () => {
       ...prev,
       testimonials: [...prev.testimonials, {
         id: newId,
+        _id: null,
         profileImage: '',
         starRating: 5,
         name: '',
         role: '',
-        content: ''
+        content: '',
+        isNew: true,
+        isSaving: false
       }]
     }));
   };
 
-  const removeTestimonial = (testimonialId) => {
-    if (formData.testimonials.length > 1) {
+  const removeTestimonial = async (testimonialId) => {
+    const testimonial = formData.testimonials.find(t => t.id === testimonialId);
+    
+    if (formData.testimonials.length <= 1) {
+      toast.error('At least one testimonial is required');
+      return;
+    }
+    
+    // If it's an existing testimonial (has backend _id), delete from backend
+    if (testimonial && testimonial._id && !testimonial.isNew) {
+      try {
+        if (!isDemoMode) {
+          await deleteAboutTestimonial(testimonial._id).unwrap();
+          toast.success('Testimonial deleted from backend');
+        }
+      } catch (error) {
+        console.error('Error deleting testimonial:', error);
+        toast.error('Failed to delete testimonial from backend');
+        return;
+      }
+    }
+    
+    // Remove from frontend state
+    setFormData(prev => ({
+      ...prev,
+      testimonials: prev.testimonials.filter(t => t.id !== testimonialId)
+    }));
+    
+    // Remove from saved testimonials tracking
+    setSavedTestimonials(prev => prev.filter(id => id !== testimonialId));
+  };
+
+  const saveTestimonialToBackend = async (testimonial) => {
+    // Check if all required fields are filled
+    if (!testimonial.name || !testimonial.role || !testimonial.content) {
+      toast.error('Please fill in all required fields (name, role, and content) before saving');
+      return false;
+    }
+
+    try {
+      // Mark this testimonial as saving
       setFormData(prev => ({
         ...prev,
-        testimonials: prev.testimonials.filter(testimonial => testimonial.id !== testimonialId)
+        testimonials: prev.testimonials.map(t => 
+          t.id === testimonial.id ? { ...t, isSaving: true } : t
+        )
       }));
-    } else {
-      toast.error('At least one testimonial is required');
+
+      // Check if demo mode
+      if (isDemoMode) {
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Mark as saved in demo mode
+        setFormData(prev => ({
+          ...prev,
+          testimonials: prev.testimonials.map(t => 
+            t.id === testimonial.id ? { ...t, isNew: false, isSaving: false } : t
+          )
+        }));
+        
+        setSavedTestimonials(prev => [...prev, testimonial.id]);
+        toast.success(`${testimonial.name} testimonial saved successfully! (Demo Mode)`);
+        return true;
+      }
+
+      // Real API call
+      const testimonialData = {
+        profileImage: testimonial.profileImage,
+        starRating: testimonial.starRating,
+        role: testimonial.role,
+        name: testimonial.name,
+        content: testimonial.content
+      };
+
+      let response;
+      if (testimonial.isNew) {
+        // Create new testimonial
+        response = await createAboutTestimonial(testimonialData).unwrap();
+      } else {
+        // Update existing testimonial
+        response = await updateAboutTestimonial({ 
+          id: testimonial._id, 
+          data: testimonialData 
+        }).unwrap();
+      }
+      
+      // Mark as saved
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(t => 
+          t.id === testimonial.id ? { 
+            ...t, 
+            isNew: false, 
+            isSaving: false, 
+            _id: response.testimonial?.id || t._id 
+          } : t
+        )
+      }));
+      
+      setSavedTestimonials(prev => [...prev, testimonial.id]);
+      toast.success(response?.message || `${testimonial.name} testimonial saved successfully!`);
+      return true;
+      
+    } catch (error) {
+      console.error('Error saving testimonial:', error);
+      
+      // Reset saving state
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(t => 
+          t.id === testimonial.id ? { ...t, isSaving: false } : t
+        )
+      }));
+      
+      // Handle connection errors gracefully
+      if (error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+        toast.warn('Backend server is offline. Testimonial saved locally only.', {
+          position: 'top-center',
+          autoClose: 3000,
+        });
+        
+        // Mark as saved locally
+        setFormData(prev => ({
+          ...prev,
+          testimonials: prev.testimonials.map(t => 
+            t.id === testimonial.id ? { ...t, isNew: false, isSaving: false } : t
+          )
+        }));
+        setSavedTestimonials(prev => [...prev, testimonial.id]);
+        return true;
+      } else {
+        toast.error(error?.message || `Failed to save ${testimonial.name} testimonial. Please try again.`);
+        return false;
+      }
     }
   };
 
@@ -227,35 +414,76 @@ const EditTestimonialSection = () => {
   };
 
   const isFormValid = () => {
-    return validateForm().length === 0;
+    // Check section header
+    if (!formData.sectionHeading.trim() || !formData.sectionDescription.trim()) {
+      return false;
+    }
+    
+    // Check if at least one testimonial is saved to backend
+    const savedTestimonialsCount = formData.testimonials.filter(t => !t.isNew).length;
+    if (savedTestimonialsCount === 0) {
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const errors = validateForm();
-    if (errors.length > 0) {
-      errors.forEach(error => toast.error(error));
+    // Validate section header
+    if (!formData.sectionHeading.trim() || !formData.sectionDescription.trim()) {
+      toast.error('Please fill in both the section heading and description');
+      return;
+    }
+    
+    // Check if at least one testimonial is saved
+    const savedTestimonialsCount = formData.testimonials.filter(t => !t.isNew).length;
+    
+    if (savedTestimonialsCount === 0) {
+      toast.error('Please save at least one testimonial to the backend before finishing');
+      return;
+    }
+    
+    // Check for unsaved testimonials
+    const unsavedTestimonials = formData.testimonials.filter(t => t.isNew);
+    if (unsavedTestimonials.length > 0) {
+      const testimonialNames = unsavedTestimonials.map((t, index) => 
+        t.name || `Testimonial ${formData.testimonials.indexOf(t) + 1}`
+      ).join(', ');
+      toast.warning(`You have unsaved testimonials: ${testimonialNames}. Please save them or remove them before finishing.`);
       return;
     }
 
     if (isDemoMode) {
-      toast.success('Testimonial Section updated successfully! (Demo mode)');
+      toast.success('About Us Testimonial Section updated successfully! (Demo mode)');
       return;
     }
 
     try {
       setIsLoading(true);
-      const response = await updateAboutUsData(formData).unwrap();
       
-      if (response?.message) {
-        toast.success(response.message);
-      } else {
-        toast.success('Testimonial Section updated successfully!');
-      }
+      // Update section header data
+      const sectionData = {
+        sectionHeading: formData.sectionHeading,
+        sectionDescription: formData.sectionDescription,
+        ctaButtonText: formData.ctaButtonText,
+        ctaButtonLink: formData.ctaButtonLink,
+        stat1Number: formData.stat1Number,
+        stat1Label: formData.stat1Label,
+        stat2Number: formData.stat2Number,
+        stat2Label: formData.stat2Label
+      };
+      
+      const response = await updateAboutTestimonialsSection({
+        id: formData._id,
+        ...sectionData
+      }).unwrap();
+      
+      toast.success(response?.message || `About Us Testimonial Section updated successfully! ${savedTestimonialsCount} testimonials saved.`);
     } catch (error) {
-      console.error('Error updating testimonial data:', error);
-      toast.error(error?.data?.message || 'Failed to update testimonial section');
+      console.error('Error updating testimonial section:', error);
+      toast.error(error?.message || 'Failed to update testimonial section');
     } finally {
       setIsLoading(false);
     }
@@ -292,6 +520,11 @@ const EditTestimonialSection = () => {
               <small>Demo Mode - Changes won't be saved to server</small>
             </Alert>
           )}
+          {!isDemoMode && (
+            <Alert variant="info" className="mb-0 py-2 px-3">
+              <small>Save testimonials individually, then finish section setup</small>
+            </Alert>
+          )}
           <Button
             type="submit"
             form="testimonialForm"
@@ -307,7 +540,7 @@ const EditTestimonialSection = () => {
             ) : (
               <>
                 <FaSave className="me-2" />
-                Save Testimonial
+                Finish Section Setup
               </>
             )}
           </Button>
@@ -414,6 +647,36 @@ const EditTestimonialSection = () => {
                           required
                         />
                       </Form.Group>
+                      
+                      {/* Save/Status Section */}
+                      <div className="mt-3 d-flex justify-content-between align-items-center">
+                        {testimonial.isNew ? (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => saveTestimonialToBackend(testimonial)}
+                            disabled={testimonial.isSaving || !testimonial.name || !testimonial.role || !testimonial.content}
+                            className="flex-grow-1"
+                          >
+                            {testimonial.isSaving ? (
+                              <>
+                                <Spinner animation="border" size="sm" className="me-1" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <FaSave className="me-1" />
+                                Save Testimonial
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="d-flex align-items-center text-success">
+                            <FaSave className="me-1" />
+                            <small>Saved Testimonial</small>
+                          </div>
+                        )}
+                      </div>
                     </Card.Body>
                   </Card>
                 ))}

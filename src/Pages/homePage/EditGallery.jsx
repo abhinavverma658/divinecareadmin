@@ -19,22 +19,17 @@ const EditGallery = () => {
   const [updateGalleryData, { isLoading: updateLoading }] = useUpdateGalleryDataMutation();
   
   const [formData, setFormData] = useState({
+    _id: null, // Backend gallery ID
     heading: '',
     description: '',
     images: [
-      { id: 1, url: '', public_id: '' },
-      { id: 2, url: '', public_id: '' },
-      { id: 3, url: '', public_id: '' },
-      { id: 4, url: '', public_id: '' },
-      { id: 5, url: '', public_id: '' },
-      { id: 6, url: '', public_id: '' }
-    ],
-    ctaButton: {
-      text: 'View Full Gallery',
-      link: '/gallery',
-      style: 'primary'
-    },
-    isActive: true
+      { id: 1, url: '', public_id: '', _id: null },
+      { id: 2, url: '', public_id: '', _id: null },
+      { id: 3, url: '', public_id: '', _id: null },
+      { id: 4, url: '', public_id: '', _id: null },
+      { id: 5, url: '', public_id: '', _id: null },
+      { id: 6, url: '', public_id: '', _id: null }
+    ]
   });
   
   const [hasChanges, setHasChanges] = useState(false);
@@ -63,42 +58,36 @@ const EditGallery = () => {
           description: 'These titles aim to convey emotion and meaning while showcasing the importance of your organization\'s work through visuals.',
           images: [
             {
-              id: 1,
+              _id: 'demo-img-1',
               url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
               public_id: 'gallery/image1'
             },
             {
-              id: 2,
+              _id: 'demo-img-2',
               url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
               public_id: 'gallery/image2'
             },
             {
-              id: 3,
+              _id: 'demo-img-3',
               url: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
               public_id: 'gallery/image3'
             },
             {
-              id: 4,
+              _id: 'demo-img-4',
               url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
               public_id: 'gallery/image4'
             },
             {
-              id: 5,
+              _id: 'demo-img-5',
               url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
               public_id: 'gallery/image5'
             },
             {
-              id: 6,
+              _id: 'demo-img-6',
               url: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
               public_id: 'gallery/image6'
             }
-          ],
-          ctaButton: {
-            text: 'View Full Gallery',
-            link: '/gallery',
-            style: 'primary'
-          },
-          isActive: true
+          ]
         };
         
         setFormData(demoData);
@@ -107,19 +96,24 @@ const EditGallery = () => {
       }
 
       // Real API call for production
-      const data = await getGalleryData('68e7f16f09f48a2ea19cdc48').unwrap();
+      const data = await getGalleryData().unwrap();
       
-      if (data?.success && data?.galleryData) {
+      console.log('📄 Gallery data received:', data);
+      
+      if (data?.success && data?.gallery) {
+        // Convert backend image structure to frontend structure
+        const convertedImages = data.gallery.images.map((img, index) => ({
+          id: index + 1, // Use index-based ID for frontend
+          _id: img._id, // Keep backend ID for reference
+          url: img.url,
+          public_id: img.public_id
+        }));
+        
         setFormData({
-          heading: data.galleryData.heading || '',
-          description: data.galleryData.description || '',
-          images: data.galleryData.images || [],
-          ctaButton: data.galleryData.ctaButton || {
-            text: 'View Full Gallery',
-            link: '/gallery',
-            style: 'primary'
-          },
-          isActive: data.galleryData.isActive !== undefined ? data.galleryData.isActive : true
+          _id: data.gallery._id, // Store backend ID
+          heading: data.gallery.heading || '',
+          description: data.gallery.description || '',
+          images: convertedImages
         });
       }
     } catch (error) {
@@ -132,26 +126,23 @@ const EditGallery = () => {
         images: [
           {
             id: 1,
+            _id: 'offline-img-1',
             url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
             public_id: 'gallery/image1'
           },
           {
             id: 2,
+            _id: 'offline-img-2',
             url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
             public_id: 'gallery/image2'
           },
           {
             id: 3,
+            _id: 'offline-img-3',
             url: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
             public_id: 'gallery/image3'
           }
-        ],
-        ctaButton: {
-          text: 'View Full Gallery',
-          link: '/gallery',
-          style: 'primary'
-        },
-        isActive: true
+        ]
       };
       
       setFormData(offlineData);
@@ -167,21 +158,10 @@ const EditGallery = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    if (name.startsWith('ctaButton.')) {
-      const field = name.split('.')[1];
-      setFormData(prev => ({
-        ...prev,
-        ctaButton: {
-          ...prev.ctaButton,
-          [field]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
     setHasChanges(true);
   };
 
@@ -202,7 +182,8 @@ const EditGallery = () => {
     const newImage = {
       id: newId,
       url: '',
-      public_id: ''
+      public_id: '',
+      _id: null // Will be assigned by backend when saved
     };
     
     setFormData(prev => ({
@@ -288,13 +269,18 @@ const EditGallery = () => {
       const requestData = {
         heading: formData.heading,
         description: formData.description,
-        images: formData.images.filter(img => img.url && img.url.trim()), // Only include images with URLs
-        ctaButton: formData.ctaButton,
-        isActive: formData.isActive
+        images: formData.images.filter(img => img.url && img.url.trim()).map(img => ({
+          url: img.url,
+          public_id: img.public_id,
+          ...(img._id && { _id: img._id }) // Include backend ID if available
+        }))
       };
 
+      // Use the stored gallery ID or default
+      const galleryId = formData._id || "68ebd5e97deb89d1105fd730";
+
       const data = await updateGalleryData({ 
-        id: '68e7f16f09f48a2ea19cdc48', 
+        id: galleryId, 
         ...requestData 
       }).unwrap();
       

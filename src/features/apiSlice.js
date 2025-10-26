@@ -200,13 +200,7 @@ const baseQuery = async (args, api, extraOptions) => {
     // Testimonials
     getTestimonials: builder.mutation({
       query: () => ({
-        url: "/testimonial/get-testimonials",
-        method: "GET",
-      }),
-    }),
-    getTestimonialById: builder.mutation({
-      query: (id) => ({
-        url: `/testimonial/get-testimonial/${id}`,
+        url: "/testimonial",
         method: "GET",
       }),
     }),
@@ -403,6 +397,11 @@ const baseQuery = async (args, api, extraOptions) => {
           const cleanToken = token ? token.replace(/"/g, '') : null;
           const baseUrl = getBaseUrl();
           
+          console.log('🔄 Fetching team members data:', {
+            endpoint: `${baseUrl}/team-members`,
+            hasToken: !!cleanToken
+          });
+          
           const response = await fetch(`${baseUrl}/team-members`, {
             method: 'GET',
             headers: {
@@ -413,8 +412,10 @@ const baseQuery = async (args, api, extraOptions) => {
           
           if (response.ok) {
             const data = await response.json();
+            console.log('✅ Team members data received:', data);
             return { data };
           } else {
+            console.log('❌ Team members fetch failed:', response.status);
             throw new Error(`HTTP ${response.status}`);
           }
         } catch (error) {
@@ -423,31 +424,68 @@ const baseQuery = async (args, api, extraOptions) => {
             data: {
               success: true,
               message: 'Demo team members data (backend fallback)',
-              teamMembers: [
-                {
-                  _id: 'demo1',
-                  picture: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
-                  name: 'John Doe',
-                  designation: 'General Manager'
-                }
-              ]
+              section: {
+                _id: 'demo-team-section',
+                heading: 'Meet our Volunteer members',
+                description: 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
+                members: [
+                  {
+                    _id: 'demo-member-1',
+                    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                    fullName: 'John Doe',
+                    designation: 'General Manager'
+                  },
+                  {
+                    _id: 'demo-member-2',
+                    image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop&crop=face',
+                    fullName: 'Jane Smith',
+                    designation: 'Community Coordinator'
+                  }
+                ],
+                updatedAt: new Date().toISOString()
+              }
             }
           };
         }
       },
     }),
-    getTeamMemberById: builder.mutation({
-      query: (id) => ({
-        url: `/team-members/get-team-member/${id}`,
-        method: "GET",
-      }),
-    }),
+
     createTeamMember: builder.mutation({
-      query: (data) => ({
-        url: "/team-members/create-team-member",
-        method: "POST",
-        body: data,
-      }),
+      queryFn: async (data, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Creating team member:', {
+            endpoint: `${baseUrl}/team-members/member`,
+            hasToken: !!cleanToken,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/team-members/member`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Team member created:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Create team member failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Create team member error:', error);
+          throw error;
+        }
+      },
     }),
     addTeamMember: builder.mutation({
       queryFn: async (data, { getState }) => {
@@ -473,9 +511,12 @@ const baseQuery = async (args, api, extraOptions) => {
           
           if (response.ok) {
             const result = await response.json();
+            console.log('✅ Team member added:', result);
             return { data: result };
           } else {
-            throw new Error(`HTTP ${response.status}`);
+            console.log('❌ Add team member failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
           }
         } catch (error) {
           console.error('Add team member error:', error);
@@ -484,17 +525,78 @@ const baseQuery = async (args, api, extraOptions) => {
       },
     }),
     updateTeamMember: builder.mutation({
-      query: ({ id, data }) => ({
-        url: `/team-members/update-team-member/${id}`,
-        method: "PATCH",
-        body: data,
-      }),
+      queryFn: async ({ id, data }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Updating team member:', {
+            endpoint: `${baseUrl}/team-members/${id}`,
+            hasToken: !!cleanToken,
+            id,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/team-members/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Team member updated:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Update team member failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Update team member error:', error);
+          throw error;
+        }
+      },
     }),
     deleteTeamMember: builder.mutation({
-      query: (id) => ({
-        url: `/team-members/delete-team-member/${id}`,
-        method: "DELETE",
-      }),
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Deleting team member:', {
+            endpoint: `${baseUrl}/team-members/${id}`,
+            hasToken: !!cleanToken,
+            id
+          });
+          
+          const response = await fetch(`${baseUrl}/team-members/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Team member deleted:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Delete team member failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Delete team member error:', error);
+          throw error;
+        }
+      },
     }),
     toggleTeamMemberStatus: builder.mutation({
       query: ({ id, isActive }) => ({
@@ -1036,6 +1138,241 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
 
+    // About Us Testimonials endpoints
+    getAboutTestimonials: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Fetching about testimonials data:', {
+            endpoint: `${baseUrl}/about/testimonials`,
+            hasToken: !!cleanToken
+          });
+          
+          const response = await fetch(`${baseUrl}/about/testimonials`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ About testimonials data received:', data);
+            return { data };
+          } else {
+            console.log('❌ About testimonials fetch failed:', response.status);
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (error) {
+          console.log('📄 About testimonials API not available, using demo data:', error);
+          return {
+            data: {
+              success: true,
+              message: 'Demo about testimonials data (backend fallback)',
+              section: {
+                _id: 'demo-about-testimonials',
+                sectionHeading: 'Lifelong Lessons: Stories from Our Elders',
+                sectionDescription: 'Our seniors are heart of our community, each one with a unique story and a lifetime of experiences that inspire us daily.',
+                ctaButtonText: 'Learn More',
+                ctaButtonLink: '/testimonials',
+                stat1Number: '569 +',
+                stat1Label: 'Satisfied Clients',
+                stat2Number: '12 +',
+                stat2Label: 'Years of Experience',
+                testimonials: [
+                  {
+                    _id: 'demo-testimonial-1',
+                    profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                    starRating: 5,
+                    name: 'Sharon McClure',
+                    role: 'Volunteer',
+                    content: 'Through their words, we\'re reminded that a legacy isn\'t just something you leave behind it\'s something you create every day inspiring all generations.'
+                  }
+                ]
+              }
+            }
+          };
+        }
+      },
+    }),
+    
+    createAboutTestimonial: builder.mutation({
+      queryFn: async (data, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          // Map frontend fields to backend schema
+          const mappedData = {
+            image: data.profileImage || data.image,
+            rating: data.starRating || data.rating,
+            title: data.role || data.title,
+            name: data.name,
+            content: data.content
+          };
+          
+          console.log('🔄 Creating about testimonial:', {
+            endpoint: `${baseUrl}/about/testimonials/testimonial`,
+            hasToken: !!cleanToken,
+            originalData: data,
+            mappedData
+          });
+          
+          const response = await fetch(`${baseUrl}/about/testimonials/testimonial`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(mappedData),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ About testimonial created:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Create about testimonial failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Create about testimonial error:', error);
+          throw error;
+        }
+      },
+    }),
+    
+    updateAboutTestimonialsSection: builder.mutation({
+      queryFn: async ({ id = "68ee1f0770e1bfc20b37541c", ...data }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Updating about testimonials section:', {
+            endpoint: `${baseUrl}/about/testimonials/${id}`,
+            hasToken: !!cleanToken,
+            id,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/about/testimonials/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ About testimonials section updated:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Update about testimonials section failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Update about testimonials section error:', error);
+          throw error;
+        }
+      },
+    }),
+    
+    updateAboutTestimonial: builder.mutation({
+      queryFn: async ({ id, data }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          // Map frontend fields to backend schema
+          const mappedData = {
+            image: data.profileImage || data.image,
+            rating: data.starRating || data.rating,
+            title: data.role || data.title,
+            name: data.name,
+            content: data.content
+          };
+          
+          console.log('🔄 Updating about testimonial:', {
+            endpoint: `${baseUrl}/about/testimonials/testimonial/${id}`,
+            hasToken: !!cleanToken,
+            id,
+            originalData: data,
+            mappedData
+          });
+          
+          const response = await fetch(`${baseUrl}/about/testimonials/testimonial/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(mappedData),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ About testimonial updated:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Update about testimonial failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Update about testimonial error:', error);
+          throw error;
+        }
+      },
+    }),
+    
+    deleteAboutTestimonial: builder.mutation({
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Deleting about testimonial:', {
+            endpoint: `${baseUrl}/about/testimonials/testimonial/${id}`,
+            hasToken: !!cleanToken,
+            id
+          });
+          
+          const response = await fetch(`${baseUrl}/about/testimonials/testimonial/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ About testimonial deleted:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Delete about testimonial failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Delete about testimonial error:', error);
+          throw error;
+        }
+      },
+    }),
+
     // Contact page content
     getContactPageData: builder.mutation({
       query: () => ({
@@ -1065,24 +1402,182 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
     getTestimonialsData: builder.mutation({
-      query: () => ({
-        url: "/home-page/get-testimonials-data",
-        method: "GET",
-      }),
-    }),
-    updateTestimonialsData: builder.mutation({
-      query: (data) => ({
-        url: "/home-page/update-testimonials-data",
-        method: "PATCH",
-        body: data,
-      }),
-    }),
-    getGalleryData: builder.mutation({
-      queryFn: async (id = "68e7f16f09f48a2ea19cdc48", { getState }) => {
+      queryFn: async (arg, { getState }) => {
         try {
           const token = getState().auth.token;
           const cleanToken = token ? token.replace(/"/g, '') : null;
           const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Fetching testimonials data:', {
+            endpoint: `${baseUrl}/testimonials`,
+            hasToken: !!cleanToken
+          });
+          
+          const response = await fetch(`${baseUrl}/testimonials`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Testimonials data received:', data);
+            return { data };
+          } else {
+            console.log('❌ Testimonials API failed:', response.status);
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (error) {
+          console.log('📄 Testimonials API not available, using demo data:', error);
+          return {
+            data: {
+              success: true,
+              message: 'Demo testimonials data (backend fallback)',
+              section: {
+                _id: 'demo-testimonials',
+                sectionHeading: 'Stories from the Heart',
+                sectionDescription: 'Long-term recovery requires sustainable livelihoods. We support individuals & families in rebuilding.',
+                testimonials: [
+                  {
+                    _id: 'demo1',
+                    rating: 5,
+                    content: 'The support we received after the disaster was nothing short of life-changing. When everything we had was lost, the kindness and quick response from this organization.',
+                    name: 'Johnnie Lind',
+                    designation: 'Volunteer',
+                    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face'
+                  }
+                ]
+              }
+            }
+          };
+        }
+      },
+    }),
+    // Home testimonials CRUD (public-facing testimonials section)
+    createTestimonials: builder.mutation({
+      queryFn: async (data, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Creating testimonials:', {
+            endpoint: `${baseUrl}/testimonials`,
+            hasToken: !!cleanToken,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/testimonials`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Testimonials created:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Create testimonials failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Create testimonials error:', error);
+          throw error;
+        }
+      },
+    }),
+    updateTestimonialsById: builder.mutation({
+      queryFn: async ({ id, data }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Updating testimonials:', {
+            endpoint: `${baseUrl}/testimonials/${id}`,
+            hasToken: !!cleanToken,
+            id,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/testimonials/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Testimonials updated:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Update testimonials failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Update testimonials error:', error);
+          throw error;
+        }
+      },
+    }),
+    deleteTestimonialsById: builder.mutation({
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Deleting testimonials:', {
+            endpoint: `${baseUrl}/testimonials/${id}`,
+            hasToken: !!cleanToken,
+            id
+          });
+          
+          const response = await fetch(`${baseUrl}/testimonials/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Testimonials deleted:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Delete testimonials failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Delete testimonials error:', error);
+          throw error;
+        }
+      },
+    }),
+    getGalleryData: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Fetching gallery data:', {
+            endpoint: `${baseUrl}/gallery`,
+            hasToken: !!cleanToken
+          });
           
           const response = await fetch(`${baseUrl}/gallery`, {
             method: 'GET',
@@ -1094,8 +1589,10 @@ const baseQuery = async (args, api, extraOptions) => {
           
           if (response.ok) {
             const data = await response.json();
+            console.log('✅ Gallery data received:', data);
             return { data };
           } else {
+            console.log('❌ Gallery fetch failed:', response.status);
             throw new Error(`HTTP ${response.status}`);
           }
         } catch (error) {
@@ -1104,15 +1601,28 @@ const baseQuery = async (args, api, extraOptions) => {
             data: {
               success: true,
               message: 'Demo gallery data (backend fallback)',
-              galleryData: {
+              gallery: {
+                _id: 'demo-gallery-id',
                 heading: 'The Frontlines of Relief',
                 description: 'These titles aim to convey emotion and meaning while showcasing the importance of your organization\'s work through visuals.',
                 images: [
-                  { id: 1, url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', public_id: 'gallery/image1' },
-                  { id: 2, url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', public_id: 'gallery/image2' }
+                  { 
+                    url: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 
+                    public_id: 'gallery/image1',
+                    _id: 'demo-img-1'
+                  },
+                  { 
+                    url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 
+                    public_id: 'gallery/image2',
+                    _id: 'demo-img-2'
+                  },
+                  { 
+                    url: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 
+                    public_id: 'gallery/image3',
+                    _id: 'demo-img-3'
+                  }
                 ],
-                ctaButton: { text: 'View Full Gallery', link: '/gallery', style: 'primary' },
-                isActive: true
+                updatedAt: new Date().toISOString()
               }
             }
           };
@@ -1160,11 +1670,59 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
     updateTeamMembersData: builder.mutation({
-      query: (data) => ({
-        url: "/home-page/update-team-members-data",
-        method: "PATCH",
-        body: data,
-      }),
+      queryFn: async ({ id = "68ebd9437deb89d1105fd733", ...data }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Updating team members section data:', {
+            endpoint: `${baseUrl}/team-members/${id}`,
+            hasToken: !!cleanToken,
+            id,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/team-members/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Team members section updated:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Update team members section failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Update team members section error:', error);
+          
+          // Handle connection errors gracefully
+          if (error?.message?.includes('Failed to fetch') || error?.name === 'TypeError') {
+            console.log('💾 Demo update - backend not available:', data);
+            return {
+              data: {
+                success: true,
+                message: 'Demo mode: Section update simulated (backend not available)',
+                section: {
+                  id,
+                  ...data,
+                  updatedAt: new Date().toISOString()
+                }
+              }
+            };
+          } else {
+            throw error;
+          }
+        }
+      },
     }),
     getHomeFeaturesData: builder.mutation({
       query: () => ({
@@ -1746,11 +2304,19 @@ export const {
   useUpdateAboutCompanyDataMutation,
   useGetAboutMissionDataMutation,
   useUpdateAboutMissionDataMutation,
+  useGetAboutTestimonialsMutation,
+  useCreateAboutTestimonialMutation,
+  useUpdateAboutTestimonialsSectionMutation,
+  useUpdateAboutTestimonialMutation,
+  useDeleteAboutTestimonialMutation,
   useGetContactPageDataMutation,
   useUpdateContactPageDataMutation,
   useGetEventsDataMutation,
   useUpdateEventsDataMutation,
   useGetTestimonialsDataMutation,
+  useCreateTestimonialsMutation,
+  useUpdateTestimonialsByIdMutation,
+  useDeleteTestimonialsByIdMutation,
   useUpdateTestimonialsDataMutation,
   useGetGalleryDataMutation,
   useUpdateGalleryDataMutation,

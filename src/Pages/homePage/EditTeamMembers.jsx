@@ -19,6 +19,7 @@ const EditTeamMembers = () => {
   const [addTeamMemberToAPI, { isLoading: addingMember }] = useAddTeamMemberMutation();
   
   const [formData, setFormData] = useState({
+    _id: null, // Backend section ID
     heading: '',
     description: '',
     teamMembers: [
@@ -47,7 +48,7 @@ const EditTeamMembers = () => {
       if (token && token.startsWith("demo-token")) {
         // Set demo team members data
         const demoData = {
-          heading: 'Meet our Volunteer',
+          heading: 'Meet our Volunteer members',
           description: 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
           teamMembers: [
             {
@@ -93,21 +94,25 @@ const EditTeamMembers = () => {
       // Real API call for production - get existing team members
       const data = await getTeamMembers().unwrap();
       
-      if (data?.success && data?.teamMembers) {
+      console.log('📄 Team members data received:', data);
+      
+      if (data?.success && data?.section) {
         // Convert backend team members to our format
-        const convertedMembers = data.teamMembers.map(member => ({
-          id: member.id,
-          picture: member.image || member.picture || '',
-          name: member.name || member.fullName || '',
-          designation: member.title || member.designation || '',
-          isNew: false, // Existing members from backend
+        const convertedMembers = data.section.members.map((member, index) => ({
+          id: index + 1, // Use index-based ID for frontend
+          _id: member._id, // Keep backend ID for reference
+          picture: member.image,
+          name: member.fullName,
+          designation: member.designation,
+          isNew: false, // These are existing members from backend
           isSaving: false,
-          backendId: member.id
+          backendId: member._id
         }));
-
+        
         setFormData({
-          heading: 'Meet our Volunteer',
-          description: 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
+          _id: data.section._id, // Store backend section ID
+          heading: data.section.heading || 'Meet our Volunteer members',
+          description: data.section.description || 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
           teamMembers: convertedMembers.length > 0 ? convertedMembers : [
             {
               id: 1,
@@ -120,10 +125,14 @@ const EditTeamMembers = () => {
           ],
           isActive: true
         });
+        
+        // Track all existing members as saved
+        setSavedMembers(convertedMembers.map(member => member.id));
+        
       } else {
-        // No existing team members, start with empty form
+        // No existing team section exists yet - start with empty form
         setFormData({
-          heading: 'Meet our Volunteer', 
+          heading: 'Meet our Volunteer members', 
           description: 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
           teamMembers: [
             {
@@ -143,7 +152,7 @@ const EditTeamMembers = () => {
       
       // Fallback to empty form if API fails
       setFormData({
-        heading: 'Meet our Volunteer',
+        heading: 'Meet our Volunteer members',
         description: 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
         teamMembers: [
           {
@@ -346,10 +355,10 @@ const EditTeamMembers = () => {
   };
 
   const isFormValid = () => {
-    // Check section header (commented out since it's disabled)
-    // if (!formData.heading.trim() || !formData.description.trim()) {
-    //   return false;
-    // }
+    // Check section header
+    if (!formData.heading.trim() || !formData.description.trim()) {
+      return false;
+    }
     
     // Check team members
     if (!formData.teamMembers || formData.teamMembers.length === 0) {
@@ -367,6 +376,12 @@ const EditTeamMembers = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate section header
+    if (!formData.heading.trim() || !formData.description.trim()) {
+      toast.error('Please fill in both the section heading and description');
+      return;
+    }
     
     // Check if at least one team member is saved
     const savedMembersCount = formData.teamMembers.filter(member => !member.isNew).length;
@@ -393,8 +408,28 @@ const EditTeamMembers = () => {
         return;
       }
 
-      // In real mode, just navigate since all members are already saved individually
-      toast.success(`Team Members section completed! ${savedMembersCount} members saved successfully.`);
+      // Update section header data if we have backend section ID
+      if (formData._id) {
+        const sectionData = {
+          heading: formData.heading,
+          description: formData.description
+        };
+        
+        try {
+          await updateTeamMembersData({ 
+            id: formData._id, 
+            ...sectionData 
+          }).unwrap();
+          
+          toast.success(`Team Members section completed! Section updated with ${savedMembersCount} members.`);
+        } catch (updateError) {
+          console.warn('Failed to update section header, but members are saved:', updateError);
+          toast.success(`Team Members completed! ${savedMembersCount} members saved. (Section header update failed)`);
+        }
+      } else {
+        toast.success(`Team Members section completed! ${savedMembersCount} members saved successfully.`);
+      }
+      
       navigate('/dash/homepage');
       
     } catch (error) {
@@ -449,7 +484,7 @@ const EditTeamMembers = () => {
             
             <Form onSubmit={handleSubmit}>
               {/* Section Header */}
-              {/* <Card className="mb-4">
+              <Card className="mb-4">
                 <Card.Header>
                   <h5 className="mb-0 d-flex align-items-center">
                     <FaUsers className="me-2" />
@@ -467,9 +502,9 @@ const EditTeamMembers = () => {
                         onChange={handleInputChange}
                         placeholder="e.g., Meet our Volunteer"
                         required={true}
-                        maxLength={25}
+                        maxLength={100}
                       />
-                      <small className="text-muted">{formData.heading.length}/25 characters</small>
+                      <small className="text-muted">{formData.heading.length}/100 characters</small>
                     </Col>
                     <Col md={12}>
                       <FormField
@@ -481,13 +516,13 @@ const EditTeamMembers = () => {
                         placeholder="Enter the team section description..."
                         rows={3}
                         required={true}
-                        maxLength={130}
+                        maxLength={300}
                       />
-                      <small className="text-muted">{formData.description.length}/130 characters</small>
+                      <small className="text-muted">{formData.description.length}/300 characters</small>
                     </Col>
                   </Row>
                 </Card.Body>
-              </Card> */}
+              </Card>
 
               {/* Team Members */}
               <Card className="mb-4">
