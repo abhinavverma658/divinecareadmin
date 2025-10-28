@@ -205,11 +205,35 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
     createTestimonial: builder.mutation({
-      query: (data) => ({
-        url: "/testimonial/create-testimonial",
-        method: "POST",
-        body: data,
-      }),
+      queryFn: async (data, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/testimonials/testimonial`;
+          console.log('🔄 Creating testimonial:', { endpoint, hasToken: !!cleanToken, data });
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Testimonial created:', result);
+            return { data: result };
+          } else {
+            console.log('❌ Create testimonial failed:', response.status);
+            const errorData = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorData}`);
+          }
+        } catch (error) {
+          console.error('Create testimonial error:', error);
+          throw error;
+        }
+      },
     }),
     updateTestimonialById: builder.mutation({
       query: ({ id, data }) => ({

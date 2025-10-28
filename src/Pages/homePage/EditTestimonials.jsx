@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useGetTestimonialsDataMutation, useCreateTestimonialsMutation, useUpdateTestimonialsByIdMutation, useDeleteTestimonialsByIdMutation } from '../../features/apiSlice';
+import { useGetTestimonialsDataMutation, useCreateTestimonialMutation, useUpdateTestimonialsByIdMutation, useDeleteTestimonialsByIdMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -15,7 +15,7 @@ const EditTestimonials = () => {
   const { token } = useSelector(selectAuth);
   
   const [getTestimonialsData, { isLoading: loadingTestimonials }] = useGetTestimonialsDataMutation();
-  const [createTestimonials, { isLoading: creating }] = useCreateTestimonialsMutation();
+  const [createTestimonial, { isLoading: creating }] = useCreateTestimonialMutation();
   const [updateTestimonialsById, { isLoading: updateLoading }] = useUpdateTestimonialsByIdMutation();
   const [deleteTestimonialsById, { isLoading: deleting }] = useDeleteTestimonialsByIdMutation();
   
@@ -390,43 +390,30 @@ const EditTestimonials = () => {
 
   const handleCreate = async () => {
     try {
-      console.log('🔄 Creating testimonials:', formData);
-      
+      console.log('🔄 Creating testimonial:', formData);
       if (token && token.startsWith("demo-token")) {
-        toast.success('Testimonial section created successfully! (Demo Mode)');
+        toast.success('Testimonial created successfully! (Demo Mode)');
         setHasChanges(false);
         return;
       }
-      
-      // Transform data to match backend expected format
+      // Only create one testimonial at a time (the last one added)
+      const lastTestimonial = formData.testimonials[formData.testimonials.length - 1];
       const backendData = {
-        sectionHeading: formData.heading,
-        sectionDescription: formData.description,
-        testimonials: formData.testimonials.map(testimonial => ({
-          rating: testimonial.rating,
-          content: testimonial.content,
-          name: testimonial.name,
-          designation: testimonial.designation,
-          image: testimonial.profilePhoto
-        })),
-        isActive: formData.isActive
+        rating: lastTestimonial.rating,
+        content: lastTestimonial.content,
+        name: lastTestimonial.name,
+        designation: lastTestimonial.designation,
+        image: lastTestimonial.profilePhoto
       };
-
       console.log('📤 Creating with backend data:', backendData);
-      
-      const response = await createTestimonials(backendData).unwrap();
+      const response = await createTestimonial(backendData).unwrap();
       console.log('✅ Create response:', response);
-      
       const result = response.data || response;
-      const message = result?.message || 'Testimonial section created successfully!';
-      
+      const message = result?.message || 'Testimonial created successfully!';
       toast.success(message);
       setHasChanges(false);
-      
       // Refresh data after creation
-      if (result?.testimonials || result?.testimonialsData || result?.data || result?.section) {
-        fetchTestimonialsData();
-      }
+      fetchTestimonialsData();
     } catch (error) {
       console.error('❌ Create error:', error);
       getError(error);
@@ -580,124 +567,161 @@ const EditTestimonials = () => {
                 <Card.Body>
                   {formData.testimonials.map((testimonial, index) => {
                     console.log('🎨 Rendering testimonial:', { index, testimonial });
+                    const isTestimonialValid = testimonial.content && testimonial.content.trim() && testimonial.name && testimonial.name.trim() && testimonial.designation && testimonial.designation.trim();
+                    const handleSaveTestimonial = async () => {
+                      if (!isTestimonialValid) {
+                        toast.error('Please fill all required fields for this testimonial before saving.');
+                        return;
+                      }
+                      try {
+                        const backendData = {
+                          rating: testimonial.rating,
+                          content: testimonial.content,
+                          name: testimonial.name,
+                          designation: testimonial.designation,
+                          image: testimonial.profilePhoto
+                        };
+                        console.log('📤 Saving individual testimonial:', backendData);
+                        const response = await createTestimonial(backendData).unwrap();
+                        const result = response.data || response;
+                        const message = result?.message || 'Testimonial created successfully!';
+                        toast.success(message);
+                        setHasChanges(false);
+                        fetchTestimonialsData();
+                      } catch (error) {
+                        console.error('❌ Error saving testimonial:', error);
+                        getError(error);
+                      }
+                    };
                     return (
-                    <Card key={`testimonial-${testimonial.id}-${index}`} className="mb-3">
-                      <Card.Header className="d-flex justify-content-between align-items-center">
-                        <div className="grow">
-                          <h6 className="mb-0">
-                            Testimonial {index + 1}
-                            {testimonial.name && (
-                              <span className="text-muted ms-2">- {testimonial.name}</span>
-                            )}
-                          </h6>
-                        </div>
-                        <div className="d-flex align-items-center">
-                          {formData.testimonials.length > 1 && (
+                      <Card key={`testimonial-${testimonial.id}-${index}`} className="mb-3">
+                        <Card.Header className="d-flex justify-content-between align-items-center">
+                          <div className="grow">
+                            <h6 className="mb-0">
+                              Testimonial {index + 1}
+                              {testimonial.name && (
+                                <span className="text-muted ms-2">- {testimonial.name}</span>
+                              )}
+                            </h6>
+                          </div>
+                          <div className="d-flex align-items-center">
                             <Button
-                              variant="outline-danger"
+                              variant="outline-success"
                               size="sm"
-                              onClick={() => removeTestimonial(testimonial.id)}
-                              title="Delete testimonial"
-                              className="ms-2"
+                              className="me-2"
+                              onClick={handleSaveTestimonial}
+                              disabled={creating || !isTestimonialValid}
+                              title="Save testimonial"
                             >
-                              <FaTrash />
+                              <FaSave className="me-1" />
+                              {creating ? 'Saving...' : 'Save'}
                             </Button>
-                          )}
-                        </div>
-                      </Card.Header>
-                      <Card.Body>
-                        <Row>
-                          <Col md={12}>
-                            {renderStars(testimonial.rating, testimonial.id)}
-                          </Col>
-                          <Col md={12}>
-                            <FormField
-                              type="textarea"
-                              name={`testimonial_${testimonial.id}_content`}
-                              label="Testimonial Content *"
-                              value={testimonial.content || ''}
-                              onChange={(e) => {
-                                console.log('📝 Content field change:', { 
-                                  id: testimonial.id, 
-                                  value: e.target.value,
-                                  currentContent: testimonial.content 
-                                });
-                                handleTestimonialChange(testimonial.id, 'content', e.target.value);
-                              }}
-                              placeholder="Enter the testimonial content..."
-                              rows={3}
-                              required={true}
-                              maxLength={167}
-                            />
-                            <small className="text-muted">{(testimonial.content || '').length}/167 characters</small>
-                          </Col>
-                          <Col md={6}>
-                            <FormField
-                              type="text"
-                              name={`testimonial_${testimonial.id}_name`}
-                              label="Name *"
-                              value={testimonial.name || ''}
-                              onChange={(e) => {
-                                console.log('📝 Name field change:', { 
-                                  id: testimonial.id, 
-                                  value: e.target.value,
-                                  currentName: testimonial.name 
-                                });
-                                handleTestimonialChange(testimonial.id, 'name', e.target.value);
-                              }}
-                              placeholder="Enter person's name..."
-                              required={true}
-                            />
-                          </Col>
-                          <Col md={6}>
-                            <FormField
-                              type="text"
-                              name={`testimonial_${testimonial.id}_designation`}
-                              label="Designation *"
-                              value={testimonial.designation || ''}
-                              onChange={(e) => {
-                                console.log('📝 Designation field change:', { 
-                                  id: testimonial.id, 
-                                  value: e.target.value,
-                                  currentDesignation: testimonial.designation 
-                                });
-                                handleTestimonialChange(testimonial.id, 'designation', e.target.value);
-                              }}
-                              placeholder="e.g., Volunteer, Client, etc."
-                              required={true}
-                            />
-                          </Col>
-                          <Col md={12}>
-                            <FormField
-                              type="image"
-                              name={`testimonial_${testimonial.id}_profilePhoto`}
-                              value={testimonial.profilePhoto}
-                              onChange={(e) => handleTestimonialChange(testimonial.id, 'profilePhoto', e.target.value)}
-                              placeholder="Upload profile photo..."
-                              required={true}
-                            />
-                            {testimonial.profilePhoto && (
-                              <div className="mt-2">
-                                <img
-                                  src={testimonial.profilePhoto}
-                                  alt="Profile Preview"
-                                  style={{ 
-                                    width: '60px', 
-                                    height: '60px', 
-                                    objectFit: 'cover',
-                                    borderRadius: '50%',
-                                    border: '2px solid #ddd'
-                                  }}
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
+                            {formData.testimonials.length > 1 && (
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => removeTestimonial(testimonial.id)}
+                                title="Delete testimonial"
+                                className="ms-2"
+                              >
+                                <FaTrash />
+                              </Button>
                             )}
-                          </Col>
-                        </Row>
-                      </Card.Body>
-                    </Card>
+                          </div>
+                        </Card.Header>
+                        <Card.Body>
+                          <Row>
+                            <Col md={12}>
+                              {renderStars(testimonial.rating, testimonial.id)}
+                            </Col>
+                            <Col md={12}>
+                              <FormField
+                                type="textarea"
+                                name={`testimonial_${testimonial.id}_content`}
+                                label="Testimonial Content *"
+                                value={testimonial.content || ''}
+                                onChange={(e) => {
+                                  console.log('📝 Content field change:', { 
+                                    id: testimonial.id, 
+                                    value: e.target.value,
+                                    currentContent: testimonial.content 
+                                  });
+                                  handleTestimonialChange(testimonial.id, 'content', e.target.value);
+                                }}
+                                placeholder="Enter the testimonial content..."
+                                rows={3}
+                                required={true}
+                                maxLength={167}
+                              />
+                              <small className="text-muted">{(testimonial.content || '').length}/167 characters</small>
+                            </Col>
+                            <Col md={6}>
+                              <FormField
+                                type="text"
+                                name={`testimonial_${testimonial.id}_name`}
+                                label="Name *"
+                                value={testimonial.name || ''}
+                                onChange={(e) => {
+                                  console.log('📝 Name field change:', { 
+                                    id: testimonial.id, 
+                                    value: e.target.value,
+                                    currentName: testimonial.name 
+                                  });
+                                  handleTestimonialChange(testimonial.id, 'name', e.target.value);
+                                }}
+                                placeholder="Enter person's name..."
+                                required={true}
+                              />
+                            </Col>
+                            <Col md={6}>
+                              <FormField
+                                type="text"
+                                name={`testimonial_${testimonial.id}_designation`}
+                                label="Designation *"
+                                value={testimonial.designation || ''}
+                                onChange={(e) => {
+                                  console.log('📝 Designation field change:', { 
+                                    id: testimonial.id, 
+                                    value: e.target.value,
+                                    currentDesignation: testimonial.designation 
+                                  });
+                                  handleTestimonialChange(testimonial.id, 'designation', e.target.value);
+                                }}
+                                placeholder="e.g., Volunteer, Client, etc."
+                                required={true}
+                              />
+                            </Col>
+                            <Col md={12}>
+                              <FormField
+                                type="image"
+                                name={`testimonial_${testimonial.id}_profilePhoto`}
+                                value={testimonial.profilePhoto}
+                                onChange={(e) => handleTestimonialChange(testimonial.id, 'profilePhoto', e.target.value)}
+                                placeholder="Upload profile photo..."
+                                required={true}
+                              />
+                              {testimonial.profilePhoto && (
+                                <div className="mt-2">
+                                  <img
+                                    src={testimonial.profilePhoto}
+                                    alt="Profile Preview"
+                                    style={{ 
+                                      width: '60px', 
+                                      height: '60px', 
+                                      objectFit: 'cover',
+                                      borderRadius: '50%',
+                                      border: '2px solid #ddd'
+                                    }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </Col>
+                          </Row>
+                        </Card.Body>
+                      </Card>
                     );
                   })}
                 </Card.Body>
