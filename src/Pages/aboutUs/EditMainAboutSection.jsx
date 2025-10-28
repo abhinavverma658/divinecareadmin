@@ -258,9 +258,9 @@ const EditMainAboutSection = () => {
     const errors = [];
     
     if (!formData.heading.trim()) errors.push('Heading is required');
-    if (formData.heading.length > 25) errors.push('Heading must be 25 characters or less');
+    if (formData.heading.length > 30) errors.push('Heading must be 30 characters or less');
     if (!formData.smallDescription.trim()) errors.push('Small description is required');
-    if (formData.smallDescription.length > 130) errors.push('Small description must be 130 characters or less');
+    if (formData.smallDescription.length > 225) errors.push('Small description must be 2 characters or less');
     if (!formData.leftImage1) errors.push('Left image 1 is required');
     if (!formData.leftImage2) errors.push('Left image 2 is required');
     if (!formData.rightImage) errors.push('Right image is required');
@@ -400,11 +400,11 @@ const EditMainAboutSection = () => {
                     value={formData.heading}
                     onChange={handleChange}
                     placeholder="Enter heading"
-                    maxLength={25}
+                    maxLength={30}
                     required
                   />
                   <Form.Text className="text-muted">
-                    {formData.heading.length}/25 characters
+                    {formData.heading.length}/30 characters
                   </Form.Text>
                 </Form.Group>
 
@@ -418,11 +418,11 @@ const EditMainAboutSection = () => {
                     value={formData.smallDescription}
                     onChange={handleChange}
                     placeholder="Enter small description"
-                    maxLength={130}
+                    maxLength={225}
                     required
                   />
                   <Form.Text className="text-muted">
-                    {formData.smallDescription.length}/130 characters
+                    {formData.smallDescription.length}/225 characters
                   </Form.Text>
                 </Form.Group>
 
