@@ -25,21 +25,18 @@ const AddEditEvent = () => {
   const [uploadImage] = useUploadImageMutation();
   
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    shortDescription: '',
-    startDate: '',
-    endDate: '',
-    registrationDeadline: '',
-    location: '',
-    venue: '',
-    images: [],
-    featuredImage: '',
-    isActive: true,
-    featured: false,
-    priority: 'medium',
-    maxAttendees: '',
-    currentAttendees: 0
+  title: '',
+  description: '',
+  shortDescription: '',
+  startDate: '',
+  endDate: '',
+  location: '',
+  venueDetails: '',
+  image: '',
+  createdBy: '',
+  _id: '',
+  createdAt: '',
+  updatedAt: ''
   });
 
   const [imageFiles, setImageFiles] = useState([]);
@@ -89,18 +86,20 @@ const AddEditEvent = () => {
       
       if (eventData && Object.keys(eventData).length > 0) {
         setFormData({
-          ...eventData,
+          title: eventData.title || '',
+          description: eventData.description || '',
+          shortDescription: eventData.shortDescription || '',
           startDate: eventData.startDate ? new Date(eventData.startDate).toISOString().slice(0, 16) : '',
           endDate: eventData.endDate ? new Date(eventData.endDate).toISOString().slice(0, 16) : '',
-          registrationDeadline: eventData.registrationDeadline ? new Date(eventData.registrationDeadline).toISOString().slice(0, 16) : '',
-          maxAttendees: eventData.maxAttendees || '',
-          currentAttendees: eventData.currentAttendees || 0
+          location: eventData.location || '',
+          venueDetails: eventData.venueDetails || '',
+          image: eventData.image || '',
+          createdBy: eventData.createdBy || '',
+          _id: eventData._id || '',
+          createdAt: eventData.createdAt || '',
+          updatedAt: eventData.updatedAt || ''
         });
-        
-        if (eventData.images && Array.isArray(eventData.images)) {
-          setImagePreviews(eventData.images);
-        }
-        
+        setImagePreviews(eventData.image ? [eventData.image] : []);
         console.log('🎯 Event data populated successfully');
         toast.success('Event data loaded successfully');
       } else {
@@ -154,43 +153,34 @@ const AddEditEvent = () => {
 
     if (validFiles.length === 0) return;
 
-    // Upload images
-    for (const file of validFiles) {
-      const fileId = Date.now() + Math.random();
-      setUploadingImages(prev => ({ ...prev, [fileId]: true }));
-
-      try {
-        console.log('🖼️ Uploading event image:', file.name);
-        
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('folder', 'events');
-        
-        const response = await uploadImage(formData).unwrap();
-        
-        if (response?.imageUrl) {
-          setImagePreviews(prev => [...prev, response.imageUrl]);
-          
-          // Set as featured image if no featured image is set
-          if (!formData.featuredImage) {
-            setFormData(prev => ({ ...prev, featuredImage: response.imageUrl }));
-          }
-          
-          console.log('✅ Event image uploaded:', response.imageUrl);
-          toast.success(`${file.name} uploaded successfully!`);
-        } else {
-          throw new Error('No image URL returned from server');
-        }
-      } catch (error) {
-        console.error('❌ Error uploading event image:', error);
-        toast.error(`Failed to upload ${file.name}. Please try again.`);
-      } finally {
-        setUploadingImages(prev => {
-          const newState = { ...prev };
-          delete newState[fileId];
-          return newState;
-        });
+    // Only one image allowed for event
+    const file = validFiles[0];
+    if (!file) return;
+    const fileId = Date.now() + Math.random();
+    setUploadingImages(prev => ({ ...prev, [fileId]: true }));
+    try {
+      console.log('🖼️ Uploading event image:', file.name);
+      const fd = new FormData();
+      fd.append('image', file);
+      fd.append('folder', 'events');
+      const response = await uploadImage(fd).unwrap();
+      const imageUrl = response.imageUrl || response.data?.imageUrl;
+      if (imageUrl) {
+        setImagePreviews([imageUrl]);
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+        toast.success(`${file.name} uploaded successfully!`);
+      } else {
+        throw new Error('No image URL returned from server');
       }
+    } catch (error) {
+      console.error('❌ Error uploading event image:', error);
+      toast.error(`Failed to upload ${file.name}. Please try again.`);
+    } finally {
+      setUploadingImages(prev => {
+        const newState = { ...prev };
+        delete newState[fileId];
+        return newState;
+      });
     }
   };
 
@@ -238,29 +228,27 @@ const AddEditEvent = () => {
     }
 
     try {
-      let submitData = { 
-        ...formData,
-        startDate: new Date(formData.startDate).toISOString(),
-        endDate: new Date(formData.endDate).toISOString(),
-        registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : null,
-        images: imagePreviews,
-        maxAttendees: parseInt(formData.maxAttendees) || 0
+      // Build payload to match backend: title, shortDescription, description, startDate, endDate, location, venueDetails, image
+      let submitData = {
+        title: formData.title,
+        shortDescription: formData.shortDescription,
+        description: formData.description,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        location: formData.location,
+        venueDetails: formData.venueDetails,
+        image: formData.image || (imagePreviews.length > 0 ? imagePreviews[0] : ''),
       };
-
-      // Set featured image if not already set but images exist
-      if (!submitData.featuredImage && submitData.images.length > 0) {
-        submitData.featuredImage = submitData.images[0];
-      }
 
       console.log('📤 Submitting event data:', submitData);
 
       // API call
-      const response = id 
+      const response = id
         ? await updateEvent({ id, data: submitData }).unwrap()
         : await createEvent(submitData).unwrap();
-      
+
       console.log('✅ Submit Response:', response);
-      
+
       toast.success(response?.message || `Event ${id ? 'updated' : 'created'} successfully`);
       navigate('/dash/events');
     } catch (error) {
@@ -324,7 +312,7 @@ const AddEditEvent = () => {
                   <Form.Group className="mb-3">
                     <Form.Label>Detailed Description <span className="text-danger">*</span></Form.Label>
                     <TextEditor
-                      value={formData.description}
+                      description={formData.description}
                       onChange={handleDescriptionChange}
                       placeholder="Write a detailed description of the event..."
                     />

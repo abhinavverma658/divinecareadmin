@@ -381,23 +381,23 @@ const EditGallery = () => {
                         onChange={handleInputChange}
                         placeholder="e.g., The Frontlines of Relief"
                         required={true}
-                        maxLength={25}
+                        maxLength={90}
                       />
-                      <small className="text-muted">{formData.heading.length}/25 characters</small>
+                      <small className="text-muted">{formData.heading.length}/90 characters</small>
                     </Col>
                     <Col md={12}>
                       <FormField
-                        type="textarea"
-                        name="description"
-                        label="Gallery Description *"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        placeholder="Enter the gallery description..."
-                        rows={3}
-                        required={true}
-                        maxLength={130}
+                              type="textarea"
+                              name="description"
+                              label="Gallery Description *"
+                              value={formData.description}
+                              onChange={handleInputChange}
+                              placeholder="Enter the gallery description..."
+                              rows={3}
+                              required={true}
+                              maxLength={225}
                       />
-                      <small className="text-muted">{formData.description.length}/130 characters</small>
+                      <small className="text-muted">{formData.description.length}/225 characters</small>
                     </Col>
                   </Row>
                 </Card.Body>

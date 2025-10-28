@@ -542,9 +542,9 @@ const EditTestimonials = () => {
                         onChange={handleInputChange}
                         placeholder="e.g., Stories from the Heart"
                         required={true}
-                        maxLength={30}
+                        maxLength={90}
                       />
-                      <small className="text-muted">{formData.heading.length}/30 characters</small>
+                      <small className="text-muted">{formData.heading.length}/90 characters</small>
                     </Col>
                     <Col md={12}>
                       <FormField
@@ -556,9 +556,9 @@ const EditTestimonials = () => {
                         placeholder="Enter the section description..."
                         rows={3}
                         required={true}
-                        maxLength={130}
+                        maxLength={225}
                       />
-                      <small className="text-muted">{formData.description.length}/130 characters</small>
+                      <small className="text-muted">{formData.description.length}/225 characters</small>
                     </Col>
                   </Row>
                 </Card.Body>

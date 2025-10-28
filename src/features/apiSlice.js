@@ -575,7 +575,7 @@ const baseQuery = async (args, api, extraOptions) => {
             id
           });
           
-          const response = await fetch(`${baseUrl}/team-members/${id}`, {
+          const response = await fetch(`${baseUrl}/team-members/member/${id}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
