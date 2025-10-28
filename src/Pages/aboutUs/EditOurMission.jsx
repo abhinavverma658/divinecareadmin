@@ -155,52 +155,7 @@ const EditOurMission = () => {
     }));
   };
 
-  const handleImageUpload = async (file) => {
-    if (!file) return;
-    
-    if (isDemoMode) {
-      // Demo mode - use base64
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFormData(prev => ({
-          ...prev,
-          missionImage: e.target.result
-        }));
-        toast.success('Mission image uploaded successfully (Demo mode)');
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    try {
-      setUploadingImage(true);
-      
-      // Create FormData for API upload
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('folder', 'about-us/mission');
-      
-      console.log('🖼️ Uploading mission image:', file.name);
-      
-      const response = await uploadImage(formData).unwrap();
-      
-      if (response?.imageUrl) {
-        setFormData(prev => ({
-          ...prev,
-          missionImage: response.imageUrl
-        }));
-        toast.success('Mission image uploaded successfully!');
-        console.log('✅ Mission image uploaded:', response.imageUrl);
-      } else {
-        throw new Error('No image URL returned from server');
-      }
-    } catch (error) {
-      console.error('❌ Error uploading mission image:', error);
-      toast.error('Failed to upload image. Please try again.');
-    } finally {
-      setUploadingImage(false);
-    }
-  };
+  // ...existing code...
 
   const validateForm = () => {
     const errors = [];
@@ -223,7 +178,7 @@ const EditOurMission = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const errors = validateForm();
     if (errors.length > 0) {
       errors.forEach(error => toast.error(error));
@@ -238,14 +193,22 @@ const EditOurMission = () => {
     try {
       setIsLoading(true);
       console.log('📤 Updating About Mission Data:', formData);
-      
+
+      // Prepare payload to match backend structure
+      const payload = {
+        heading: formData.missionHeading,
+        description: formData.missionDescription,
+        image: formData.missionImage,
+        points: formData.missionPoints
+      };
+
       const response = await updateAboutMissionData({ 
         id: "68ee0bc170e1bfc20b375413", 
-        data: formData 
+        data: payload 
       }).unwrap();
-      
+
       console.log('✅ Update Response:', response);
-      
+
       if (response?.success) {
         toast.success(response.message || 'Mission section updated successfully!');
         // Refresh data to show updated values
@@ -271,6 +234,56 @@ const EditOurMission = () => {
       </Container>
     );
   }
+
+  // Correct handleImageUpload function definition
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+
+    if (isDemoMode) {
+      // Demo mode - use base64
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFormData(prev => ({
+          ...prev,
+          missionImage: e.target.result
+        }));
+        toast.success('Mission image uploaded successfully (Demo mode)');
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      // Create FormData for API upload
+      const imageFormData = new FormData();
+      imageFormData.append('image', file);
+      imageFormData.append('folder', 'about-us/mission');
+
+      console.log('🖼️ Uploading mission image:', file.name);
+
+      const response = await uploadImage(imageFormData).unwrap();
+      // Try all possible keys for the uploaded image URL
+      const uploadedUrl = response?.imageUrl || response?.url || response?.data?.imageUrl || response?.data?.url;
+
+      if (uploadedUrl) {
+        setFormData(prev => ({
+          ...prev,
+          missionImage: uploadedUrl
+        }));
+        toast.success('Mission image uploaded successfully!');
+        console.log('✅ Mission image uploaded:', uploadedUrl);
+      } else {
+        throw new Error('No image URL returned from server');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading mission image:', error);
+      toast.error('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   return (
     <Container fluid className="px-4 py-3">

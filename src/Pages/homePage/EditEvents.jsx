@@ -212,11 +212,6 @@ const EditEvents = () => {
       return false;
     }
     
-    // Check CTA button fields
-    if (!formData.ctaButton.text.trim() || !formData.ctaButton.link.trim()) {
-      return false;
-    }
-    
     return true;
   };
 
@@ -228,16 +223,6 @@ const EditEvents = () => {
     
     if (!formData.description.trim()) {
       toast.error('Event description is required');
-      return false;
-    }
-
-    if (!formData.ctaButton.text.trim()) {
-      toast.error('CTA button text is required');
-      return false;
-    }
-
-    if (!formData.ctaButton.link.trim()) {
-      toast.error('CTA button link is required');
       return false;
     }
 
@@ -349,7 +334,7 @@ const EditEvents = () => {
                   <div className="d-flex align-items-center">
                     <FaCalendarAlt className="me-2" />
                     <div>
-                      <strong>All fields are required.</strong> Please fill in all event section details before saving.
+                      <strong>Fill in the event section details.</strong> Heading and description are required.
                       <div className="small mt-1">Fields marked with <span className="text-danger">*</span> are mandatory.</div>
                     </div>
                   </div>
@@ -375,9 +360,9 @@ const EditEvents = () => {
                         onChange={handleInputChange}
                         placeholder="e.g., Heroes in Action Disaster Relief Fundraiser"
                         required={true}
-                        maxLength={45}
+                        maxLength={90}
                       />
-                      <small className="text-muted">{formData.heading.length}/45 characters</small>
+                      <small className="text-muted">{formData.heading.length}/90 characters</small>
                     </Col>
                     <Col md={12}>
                       <FormField
@@ -389,9 +374,9 @@ const EditEvents = () => {
                         placeholder="Enter the event description..."
                         rows={4}
                         required={true}
-                        maxLength={130}
+                        maxLength={225}
                       />
-                      <small className="text-muted">{formData.description.length}/130 characters</small>
+                      <small className="text-muted">{formData.description.length}/225 characters</small>
                     </Col>
                     <Col md={6}>
                       <ImageUpload

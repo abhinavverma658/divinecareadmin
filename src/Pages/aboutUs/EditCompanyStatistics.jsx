@@ -9,8 +9,6 @@ const EditCompanyStatistics = () => {
   const [formData, setFormData] = useState({
     statsHeading: '',
     statsDescription: '',
-    ctaButtonText: '',
-    ctaButtonLink: '',
     stat1Number: '',
     stat1Label: '',
     stat2Number: '',
@@ -32,8 +30,6 @@ const EditCompanyStatistics = () => {
   const demoData = {
     statsHeading: 'Highest Ambition is to Help People',
     statsDescription: 'Our impact is reflected in the numbers—and each statistic represents lives changed and futures improved over the past year alone.',
-    ctaButtonText: 'Donate Now',
-    ctaButtonLink: '/donate',
     stat1Number: '12+',
     stat1Label: 'Years of Fundation',
     stat2Number: '69+',
@@ -58,17 +54,16 @@ const EditCompanyStatistics = () => {
 
   // Debug form data changes for statistics
   useEffect(() => {
-    console.log('🔄 Statistics form data updated:', {
-      statsHeading: formData.statsHeading,
-      statsDescription: formData.statsDescription?.substring(0, 50) + '...',
-      ctaButton: formData.ctaButtonText,
-      statistics: {
-        stat1: `${formData.stat1Number} - ${formData.stat1Label}`,
-        stat2: `${formData.stat2Number} - ${formData.stat2Label}`,
-        stat3: `${formData.stat3Number} - ${formData.stat3Label}`,
-        stat4: `${formData.stat4Number} - ${formData.stat4Label}`
-      }
-    });
+      console.log('🔄 Statistics form data updated:', {
+        statsHeading: formData.statsHeading,
+        statsDescription: formData.statsDescription?.substring(0, 50) + '...',
+        statistics: {
+          stat1: `${formData.stat1Number} - ${formData.stat1Label}`,
+          stat2: `${formData.stat2Number} - ${formData.stat2Label}`,
+          stat3: `${formData.stat3Number} - ${formData.stat3Label}`,
+          stat4: `${formData.stat4Number} - ${formData.stat4Label}`
+        }
+      });
   }, [formData]);
 
   const fetchStatisticsData = async () => {
@@ -118,42 +113,32 @@ const EditCompanyStatistics = () => {
       console.log('🔑 Company data keys:', data ? Object.keys(data) : 'No data keys');
       
       if (data && Object.keys(data).length > 0) {
-        console.log('📝 Setting company form data with:', {
-          statsHeading: data.statsHeading || data.heading || 'MISSING',
-          statsDescription: data.statsDescription || data.description || 'MISSING',
-          ctaButtonText: data.ctaButtonText || data.buttonText || 'MISSING',
-          ctaButtonLink: data.ctaButtonLink || data.buttonLink || 'MISSING',
-          stat1Number: data.stat1Number || data.statistics?.[0]?.number || 'MISSING',
-          stat1Label: data.stat1Label || data.statistics?.[0]?.label || 'MISSING',
-          stat2Number: data.stat2Number || data.statistics?.[1]?.number || 'MISSING',
-          stat2Label: data.stat2Label || data.statistics?.[1]?.label || 'MISSING',
-          stat3Number: data.stat3Number || data.statistics?.[2]?.number || 'MISSING',
-          stat3Label: data.stat3Label || data.statistics?.[2]?.label || 'MISSING',
-          stat4Number: data.stat4Number || data.statistics?.[3]?.number || 'MISSING',
-          stat4Label: data.stat4Label || data.statistics?.[3]?.label || 'MISSING'
-        });
-        
+        // Map stats array to formData fields
+        let stat1 = { title: '', content: '' };
+        let stat2 = { title: '', content: '' };
+        let stat3 = { title: '', content: '' };
+        let stat4 = { title: '', content: '' };
+        if (Array.isArray(data.stats)) {
+          stat1 = data.stats[0] || stat1;
+          stat2 = data.stats[1] || stat2;
+          stat3 = data.stats[2] || stat3;
+          stat4 = data.stats[3] || stat4;
+        }
         const newFormData = {
           statsHeading: data.statsHeading || data.heading || '',
           statsDescription: data.statsDescription || data.description || '',
-          ctaButtonText: data.ctaButtonText || data.buttonText || '',
-          ctaButtonLink: data.ctaButtonLink || data.buttonLink || '',
-          stat1Number: data.stat1Number || data.statistics?.[0]?.number || '',
-          stat1Label: data.stat1Label || data.statistics?.[0]?.label || '',
-          stat2Number: data.stat2Number || data.statistics?.[1]?.number || '',
-          stat2Label: data.stat2Label || data.statistics?.[1]?.label || '',
-          stat3Number: data.stat3Number || data.statistics?.[2]?.number || '',
-          stat3Label: data.stat3Label || data.statistics?.[2]?.label || '',
-          stat4Number: data.stat4Number || data.statistics?.[3]?.number || '',
-          stat4Label: data.stat4Label || data.statistics?.[3]?.label || ''
+          stat1Number: stat1.title,
+          stat1Label: stat1.content,
+          stat2Number: stat2.title,
+          stat2Label: stat2.content,
+          stat3Number: stat3.title,
+          stat3Label: stat3.content,
+          stat4Number: stat4.title,
+          stat4Label: stat4.content
         };
-        
-        console.log('🎯 Final company form data to set:', newFormData);
         setFormData(newFormData);
         toast.success('Company statistics data loaded successfully');
       } else {
-        console.log('⚠️ No company statistics data found or empty data object');
-        console.log('📊 Full company response debug:', JSON.stringify(response, null, 2));
         setFormData(demoData);
         toast.info('No saved data found. Using demo data.');
       }
@@ -182,10 +167,8 @@ const EditCompanyStatistics = () => {
   const validateForm = () => {
     const errors = [];
     
-    if (!formData.statsHeading.trim()) errors.push('Statistics heading is required');
-    if (!formData.statsDescription.trim()) errors.push('Statistics description is required');
-    if (!formData.ctaButtonText.trim()) errors.push('CTA button text is required');
-    if (!formData.ctaButtonLink.trim()) errors.push('CTA button link is required');
+  if (!formData.statsHeading.trim()) errors.push('Statistics heading is required');
+  if (!formData.statsDescription.trim()) errors.push('Statistics description is required');
     
     // Validate all 4 statistics
     if (!formData.stat1Number.trim()) errors.push('Statistic 1 number is required');
@@ -221,14 +204,26 @@ const EditCompanyStatistics = () => {
     try {
       setIsLoading(true);
       console.log('📤 Updating About Company Data:', formData);
-      
+
+      // Build payload to match backend structure
+      const payload = {
+        heading: formData.statsHeading,
+        description: formData.statsDescription,
+        stats: [
+          { title: formData.stat1Number, content: formData.stat1Label },
+          { title: formData.stat2Number, content: formData.stat2Label },
+          { title: formData.stat3Number, content: formData.stat3Label },
+          { title: formData.stat4Number, content: formData.stat4Label }
+        ]
+      };
+
       const response = await updateAboutCompanyData({ 
         id: "68ee145370e1bfc20b375419", 
-        data: formData 
+        data: payload 
       }).unwrap();
-      
+
       console.log('✅ Update Response:', response);
-      
+
       if (response?.success) {
         toast.success(response.message || 'Company Statistics updated successfully!');
         // Refresh data to show updated values
@@ -338,35 +333,7 @@ const EditCompanyStatistics = () => {
                   />
                 </Form.Group>
 
-                {/* CTA Button */}
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>CTA Button Text <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="ctaButtonText"
-                        value={formData.ctaButtonText}
-                        onChange={handleChange}
-                        placeholder="e.g., Donate Now"
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>CTA Button Link <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="ctaButtonLink"
-                        value={formData.ctaButtonLink}
-                        onChange={handleChange}
-                        placeholder="e.g., /donate or https://example.com"
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
+                {/* ...removed CTA Button Text and Link fields... */}
               </Card.Body>
             </Card>
           </Col>

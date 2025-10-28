@@ -206,7 +206,7 @@ const EditMainAboutSection = () => {
 
   const handleImageUpload = async (field, file) => {
     if (!file) return;
-    
+
     if (isDemoMode) {
       // Demo mode - use base64
       const reader = new FileReader();
@@ -223,23 +223,26 @@ const EditMainAboutSection = () => {
 
     try {
       setUploadingImages(prev => ({ ...prev, [field]: true }));
-      
+
       // Create FormData for API upload
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('folder', 'about-us'); // Optional: organize uploads
-      
+      const imageFormData = new FormData();
+      imageFormData.append('image', file);
+      imageFormData.append('folder', 'about-us'); // Optional: organize uploads
+
       console.log(`🖼️ Uploading ${field}:`, file.name);
-      
-      const response = await uploadImage(formData).unwrap();
-      
-      if (response?.imageUrl) {
+
+      // The uploadImage mutation returns { success, imageUrl, url, data, ... }
+      const response = await uploadImage(imageFormData).unwrap();
+      // Try all possible keys for the uploaded image URL
+      const uploadedUrl = response?.imageUrl || response?.url || response?.data?.imageUrl || response?.data?.url;
+
+      if (uploadedUrl) {
         setFormData(prev => ({
           ...prev,
-          [field]: response.imageUrl
+          [field]: uploadedUrl
         }));
         toast.success(`${field} uploaded successfully!`);
-        console.log(`✅ ${field} uploaded:`, response.imageUrl);
+        console.log(`✅ ${field} uploaded:`, uploadedUrl);
       } else {
         throw new Error('No image URL returned from server');
       }
@@ -277,7 +280,7 @@ const EditMainAboutSection = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const errors = validateForm();
     if (errors.length > 0) {
       errors.forEach(error => toast.error(error));
@@ -292,14 +295,23 @@ const EditMainAboutSection = () => {
     try {
       setIsLoading(true);
       console.log('📤 Updating About Main Data:', formData);
-      
+
+      // Prepare payload to match backend structure
+      const payload = {
+        heading: formData.heading,
+        smallDescription: formData.smallDescription,
+        mainDescription: formData.description,
+        images: [formData.leftImage1, formData.leftImage2, formData.rightImage],
+        keyPoints: formData.keyPoints
+      };
+
       const response = await updateAboutMainData({ 
         id: "68ee09ee70e1bfc20b375410", 
-        data: formData 
+        data: payload 
       }).unwrap();
-      
+
       console.log('✅ Update Response:', response);
-      
+
       if (response?.success) {
         toast.success(response.message || 'Main About section updated successfully!');
         // Refresh data to show updated values

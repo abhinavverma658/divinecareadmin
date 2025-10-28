@@ -987,13 +987,13 @@ const baseQuery = async (args, api, extraOptions) => {
           const baseUrl = getBaseUrl();
           const endpoint = `${baseUrl}/about/68ebd47d7deb89d1105fd72d`;
           
-          // Map frontend field names to backend expected field names
-          const mappedData = {
-            mainHeading: formData.heading,
-            mainDescription: formData.description,
-            topRightDescription: formData.smallDescription,
-            keyPointers: formData.keyPoints,
-            centerImage: formData.leftImage1, // Using first left image as center image
+          // Use the exact field names from the form without mapping
+          const dataToSend = {
+            mainHeading: formData.mainHeading,
+            mainDescription: formData.mainDescription,
+            topRightDescription: formData.topRightDescription,
+            keyPointers: formData.keyPointers,
+            centerImage: formData.centerImage,
             rightImage: formData.rightImage
           };
           
@@ -1001,9 +1001,7 @@ const baseQuery = async (args, api, extraOptions) => {
             endpoint,
             hasToken: !!cleanToken,
             tokenPreview: cleanToken ? cleanToken.substring(0, 20) + '...' : 'None',
-            originalData: Object.keys(formData),
-            mappedData: Object.keys(mappedData),
-            mappedDataValues: mappedData
+            dataToSend
           });
           
           const response = await fetch(endpoint, {
@@ -1012,7 +1010,7 @@ const baseQuery = async (args, api, extraOptions) => {
               'Content-Type': 'application/json',
               ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
             },
-            body: JSON.stringify(mappedData),
+            body: JSON.stringify(dataToSend),
           });
           
           console.log('📥 Update About Us response:', {
@@ -1592,8 +1590,9 @@ const baseQuery = async (args, api, extraOptions) => {
             console.log('✅ Gallery data received:', data);
             return { data };
           } else {
-            console.log('❌ Gallery fetch failed:', response.status);
-            throw new Error(`HTTP ${response.status}`);
+            const errorText = await response.text();
+            console.log('❌ Gallery fetch failed:', response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
           }
         } catch (error) {
           console.log('📄 Gallery API not available, using demo data:', error);
@@ -1637,12 +1636,12 @@ const baseQuery = async (args, api, extraOptions) => {
           const baseUrl = getBaseUrl();
           
           console.log('🔄 Updating gallery data:', {
-            endpoint: `${baseUrl}/gallery/68e7f16f09f48a2ea19cdc48`,
+            endpoint: `${baseUrl}/gallery/${id}`,
             hasToken: !!cleanToken,
             data
           });
           
-          const response = await fetch(`${baseUrl}/gallery/68e7f16f09f48a2ea19cdc48`, {
+          const response = await fetch(`${baseUrl}/gallery/${id}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -1653,9 +1652,12 @@ const baseQuery = async (args, api, extraOptions) => {
           
           if (response.ok) {
             const result = await response.json();
+            console.log('✅ Gallery updated successfully:', result);
             return { data: result };
           } else {
-            throw new Error(`HTTP ${response.status}`);
+            const errorText = await response.text();
+            console.error('❌ Gallery update failed:', response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
           }
         } catch (error) {
           console.error('Gallery update error:', error);

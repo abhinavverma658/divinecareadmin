@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useGetTeamMembersMutation, useUpdateTeamMembersDataMutation, useAddTeamMemberMutation } from '../../features/apiSlice';
+import { useGetTeamMembersMutation, useUpdateTeamMembersDataMutation, useAddTeamMemberMutation, useDeleteTeamMemberMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -17,6 +17,7 @@ const EditTeamMembers = () => {
   const [getTeamMembers, { isLoading: loadingTeam }] = useGetTeamMembersMutation();
   const [updateTeamMembersData, { isLoading: updateLoading }] = useUpdateTeamMembersDataMutation();
   const [addTeamMemberToAPI, { isLoading: addingMember }] = useAddTeamMemberMutation();
+  const [deleteTeamMemberFromAPI, { isLoading: deletingMember }] = useDeleteTeamMemberMutation();
   
   const [formData, setFormData] = useState({
     _id: null, // Backend section ID
@@ -96,23 +97,31 @@ const EditTeamMembers = () => {
       
       console.log('📄 Team members data received:', data);
       
-      if (data?.success && data?.section) {
-        // Convert backend team members to our format
-        const convertedMembers = data.section.members.map((member, index) => ({
-          id: index + 1, // Use index-based ID for frontend
-          _id: member._id, // Keep backend ID for reference
-          picture: member.image,
-          name: member.fullName,
-          designation: member.designation,
-          isNew: false, // These are existing members from backend
-          isSaving: false,
-          backendId: member._id
-        }));
+      // Handle both response formats: {section: {members: []}} or {teamMembers: []}
+        const members = data?.section?.members || data?.teamMembers || [];
+
+        console.log('👥 Extracted members array:', members);
+        console.log('👥 Number of members:', members.length);
+
+        if (data?.success && members.length >= 0) {
+          // Convert backend team members to our format
+          const convertedMembers = members.map((member, index) => ({
+            id: index + 1, // Local frontend ID for UI
+            picture: member.image || member.picture,
+            name: member.fullName || member.name,
+            designation: member.designation,
+            isNew: false,
+            isSaving: false,
+            backendId: member._id, // Always use backend _id
+            _id: member._id        // Always use backend _id
+          }));
+        
+          console.log('✅ Converted members:', convertedMembers);
         
         setFormData({
-          _id: data.section._id, // Store backend section ID
-          heading: data.section.heading || 'Meet our Volunteer members',
-          description: data.section.description || 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
+          _id: data.section?._id || 'team-section', // Store backend section ID if exists
+          heading: data.section?.heading || 'Meet our Volunteer members',
+          description: data.section?.description || 'Provide tips, articles, or expert advice on maintaining a healthy work-life balance, managing, Workshops or seminars organizational.',
           teamMembers: convertedMembers.length > 0 ? convertedMembers : [
             {
               id: 1,
@@ -211,17 +220,64 @@ const EditTeamMembers = () => {
     setHasChanges(true);
   };
 
-  const removeTeamMember = (memberId) => {
+  const removeTeamMember = async (memberId) => {
     if (formData.teamMembers.length <= 1) {
       toast.error('At least one team member is required');
       return;
     }
     
-    setFormData(prev => ({
-      ...prev,
-      teamMembers: prev.teamMembers.filter(member => member.id !== memberId)
-    }));
-    setHasChanges(true);
+    const memberToDelete = formData.teamMembers.find(m => m.id === memberId);
+    
+    // If the member has a backend ID, delete from backend
+  if (memberToDelete?._id) {
+      const confirmed = window.confirm(`Are you sure you want to delete ${memberToDelete.name || 'this team member'}?`);
+      
+      if (!confirmed) {
+        return;
+      }
+      
+      try {
+        // Check if demo mode
+        if (token && token.startsWith("demo-token")) {
+          // Simulate API call in demo mode
+          await new Promise(resolve => setTimeout(resolve, 500));
+          toast.success(`${memberToDelete.name} deleted successfully! (Demo Mode)`);
+        } else {
+          // Real API call - use the backend ID
+          const backendId = memberToDelete._id;
+          
+          console.log('� Deleting team member:', {
+            memberToDelete,
+            backendId,
+            fullMemberObject: JSON.stringify(memberToDelete, null, 2)
+          });
+          
+          const response = await deleteTeamMemberFromAPI(backendId).unwrap();
+          toast.success(response?.message || `${memberToDelete.name} deleted successfully!`);
+        }
+        
+        // Remove from local state after successful deletion
+        setFormData(prev => ({
+          ...prev,
+          teamMembers: prev.teamMembers.filter(member => member.id !== memberId)
+        }));
+        
+        // Remove from saved members list
+        setSavedMembers(prev => prev.filter(id => id !== memberId));
+        setHasChanges(true);
+        
+      } catch (error) {
+        console.error('Error deleting team member:', error);
+        toast.error(error?.message || `Failed to delete ${memberToDelete.name}. Please try again.`);
+      }
+    } else {
+      // Just a local member (not saved to backend yet), can delete directly
+      setFormData(prev => ({
+        ...prev,
+        teamMembers: prev.teamMembers.filter(member => member.id !== memberId)
+      }));
+      setHasChanges(true);
+    }
   };
 
   const saveTeamMemberToBackend = async (member) => {
@@ -267,11 +323,30 @@ const EditTeamMembers = () => {
 
       const response = await addTeamMemberToAPI(memberData).unwrap();
       
-      // Mark as saved
+      console.log('✅ Team member saved, response:', response);
+      console.log('📌 Response structure:', {
+        hasTeamMember: !!response.teamMember,
+        teamMemberId: response.teamMember?.id,
+        teamMember_id: response.teamMember?._id,
+        fullTeamMember: response.teamMember
+      });
+      
+      // Extract the backend ID from response (always use _id)
+      const savedId = response.teamMember?._id;
+
+      console.log('💾 Storing backend ID:', savedId);
+
+      // Mark as saved - use the actual backend ID
       setFormData(prev => ({
         ...prev,
         teamMembers: prev.teamMembers.map(m => 
-          m.id === member.id ? { ...m, isNew: false, isSaving: false, backendId: response.teamMember?.id } : m
+          m.id === member.id ? { 
+            ...m, 
+            isNew: false, 
+            isSaving: false, 
+            backendId: savedId,
+            _id: savedId
+          } : m
         )
       }));
       

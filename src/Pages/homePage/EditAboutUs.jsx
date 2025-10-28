@@ -395,9 +395,9 @@ const EditAboutUs = () => {
                         placeholder="Enter the main description..."
                         rows={3}
                         required={true}
-                        maxLength={130}
+                        maxLength={225}
                       />
-                      <small className="text-muted">{formData.mainDescription.length}/130 characters</small>
+                      <small className="text-muted">{formData.mainDescription.length}/225 characters</small>
                     </Col>
                   </Row>
                 </Card.Body>
@@ -418,9 +418,9 @@ const EditAboutUs = () => {
                         onChange={handleInputChange}
                         placeholder="Enter the top right description..."
                         rows={4}
-                        maxLength={130}
+                        maxLength={225}
                       />
-                      <small className="text-muted">{formData.topRightDescription.length}/130 characters</small>
+                      <small className="text-muted">{formData.topRightDescription.length}/225 characters</small>
                     </Col>
                   </Row>
                 </Card.Body>
@@ -497,9 +497,9 @@ const EditAboutUs = () => {
                               placeholder="Enter pointer description..."
                               rows={3}
                               required={true}
-                              maxLength={90}
+                              maxLength={150}
                             />
-                            <small className="text-muted">{pointer.description?.length || 0}/90 characters</small>
+                            <small className="text-muted">{pointer.description?.length || 0}/150x characters</small>
                           </Col>
                         </Row>
                       </Card.Body>
