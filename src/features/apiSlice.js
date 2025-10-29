@@ -1818,117 +1818,59 @@ const baseQuery = async (args, api, extraOptions) => {
       queryFn: async (formData, { getState }) => {
         try {
           const token = getState().auth.token;
-          // Use local backend for uploads since we have auth fixes there
-          const uploadBaseUrl = window.location.hostname === 'localhost' ? 
-            'http://localhost:5001/api' : 
-            'https://divinecare-backend.onrender.com/api';
-          
+          // Always use production backend for uploads
+          const uploadBaseUrl = 'https://divinecare-backend.onrender.com/api';
           console.log('🖼️ Starting image upload to:', `${uploadBaseUrl}/upload`);
-          
-          // Clean token for proper authentication
           const cleanToken = token ? token.replace(/"/g, '') : null;
-          
           const response = await fetch(`${uploadBaseUrl}/upload`, {
             method: 'POST',
             headers: {
               ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
-              // Don't set Content-Type - let browser handle it for FormData
             },
             body: formData,
           });
-          
+          let data, errorMessage;
+          try {
+            data = await response.json();
+          } catch (jsonError) {
+            // If JSON parsing fails, fallback to text
+            const responseText = await response.text();
+            if (responseText.includes('<!DOCTYPE')) {
+              errorMessage = 'Server error - please try again later';
+            } else {
+              errorMessage = responseText.substring(0, 100);
+            }
+            throw new Error(errorMessage);
+          }
           if (response.ok) {
-            const data = await response.json();
             console.log('✅ Upload successful:', data);
             return { data };
           } else {
-            // Try to parse error response
-            let errorMessage = `Upload failed with status ${response.status}`;
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorMessage;
-            } catch (parseError) {
-              // If response is HTML (common in 500 errors), extract meaningful text
-              const responseText = await response.text();
-              if (responseText.includes('<!DOCTYPE')) {
-                errorMessage = 'Server error - please try again later';
-              } else {
-                errorMessage = responseText.substring(0, 100);
-              }
-            }
+            errorMessage = data?.message || `Upload failed with status ${response.status}`;
             throw new Error(errorMessage);
           }
         } catch (error) {
           console.error('❌ Upload error:', error);
-          
-          // For demo purposes, return a placeholder URL
-          const file = formData.get('image');
+          // Demo fallback logic can remain if needed
+          // If file exists, return demo object
+          const file = formData.get('file');
           if (file && file.name) {
-            console.log('🎭 Using demo placeholder for file:', file.name);
-            // Use a reliable placeholder service that will always work
             const timestamp = Date.now();
             const demoUrl = `https://picsum.photos/800/600?random=${timestamp}`;
-            
-            // Also include the original file as base64 for immediate preview
-            return new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const base64Url = e.target.result;
-                console.log('📸 Created base64 URL for file:', file.name, 'Length:', base64Url.length);
-                
-                // Validate the base64 URL
-                if (base64Url && base64Url.startsWith('data:image')) {
-                  resolve({
-                    data: {
-                      success: true,
-                      message: 'Demo mode: File upload simulated (backend not available)',
-                      imageUrl: base64Url, // Use the actual uploaded file for preview
-                      url: base64Url,
-                      demoUrl: demoUrl, // Alternative demo URL
-                      file: {
-                        filename: file.name,
-                        originalName: file.name,
-                        note: 'Demo - using uploaded file as base64'
-                      }
-                    }
-                  });
-                } else {
-                  console.warn('⚠️ Invalid base64 URL, using fallback');
-                  resolve({
-                    data: {
-                      success: true,
-                      message: 'Demo mode: File upload simulated (backend not available)',
-                      imageUrl: demoUrl,
-                      url: demoUrl,
-                      file: {
-                        filename: file.name,
-                        originalName: file.name,
-                        note: 'Demo placeholder image'
-                      }
-                    }
-                  });
+            return {
+              data: {
+                success: true,
+                message: 'Demo mode: File upload simulated (backend not available)',
+                imageUrl: demoUrl,
+                url: demoUrl,
+                file: {
+                  filename: file.name,
+                  originalName: file.name,
+                  note: 'Demo placeholder image'
                 }
-              };
-              reader.onerror = () => {
-                // Fallback to demo URL if FileReader fails
-                resolve({
-                  data: {
-                    success: true,
-                    message: 'Demo mode: File upload simulated (backend not available)',
-                    imageUrl: demoUrl,
-                    url: demoUrl,
-                    file: {
-                      filename: file.name,
-                      originalName: file.name,
-                      note: 'Demo placeholder image'
-                    }
-                  }
-                });
-              };
-              reader.readAsDataURL(file);
-            });
+              }
+            };
           }
-          
           // If no file or other error, throw the original error
           throw error;
         }

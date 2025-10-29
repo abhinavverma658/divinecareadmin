@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Form, Alert, Badge, Image } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useGetHomeCarouselMutation, useUpdateHomeCarouselMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
@@ -379,24 +379,13 @@ const EditHomeHero = () => {
                         <div>
                           <label className="form-label">Preview</label>
                           <div className="border rounded" style={{ padding: '10px' }}>
-                            <img
+                            <Image
                               src={formData.heroImage}
                               alt="Hero Image"
-                              style={{ 
-                                width: '100%', 
-                                maxHeight: '200px', 
-                                objectFit: 'cover',
-                                borderRadius: '4px'
-                              }}
-                              crossOrigin="anonymous"
-                              onLoad={(e) => {
-                                console.log('✅ Image loaded successfully:', formData.heroImage);
-                                console.log('Image dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-                              }}
+                              fluid
+                              rounded
+                              style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
                               onError={(e) => {
-                                console.log('❌ Image error for:', formData.heroImage);
-                                console.log('Error details:', e);
-                                // Don't hide the image, show broken image icon instead
                                 e.target.style.border = '2px solid red';
                                 e.target.alt = 'Failed to load image';
                               }}
