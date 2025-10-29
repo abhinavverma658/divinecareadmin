@@ -226,15 +226,25 @@ const EditMainAboutSection = () => {
 
       // Create FormData for API upload
       const imageFormData = new FormData();
-      imageFormData.append('image', file);
+      imageFormData.append('files', file); // <-- use 'files' not 'image'
       imageFormData.append('folder', 'about-us'); // Optional: organize uploads
 
       console.log(`🖼️ Uploading ${field}:`, file.name);
 
-      // The uploadImage mutation returns { success, imageUrl, url, data, ... }
-      const response = await uploadImage(imageFormData).unwrap();
-      // Try all possible keys for the uploaded image URL
-      const uploadedUrl = response?.imageUrl || response?.url || response?.data?.imageUrl || response?.data?.url;
+      // Force correct backend URL for upload
+      const uploadUrl = 'https://divinecare-backend.onrender.com/api/upload';
+      const state = store.getState();
+      const token = state?.auth?.token;
+      const cleanToken = token ? token.replace(/"/g, '') : null;
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` })
+        },
+        body: imageFormData
+      });
+      const result = await response.json();
+      const uploadedUrl = result?.files?.[0]?.url || result?.imageUrl || result?.url || result?.data?.imageUrl || result?.data?.url;
 
       if (uploadedUrl) {
         setFormData(prev => ({

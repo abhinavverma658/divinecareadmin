@@ -59,6 +59,11 @@ const EditAboutUs = () => {
         heading: '',
         description: '',
         icon: 'fa-heart'
+      },
+      {
+        heading: '',
+        description: '',
+        icon: 'fa-users'
       }
     ],
     centerImage: '',
@@ -136,20 +141,18 @@ const EditAboutUs = () => {
           mainHeading: response.about.mainHeading || '',
           mainDescription: response.about.mainDescription || '',
           topRightDescription: response.about.topRightDescription || '',
-          keyPointers: Array.isArray(response.about.keyPointers)
-            ? response.about.keyPointers.slice(0, 2)
-            : [
-                {
-                  heading: '',
-                  description: '',
-                  icon: 'fa-hands-helping'
-                },
-                {
-                  heading: '',
-                  description: '',
-                  icon: 'fa-heart'
-                }
-              ],
+          keyPointers: response.about.keyPointers || [
+            {
+              heading: '',
+              description: '',
+              icon: 'fa-hands-helping'
+            },
+            {
+              heading: '',
+              description: '',
+              icon: 'fa-heart'
+            }
+          ],
           centerImage: response.about.centerImage || '',
           rightImage: response.about.rightImage || ''
         });

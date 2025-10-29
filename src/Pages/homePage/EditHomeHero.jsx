@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useGetHomeCarouselMutation, useUpdateHomeCarouselMutation, useUploadImageMutation } from '../../features/apiSlice';
+import { useGetHomeCarouselMutation, useUpdateHomeCarouselMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -16,7 +16,7 @@ const EditHomeHero = () => {
   
   const [getHomeCarousel, { isLoading: loadingHero }] = useGetHomeCarouselMutation();
   const [updateHomeCarousel, { isLoading: updateLoading }] = useUpdateHomeCarouselMutation();
-  const [uploadImage, { isLoading: uploadLoading }] = useUploadImageMutation();
+  // Remove RTK Query uploadImage mutation, use direct fetch instead
   
   const [formData, setFormData] = useState({
     heroImage: '',
@@ -116,13 +116,9 @@ const EditHomeHero = () => {
     // Check if demo mode - simulate upload
     if (token && token.startsWith("demo-token")) {
       setUploadProgress(true);
-      // Simulate upload delay
       setTimeout(() => {
         const demoUrl = `https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`;
-        setFormData(prev => ({
-          ...prev,
-          heroImage: demoUrl
-        }));
+        setFormData(prev => ({ ...prev, heroImage: demoUrl }));
         setHasChanges(true);
         setUploadProgress(false);
         toast.success('Image uploaded successfully! (Demo Mode)');
@@ -146,70 +142,29 @@ const EditHomeHero = () => {
 
     try {
       setUploadProgress(true);
-      
-      // Create FormData for file upload
       const uploadFormData = new FormData();
-      uploadFormData.append('image', file); // Backend expects 'image' field
-      
-      console.log('Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
-      
-      const result = await uploadImage(uploadFormData).unwrap();
-      
+      uploadFormData.append('files', file); // Backend expects 'files' field
+
+      const response = await fetch('https://divinecare-backend.onrender.com/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
       console.log('Upload result:', result);
-      
-      if (result?.success && result?.imageUrl) {
-        // Update the hero image field with the uploaded image URL
-        setFormData(prev => ({
-          ...prev,
-          heroImage: result.imageUrl
-        }));
-        setHasChanges(true);
-        toast.success('Image uploaded successfully!');
-      } else if (result?.url) {
-        // Some APIs return 'url' instead of 'imageUrl'
-        setFormData(prev => ({
-          ...prev,
-          heroImage: result.url
-        }));
-        setHasChanges(true);
-        toast.success('Image uploaded successfully!');
-      } else if (result?.data?.url) {
-        // Some APIs nest the URL in a data object
-        setFormData(prev => ({
-          ...prev,
-          heroImage: result.data.url
-        }));
-        setHasChanges(true);
-        toast.success('Image uploaded successfully!');
-      } else if (result?.filePath) {
-        // Some APIs return 'filePath'
-        setFormData(prev => ({
-          ...prev,
-          heroImage: result.filePath
-        }));
+      if (result?.success && result.files?.[0]?.url) {
+        setFormData(prev => ({ ...prev, heroImage: result.files[0].url }));
         setHasChanges(true);
         toast.success('Image uploaded successfully!');
       } else {
-        console.error('Upload response missing imageUrl:', result);
+        console.error('Upload response missing image URL:', result);
         toast.error('Upload completed but no image URL received. Please try again.');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      
-      // Handle different types of errors
-      if (error?.status === 404) {
-        toast.error('Upload endpoint not found. Please check your server configuration.');
-      } else if (error?.status === 413) {
-        toast.error('File too large. Please choose a smaller image.');
-      } else if (error?.status === 401) {
-        toast.error('Authentication failed. Please log in again.');
-      } else if (error?.data?.message) {
-        toast.error(`Upload failed: ${error.data.message}`);
-      } else if (error?.message) {
-        toast.error(`Upload failed: ${error.message}`);
-      } else {
-        toast.error('Failed to upload image. Please check your connection and try again.');
-      }
+      toast.error('Failed to upload image. Please check your connection and try again.');
     } finally {
       setUploadProgress(false);
     }

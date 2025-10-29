@@ -6,7 +6,7 @@ export const imgAddr = "https://creative-story.s3.amazonaws.com";
 // Determine API base URL based on environment
 const getBaseUrl = () => {
   // Force use of remote backend since it's working (as shown in Postman)
-  const url = "https://divinecare-backend.onrender.com/api";
+  return "https://divinecare-backend.onrender.com/api"; // Always use remote backend for all API calls
   console.log('Using remote API (forced):', url);
   return url;
   

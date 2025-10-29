@@ -120,35 +120,22 @@ const EditTestimonialSection = () => {
       
       const response = await getAboutTestimonials().unwrap();
       
-      if (response?.success && response?.about) {
-        // Map statistics array to stat1/2 fields
-        let stat1Number = '', stat1Label = '', stat2Number = '', stat2Label = '';
-        if (Array.isArray(response.about.statistics)) {
-          if (response.about.statistics[0]) {
-            stat1Number = response.about.statistics[0].number || '';
-            stat1Label = response.about.statistics[0].label || '';
-          }
-          if (response.about.statistics[1]) {
-            stat2Number = response.about.statistics[1].number || '';
-            stat2Label = response.about.statistics[1].label || '';
-          }
-        }
-
+      if (response?.success && response?.section) {
         // Convert backend testimonials to frontend format
-        const convertedTestimonials = response.about.testimonials?.map((testimonial, index) => ({
-          id: index + 1,
-          _id: testimonial._id,
+        const convertedTestimonials = response.section.testimonials?.map((testimonial, index) => ({
+          id: index + 1, // Frontend ID
+          _id: testimonial._id, // Backend ID
           profileImage: testimonial.image || testimonial.profileImage || '',
           starRating: testimonial.rating || testimonial.starRating || 5,
           name: testimonial.name || '',
-          role: testimonial.role || testimonial.title || '',
+          role: testimonial.title || testimonial.role || '',
           content: testimonial.content || '',
-          isNew: false,
+          isNew: false, // Existing testimonial
           isSaving: false
         })) || [];
-
+        
         setFormData({
-          _id: response.about._id,
+          _id: response.section._id, // Store backend section ID
           testimonials: convertedTestimonials.length > 0 ? convertedTestimonials : [
             {
               id: 1,
@@ -162,60 +149,23 @@ const EditTestimonialSection = () => {
               isSaving: false
             }
           ],
-          sectionHeading: response.about.sectionHeading || '',
-          sectionDescription: response.about.sectionDescription || '',
-          ctaButtonText: response.about.ctaButtonText || '',
-          ctaButtonLink: response.about.ctaButtonLink || '',
-          stat1Number,
-          stat1Label,
-          stat2Number,
-          stat2Label
+          sectionHeading: response.section.sectionHeading || '',
+          sectionDescription: response.section.sectionDescription || '',
+          ctaButtonText: response.section.ctaButtonText || '',
+          ctaButtonLink: response.section.ctaButtonLink || '',
+          stat1Number: response.section.stat1Number || '',
+          stat1Label: response.section.stat1Label || '',
+          stat2Number: response.section.stat2Number || '',
+          stat2Label: response.section.stat2Label || ''
         });
+        
+        // Track all existing testimonials as saved
         setSavedTestimonials(convertedTestimonials.map(t => t.id));
+        
         console.log('✅ About testimonials data loaded successfully');
       } else {
-        // Fallback to old mapping if about is not present
-        if (response?.success && response?.section) {
-          const convertedTestimonials = response.section.testimonials?.map((testimonial, index) => ({
-            id: index + 1,
-            _id: testimonial._id,
-            profileImage: testimonial.image || testimonial.profileImage || '',
-            starRating: testimonial.rating || testimonial.starRating || 5,
-            name: testimonial.name || '',
-            role: testimonial.title || testimonial.role || '',
-            content: testimonial.content || '',
-            isNew: false,
-            isSaving: false
-          })) || [];
-          setFormData({
-            _id: response.section._id,
-            testimonials: convertedTestimonials.length > 0 ? convertedTestimonials : [
-              {
-                id: 1,
-                _id: null,
-                profileImage: '',
-                starRating: 5,
-                name: '',
-                role: '',
-                content: '',
-                isNew: true,
-                isSaving: false
-              }
-            ],
-            sectionHeading: response.section.sectionHeading || '',
-            sectionDescription: response.section.sectionDescription || '',
-            ctaButtonText: response.section.ctaButtonText || '',
-            ctaButtonLink: response.section.ctaButtonLink || '',
-            stat1Number: response.section.stat1Number || '',
-            stat1Label: response.section.stat1Label || '',
-            stat2Number: response.section.stat2Number || '',
-            stat2Label: response.section.stat2Label || ''
-          });
-          setSavedTestimonials(convertedTestimonials.map(t => t.id));
-          console.log('✅ About testimonials data loaded successfully (section fallback)');
-        } else {
-          console.log('📄 No existing about testimonials section found, starting fresh');
-        }
+        console.log('📄 No existing about testimonials section found, starting fresh');
+        // Initialize with default structure if no data exists
       }
     } catch (error) {
       console.error('Error fetching about testimonials data:', error);

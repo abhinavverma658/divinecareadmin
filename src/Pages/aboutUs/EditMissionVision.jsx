@@ -120,26 +120,30 @@ const EditMissionVision = () => {
       console.log('🔑 Vision data keys:', data ? Object.keys(data) : 'No data keys');
       
       if (data && Object.keys(data).length > 0) {
-        // Map tabs array to formData fields
-        let missionTab = { title: '', content: '' };
-        let visionTab = { title: '', content: '' };
-        let historyTab = { title: '', content: '' };
-        if (Array.isArray(data.tabs)) {
-          missionTab = data.tabs[0] || missionTab;
-          visionTab = data.tabs[1] || visionTab;
-          historyTab = data.tabs[2] || historyTab;
-        }
+        console.log('📝 Setting vision form data with:', {
+          mvHeading: data.mvHeading || data.heading || 'MISSING',
+          mvDescription: data.mvDescription || data.description || 'MISSING',
+          mvImage: data.mvImage || data.image || 'MISSING',
+          ourMissionTab: data.ourMissionTab || data.missionTab || 'MISSING',
+          ourVisionTab: data.ourVisionTab || data.visionTab || 'MISSING',
+          charityHistoryTab: data.charityHistoryTab || data.historyTab || 'MISSING'
+        });
+        
         const newFormData = {
           mvHeading: data.mvHeading || data.heading || '',
           mvDescription: data.mvDescription || data.description || '',
           mvImage: data.mvImage || data.image || '',
-          ourMissionTab: missionTab,
-          ourVisionTab: visionTab,
-          charityHistoryTab: historyTab
+          ourMissionTab: data.ourMissionTab || data.missionTab || { title: '', content: '' },
+          ourVisionTab: data.ourVisionTab || data.visionTab || { title: '', content: '' },
+          charityHistoryTab: data.charityHistoryTab || data.historyTab || { title: '', content: '' }
         };
+        
+        console.log('🎯 Final vision form data to set:', newFormData);
         setFormData(newFormData);
         toast.success('Vision section data loaded successfully');
       } else {
+        console.log('⚠️ No vision data found or empty data object');
+        console.log('📊 Full vision response debug:', JSON.stringify(response, null, 2));
         setFormData(demoData);
         toast.info('No saved data found. Using demo data.');
       }
@@ -177,7 +181,7 @@ const EditMissionVision = () => {
 
   const handleImageUpload = async (file) => {
     if (!file) return;
-
+    
     if (isDemoMode) {
       // Demo mode - use base64
       const reader = new FileReader();
@@ -194,15 +198,16 @@ const EditMissionVision = () => {
 
     try {
       setUploadingImage(true);
+      
       // Create FormData for API upload
-      const imageFormData = new FormData();
-      imageFormData.append('image', file);
-      imageFormData.append('folder', 'about-us/mission-vision');
-
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('folder', 'about-us/mission-vision');
+      
       console.log('🖼️ Uploading mission & vision image:', file.name);
-
-      const response = await uploadImage(imageFormData).unwrap();
-
+      
+      const response = await uploadImage(formData).unwrap();
+      
       if (response?.imageUrl) {
         setFormData(prev => ({
           ...prev,
@@ -260,35 +265,14 @@ const EditMissionVision = () => {
     try {
       setIsLoading(true);
       console.log('📤 Updating About Vision Data:', formData);
-
-      // Build payload to match backend structure
-      const payload = {
-        heading: formData.mvHeading,
-        description: formData.mvDescription,
-        image: formData.mvImage,
-        tabs: [
-          {
-            title: formData.ourMissionTab.title,
-            content: formData.ourMissionTab.content
-          },
-          {
-            title: formData.ourVisionTab.title,
-            content: formData.ourVisionTab.content
-          },
-          {
-            title: formData.charityHistoryTab.title,
-            content: formData.charityHistoryTab.content
-          }
-        ]
-      };
-
+      
       const response = await updateAboutVisionData({ 
         id: "68ee0dce70e1bfc20b375416", 
-        data: payload 
+        data: formData 
       }).unwrap();
-
+      
       console.log('✅ Update Response:', response);
-
+      
       if (response?.success) {
         toast.success(response.message || 'Mission & Vision section updated successfully!');
         // Refresh data to show updated values
