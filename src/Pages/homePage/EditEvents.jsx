@@ -135,29 +135,19 @@ const EditEvents = () => {
     try {
       // Create FormData for file upload
       const uploadFormData = new FormData();
-      uploadFormData.append('image', file);
-      
+      uploadFormData.append('files', file); // <-- use 'files' key for backend
+
       console.log('Uploading background image:', file.name, 'Size:', file.size, 'Type:', file.type);
-      
+
       const result = await uploadImage(uploadFormData).unwrap();
-      
+
       console.log('Upload result:', result);
-      
-      let imageUrl = null;
-      
-      // Handle multiple possible response formats
-      if (result?.success && result?.imageUrl) {
-        imageUrl = result.imageUrl;
-      } else if (result?.url) {
-        imageUrl = result.url;
-      } else if (result?.data?.url) {
-        imageUrl = result.data.url;
-      }
-      
-      if (imageUrl) {
+
+      // DivineCare backend returns { success, files: [{ url, public_id }] }
+      if (result?.success && Array.isArray(result.files) && result.files[0]?.url) {
         setFormData(prev => ({
           ...prev,
-          image: imageUrl
+          image: result.files[0].url
         }));
         setHasChanges(true);
         toast.success('Background image uploaded successfully!');
@@ -167,7 +157,7 @@ const EditEvents = () => {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      
+
       // Handle different types of errors
       if (error?.status === 404) {
         toast.error('Upload endpoint not found. Please check your server configuration.');

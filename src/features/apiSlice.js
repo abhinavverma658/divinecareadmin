@@ -1815,13 +1815,36 @@ const baseQuery = async (args, api, extraOptions) => {
 
     // Image Upload with fallback
     uploadImage: builder.mutation({
-      queryFn: async (formData, { getState }) => {
+      queryFn: async (inputFormData, { getState }) => {
         try {
           const token = getState().auth.token;
-          // Always use production backend for uploads
           const uploadBaseUrl = 'https://divinecare-backend.onrender.com/api';
           console.log('🖼️ Starting image upload to:', `${uploadBaseUrl}/upload`);
           const cleanToken = token ? token.replace(/"/g, '') : null;
+
+          // Ensure file is sent as 'files' key (plural)
+          let formData = new FormData();
+          // If inputFormData is already FormData, extract file and append as 'files'
+          if (inputFormData instanceof FormData) {
+            // Try to get file from 'file' or 'files' key
+            let file = inputFormData.get('file') || inputFormData.get('files');
+            if (file) {
+              formData.append('files', file);
+            } else {
+              // If no file found, copy all entries as fallback
+              for (let [key, value] of inputFormData.entries()) {
+                formData.append(key, value);
+              }
+            }
+          } else if (inputFormData?.file) {
+            formData.append('files', inputFormData.file);
+          } else {
+            // Fallback: copy all entries
+            for (let key in inputFormData) {
+              formData.append(key, inputFormData[key]);
+            }
+          }
+
           const response = await fetch(`${uploadBaseUrl}/upload`, {
             method: 'POST',
             headers: {
@@ -1829,12 +1852,11 @@ const baseQuery = async (args, api, extraOptions) => {
             },
             body: formData,
           });
+          const responseText = await response.text();
           let data, errorMessage;
           try {
-            data = await response.json();
+            data = JSON.parse(responseText);
           } catch (jsonError) {
-            // If JSON parsing fails, fallback to text
-            const responseText = await response.text();
             if (responseText.includes('<!DOCTYPE')) {
               errorMessage = 'Server error - please try again later';
             } else {
@@ -1843,7 +1865,9 @@ const baseQuery = async (args, api, extraOptions) => {
             throw new Error(errorMessage);
           }
           if (response.ok) {
-            console.log('✅ Upload successful:', data);
+            if (data.success && Array.isArray(data.files)) {
+              return { data };
+            }
             return { data };
           } else {
             errorMessage = data?.message || `Upload failed with status ${response.status}`;
@@ -1852,8 +1876,12 @@ const baseQuery = async (args, api, extraOptions) => {
         } catch (error) {
           console.error('❌ Upload error:', error);
           // Demo fallback logic can remain if needed
-          // If file exists, return demo object
-          const file = formData.get('file');
+          let file = null;
+          if (inputFormData instanceof FormData) {
+            file = inputFormData.get('file') || inputFormData.get('files');
+          } else if (inputFormData?.file) {
+            file = inputFormData.file;
+          }
           if (file && file.name) {
             const timestamp = Date.now();
             const demoUrl = `https://picsum.photos/800/600?random=${timestamp}`;
@@ -1871,7 +1899,6 @@ const baseQuery = async (args, api, extraOptions) => {
               }
             };
           }
-          // If no file or other error, throw the original error
           throw error;
         }
       },

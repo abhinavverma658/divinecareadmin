@@ -174,24 +174,26 @@ const EditOurMission = () => {
 
     try {
       setUploadingImage(true);
-      
       // Create FormData for API upload
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('files', file); // Use 'files' key for backend compatibility
       formData.append('folder', 'about-us/mission');
-      
       console.log('🖼️ Uploading mission image:', file.name);
-      
       const response = await uploadImage(formData).unwrap();
-      
-      if (response?.imageUrl) {
+      // Support multiple possible keys for image URL, including files[0].url
+      let imageUrl = response?.imageUrl || response?.url || response?.data?.imageUrl || response?.data?.url;
+      if (!imageUrl && Array.isArray(response?.files) && response.files[0]?.url) {
+        imageUrl = response.files[0].url;
+      }
+      if (imageUrl) {
         setFormData(prev => ({
           ...prev,
-          missionImage: response.imageUrl
+          missionImage: imageUrl
         }));
         toast.success('Mission image uploaded successfully!');
-        console.log('✅ Mission image uploaded:', response.imageUrl);
+        console.log('✅ Mission image uploaded:', imageUrl);
       } else {
+        console.error('❌ Upload response:', response);
         throw new Error('No image URL returned from server');
       }
     } catch (error) {
@@ -237,15 +239,19 @@ const EditOurMission = () => {
 
     try {
       setIsLoading(true);
-      console.log('📤 Updating About Mission Data:', formData);
-      
+      // Map frontend keys to backend keys
+      const payload = {
+        heading: formData.missionHeading,
+        description: formData.missionDescription,
+        image: formData.missionImage,
+        points: formData.missionPoints
+      };
+      console.log('📤 Updating About Mission Data (payload):', payload);
       const response = await updateAboutMissionData({ 
         id: "68ee0bc170e1bfc20b375413", 
-        data: formData 
+        data: payload 
       }).unwrap();
-      
       console.log('✅ Update Response:', response);
-      
       if (response?.success) {
         toast.success(response.message || 'Mission section updated successfully!');
         // Refresh data to show updated values

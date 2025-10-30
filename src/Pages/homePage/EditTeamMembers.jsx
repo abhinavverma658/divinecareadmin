@@ -485,17 +485,25 @@ const EditTeamMembers = () => {
 
       // Update section header data if we have backend section ID
       if (formData._id) {
+        // Prepare members array for backend
+        const members = formData.teamMembers.map(member => ({
+          image: member.picture,
+          fullName: member.name,
+          designation: member.designation,
+          _id: member._id // Only include if exists
+        }));
+
         const sectionData = {
           heading: formData.heading,
-          description: formData.description
+          description: formData.description,
+          members
         };
-        
+
         try {
           await updateTeamMembersData({ 
             id: formData._id, 
             ...sectionData 
           }).unwrap();
-          
           toast.success(`Team Members section completed! Section updated with ${savedMembersCount} members.`);
         } catch (updateError) {
           console.warn('Failed to update section header, but members are saved:', updateError);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TextEditor from '../../Components/TextEditor';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner, Nav, Tab } from 'react-bootstrap';
 import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
@@ -120,24 +121,28 @@ const EditMissionVision = () => {
       console.log('🔑 Vision data keys:', data ? Object.keys(data) : 'No data keys');
       
       if (data && Object.keys(data).length > 0) {
-        console.log('📝 Setting vision form data with:', {
-          mvHeading: data.mvHeading || data.heading || 'MISSING',
-          mvDescription: data.mvDescription || data.description || 'MISSING',
-          mvImage: data.mvImage || data.image || 'MISSING',
-          ourMissionTab: data.ourMissionTab || data.missionTab || 'MISSING',
-          ourVisionTab: data.ourVisionTab || data.visionTab || 'MISSING',
-          charityHistoryTab: data.charityHistoryTab || data.historyTab || 'MISSING'
-        });
-        
+        // Map tabs array to individual tab objects
+        let missionTab = { title: '', content: '' };
+        let visionTab = { title: '', content: '' };
+        let historyTab = { title: '', content: '' };
+        if (Array.isArray(data.tabs)) {
+          missionTab = data.tabs[0] || missionTab;
+          visionTab = data.tabs[1] || visionTab;
+          historyTab = data.tabs[2] || historyTab;
+        }
+        // Fallback to legacy keys if available
+        missionTab = data.ourMissionTab || data.missionTab || missionTab;
+        visionTab = data.ourVisionTab || data.visionTab || visionTab;
+        historyTab = data.charityHistoryTab || data.historyTab || historyTab;
+
         const newFormData = {
           mvHeading: data.mvHeading || data.heading || '',
           mvDescription: data.mvDescription || data.description || '',
           mvImage: data.mvImage || data.image || '',
-          ourMissionTab: data.ourMissionTab || data.missionTab || { title: '', content: '' },
-          ourVisionTab: data.ourVisionTab || data.visionTab || { title: '', content: '' },
-          charityHistoryTab: data.charityHistoryTab || data.historyTab || { title: '', content: '' }
+          ourMissionTab: missionTab,
+          ourVisionTab: visionTab,
+          charityHistoryTab: historyTab
         };
-        
         console.log('🎯 Final vision form data to set:', newFormData);
         setFormData(newFormData);
         toast.success('Vision section data loaded successfully');
@@ -201,21 +206,24 @@ const EditMissionVision = () => {
       
       // Create FormData for API upload
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('files', file); // Use 'files' key for backend compatibility
       formData.append('folder', 'about-us/mission-vision');
-      
       console.log('🖼️ Uploading mission & vision image:', file.name);
-      
       const response = await uploadImage(formData).unwrap();
-      
-      if (response?.imageUrl) {
+      // Support multiple possible keys for image URL, including files[0].url
+      let imageUrl = response?.imageUrl || response?.url || response?.data?.imageUrl || response?.data?.url;
+      if (!imageUrl && Array.isArray(response?.files) && response.files[0]?.url) {
+        imageUrl = response.files[0].url;
+      }
+      if (imageUrl) {
         setFormData(prev => ({
           ...prev,
-          mvImage: response.imageUrl
+          mvImage: imageUrl
         }));
         toast.success('Mission & Vision image uploaded successfully!');
-        console.log('✅ Mission & Vision image uploaded:', response.imageUrl);
+        console.log('✅ Mission & Vision image uploaded:', imageUrl);
       } else {
+        console.error('❌ Upload response:', response);
         throw new Error('No image URL returned from server');
       }
     } catch (error) {
@@ -250,7 +258,6 @@ const EditMissionVision = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     const errors = validateForm();
     if (errors.length > 0) {
       errors.forEach(error => toast.error(error));
@@ -262,20 +269,37 @@ const EditMissionVision = () => {
       return;
     }
 
+    // Map frontend state to backend payload
+    const payload = {
+      heading: formData.mvHeading,
+      description: formData.mvDescription,
+      image: formData.mvImage,
+      tabs: [
+        {
+          title: formData.ourMissionTab.title,
+          content: formData.ourMissionTab.content
+        },
+        {
+          title: formData.ourVisionTab.title,
+          content: formData.ourVisionTab.content
+        },
+        {
+          title: formData.charityHistoryTab.title,
+          content: formData.charityHistoryTab.content
+        }
+      ]
+    };
+
     try {
       setIsLoading(true);
-      console.log('📤 Updating About Vision Data:', formData);
-      
+      console.log('📤 Updating About Vision Data (payload):', payload);
       const response = await updateAboutVisionData({ 
         id: "68ee0dce70e1bfc20b375416", 
-        data: formData 
+        data: payload 
       }).unwrap();
-      
       console.log('✅ Update Response:', response);
-      
       if (response?.success) {
         toast.success(response.message || 'Mission & Vision section updated successfully!');
-        // Refresh data to show updated values
         setTimeout(() => {
           fetchMissionVisionData();
         }, 1000);
@@ -408,13 +432,11 @@ const EditMissionVision = () => {
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          rows={4}
-                          value={formData.ourMissionTab.content}
-                          onChange={(e) => handleTabChange('ourMissionTab', 'content', e.target.value)}
+                        {/* Use TextEditor for rich text editing */}
+                        <TextEditor
+                          description={formData.ourMissionTab.content}
+                          onChange={(value) => handleTabChange('ourMissionTab', 'content', value)}
                           placeholder="Enter tab content"
-                          required
                         />
                       </Form.Group>
                     </Tab.Pane>
@@ -432,13 +454,11 @@ const EditMissionVision = () => {
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          rows={4}
-                          value={formData.ourVisionTab.content}
-                          onChange={(e) => handleTabChange('ourVisionTab', 'content', e.target.value)}
+                        {/* Use TextEditor for rich text editing */}
+                        <TextEditor
+                          description={formData.ourVisionTab.content}
+                          onChange={(value) => handleTabChange('ourVisionTab', 'content', value)}
                           placeholder="Enter tab content"
-                          required
                         />
                       </Form.Group>
                     </Tab.Pane>
@@ -456,13 +476,11 @@ const EditMissionVision = () => {
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
-                        <Form.Control
-                          as="textarea"
-                          rows={4}
-                          value={formData.charityHistoryTab.content}
-                          onChange={(e) => handleTabChange('charityHistoryTab', 'content', e.target.value)}
+                        {/* Use TextEditor for rich text editing */}
+                        <TextEditor
+                          description={formData.charityHistoryTab.content}
+                          onChange={(value) => handleTabChange('charityHistoryTab', 'content', value)}
                           placeholder="Enter tab content"
-                          required
                         />
                       </Form.Group>
                     </Tab.Pane>

@@ -117,20 +117,23 @@ const ImageUpload = ({
   const handleRealUpload = async (files) => {
     for (let file of files) {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('files', file); // Use 'files' key for backend
       formData.append('folder', 'website-pages'); // Organize uploads
-      
+
       setUploadProgress(10);
-      
+
       try {
         console.log('Starting upload for:', file.name);
         const data = await uploadImage(formData).unwrap();
         console.log('Upload response:', data);
-        
+
         let imageUrl = null;
-        
-        // Handle multiple possible response formats
-        if (data?.success && data?.imageUrl) {
+
+        // DivineCare backend returns { success, files: [{ url, public_id }] }
+        if (data?.success && Array.isArray(data.files) && data.files[0]?.url) {
+          imageUrl = data.files[0].url;
+          console.log('📸 Upload success - using data.files[0].url:', imageUrl.substring(0, 50) + '...');
+        } else if (data?.success && data?.imageUrl) {
           imageUrl = data.imageUrl;
           console.log('📸 Upload success - using data.imageUrl:', imageUrl.substring(0, 50) + '...');
         } else if (data?.url) {
@@ -143,7 +146,7 @@ const ImageUpload = ({
           imageUrl = data.filePath;
           console.log('📸 Upload success - using data.filePath:', imageUrl.substring(0, 50) + '...');
         }
-        
+
         if (imageUrl) {
           console.log('🔄 Setting new image URL in component state');
           if (multiple) {
@@ -152,10 +155,10 @@ const ImageUpload = ({
           } else {
             onChange(imageUrl);
           }
-          
+
           toast.success(`Image uploaded successfully: ${file.name}`);
           setUploadProgress(100);
-          
+
           // Reset progress after a short delay
           setTimeout(() => setUploadProgress(0), 1000);
         } else {

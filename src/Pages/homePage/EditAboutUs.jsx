@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
+import { useUploadImageMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
@@ -16,6 +17,7 @@ const EditAboutUs = () => {
   
   const [getAboutUsData, { isLoading: loadingAbout }] = useGetAboutUsDataMutation();
   const [updateAboutUsData, { isLoading: updateLoading }] = useUpdateAboutUsDataMutation();
+  const [uploadImage, { isLoading: uploadingImage }] = useUploadImageMutation();
 
   // Add CSS styles for icon selector
   useEffect(() => {
@@ -226,12 +228,29 @@ const EditAboutUs = () => {
     setHasChanges(true);
   };
 
-  const handleImageChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    setHasChanges(true);
+  // Image upload handler: accepts File, uploads, sets Cloudinary URL
+  const handleImageChange = async (field, event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    try {
+      // Prepare FormData for upload
+      const formData = new FormData();
+      formData.append('files', file);
+      const result = await uploadImage(formData).unwrap();
+      // Check for direct API response (not wrapped in .data)
+      if (result?.success && Array.isArray(result.files) && result.files[0]?.url) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: result.files[0].url
+        }));
+        setHasChanges(true);
+        toast.success('Image uploaded successfully!');
+      } else {
+        toast.error('Image upload failed.');
+      }
+    } catch (error) {
+      toast.error('Image upload error: ' + (error?.message || 'Unknown error'));
+    }
   };
 
   const isFormValid = () => {
@@ -523,13 +542,16 @@ const EditAboutUs = () => {
                         <Card.Body>
                           <Row>
                             <Col md={6}>
-                              <FormField
-                                type="image"
-                                name="centerImage"
-                                value={formData.centerImage}
-                                onChange={(e) => handleImageChange('centerImage', e.target.value)}
-                                required={true}
-                              />
+                              <Form.Group controlId="centerImageUpload">
+                                <Form.Label>Upload Center Image *</Form.Label>
+                                <Form.Control
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleImageChange('centerImage', e)}
+                                  disabled={uploadingImage}
+                                />
+                                {uploadingImage && <span className="text-info ms-2">Uploading...</span>}
+                              </Form.Group>
                             </Col>
                             <Col md={6}>
                               {formData.centerImage ? (
@@ -572,13 +594,16 @@ const EditAboutUs = () => {
                         <Card.Body>
                           <Row>
                             <Col md={6}>
-                              <FormField
-                                type="image"
-                                name="rightImage"
-                                value={formData.rightImage}
-                                onChange={(e) => handleImageChange('rightImage', e.target.value)}
-                               required={true}
-                              />
+                              <Form.Group controlId="rightImageUpload">
+                                <Form.Label>Upload Right Image *</Form.Label>
+                                <Form.Control
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleImageChange('rightImage', e)}
+                                  disabled={uploadingImage}
+                                />
+                                {uploadingImage && <span className="text-info ms-2">Uploading...</span>}
+                              </Form.Group>
                             </Col>
                             <Col md={6}>
                               {formData.rightImage ? (
