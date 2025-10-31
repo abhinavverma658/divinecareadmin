@@ -352,7 +352,7 @@ const EditEvents = () => {
                         required={true}
                         maxLength={90}
                       />
-                      <small className="text-muted">{formData.heading.length}/90 characters</small>
+                      <small className="text-muted">{(formData.heading || '').length}/90 characters</small>
                     </Col>
                     <Col md={12}>
                       <FormField
@@ -366,7 +366,7 @@ const EditEvents = () => {
                         required={true}
                         maxLength={225}
                       />
-                      <small className="text-muted">{formData.description.length}/225 characters</small>
+                      <small className="text-muted">{(formData.description || '').length}/225 characters</small>
                     </Col>
                     <Col md={6}>
                       <ImageUpload

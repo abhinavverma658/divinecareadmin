@@ -425,12 +425,15 @@ const Events = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Image
-                            src={event.featuredImage}
+                            src={event.featuredImage || event.image || event.images?.[0] || 'https://via.placeholder.com/60x60?text=No+Image'}
                             alt={event.title}
                             width={60}
                             height={60}
                             className="rounded me-3"
                             style={{ objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.target.src = 'https://via.placeholder.com/60x60?text=No+Image';
+                            }}
                           />
                           <div>
                             <h6 className="mb-1">{event.title}</h6>
@@ -451,7 +454,7 @@ const Events = () => {
                             <small>{event.location}</small>
                           </div>
                           <div>
-                            <small className="text-muted">{event.venue}</small>
+                            <small className="text-muted">{event.venueDetails || event.venue || 'Venue details not specified'}</small>
                           </div>
                         </div>
                       </td>
@@ -520,11 +523,14 @@ const Events = () => {
               <Row>
                 <Col md={5}>
                   <Image
-                    src={selectedEvent.featuredImage}
+                    src={selectedEvent.featuredImage || selectedEvent.image || selectedEvent.images?.[0] || 'https://via.placeholder.com/400x200?text=No+Image'}
                     alt={selectedEvent.title}
                     fluid
                     rounded
                     className="mb-3"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/400x200?text=No+Image';
+                    }}
                   />
                   <div className="text-center mb-3">
                     {selectedEvent.isPaid ? (
