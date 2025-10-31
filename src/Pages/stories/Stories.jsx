@@ -334,9 +334,9 @@ const Stories = () => {
                             </div>
                             <div>
                               <h6 className="mb-1">{story.title}</h6>
-                              <p className="text-muted small mb-0">
-                                {truncateContent(story.content, 80)}
-                              </p>
+                              <div className="text-muted small mb-0" style={{ maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span dangerouslySetInnerHTML={{ __html: truncateContent(story.content, 80) }} />
+                              </div>
                               {story.readTime && (
                                 <small className="text-muted">
                                   <FaCalendar className="me-1" />
@@ -454,9 +454,7 @@ const Stories = () => {
                   )}
                 </div>
                 <div className="story-content">
-                  {selectedStory.content.split('\n').map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))}
+                  <div dangerouslySetInnerHTML={{ __html: selectedStory.content }} />
                 </div>
               </div>
             )}

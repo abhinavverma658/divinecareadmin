@@ -102,10 +102,16 @@ const EditHomeHero = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+    let newValue = value;
+    if (name === 'heroTitle' || name === 'heroHeading') {
+      newValue = value.slice(0, 30);
+    }
+    if (name === 'description') {
+      newValue = value.slice(0, 95);
+    }
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : newValue
     }));
     setHasChanges(true);
   };
@@ -438,7 +444,11 @@ const EditHomeHero = () => {
                         onChange={handleInputChange}
                         placeholder="Enter the main hero title..."
                         required={true}
+                        maxLength={30}
                       />
+                      <div className="text-end text-muted small mb-2">
+                        {formData.heroTitle.length} / 30 characters
+                      </div>
                     </Col>
                     <Col md={12}>
                       <FormField
@@ -449,7 +459,11 @@ const EditHomeHero = () => {
                         onChange={handleInputChange}
                         placeholder="Enter the hero heading/subtitle..."
                         required={true}
+                        maxLength={30}
                       />
+                      <div className="text-end text-muted small mb-2">
+                        {formData.heroHeading.length} / 30 characters
+                      </div>
                     </Col>
                     <Col md={12}>
                       <FormField
@@ -461,7 +475,11 @@ const EditHomeHero = () => {
                         placeholder="Enter hero description..."
                         rows={4}
                         required={true}
+                        maxLength={95}
                       />
+                      <div className="text-end text-muted small mb-2">
+                        {formData.description.length} / 95 characters
+                      </div>
                     </Col>
                   </Row>
                 </Card.Body>

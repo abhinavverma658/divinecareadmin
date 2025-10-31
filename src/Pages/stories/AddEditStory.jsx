@@ -6,6 +6,7 @@ import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
 import FormField from '../../Components/FormField';
+import TextEditor from '../../Components/TextEditor';
 import { FaSave, FaArrowLeft, FaUpload, FaTrash } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
@@ -92,7 +93,7 @@ const AddEditStory = () => {
       toast.error('Please select a valid image file');
       return;
     }
-    
+
     // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image size should be less than 5MB');
@@ -103,17 +104,18 @@ const AddEditStory = () => {
 
     try {
       console.log('🖼️ Uploading story image:', file.name);
-      
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('files', file); // Use 'files' key for backend
       formData.append('folder', 'stories');
-      
+
       const response = await uploadImage(formData).unwrap();
-      
-      if (response?.imageUrl) {
-        setImagePreview(response.imageUrl);
-        setFormData(prev => ({ ...prev, image: response.imageUrl }));
-        console.log('✅ Story image uploaded:', response.imageUrl);
+      // Expecting response.files[0].url
+      const imageUrl = response?.files?.[0]?.url;
+      if (imageUrl) {
+        setImagePreview(imageUrl);
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+        console.log('✅ Story image uploaded:', imageUrl);
         toast.success(`${file.name} uploaded successfully!`);
       } else {
         throw new Error('No image URL returned from server');
@@ -138,11 +140,15 @@ const AddEditStory = () => {
     try {
       setUploadingImage(true);
       const formDataUpload = new FormData();
-      formDataUpload.append('image', imageFile);
-      
+      formDataUpload.append('files', imageFile); // Use 'files' key for backend
+      formDataUpload.append('folder', 'stories');
+
       const response = await uploadImage(formDataUpload).unwrap();
       console.log('📤 Image upload response:', response);
-      return response.imageUrl;
+      // Expecting response.files[0].url
+      const imageUrl = response?.files?.[0]?.url;
+      if (!imageUrl) throw new Error('No image URL returned from server');
+      return imageUrl;
     } catch (error) {
       console.error('❌ Image upload error:', error);
       toast.error('Failed to upload image');
@@ -181,13 +187,13 @@ const AddEditStory = () => {
         finalImageUrl = uploadResponse;
       }
 
-      // Prepare data for story API
+      // Prepare data for story API (match required structure)
       const submitData = {
         title: formData.title.trim(),
-        content: formData.content.trim(),
+        image: finalImageUrl,
         author: formData.author.trim(),
-        date: formData.date,
-        image: finalImageUrl
+        content: formData.content.trim(),
+        date: new Date(formData.date).toISOString(),
       };
 
       console.log('📤 Submitting story data:', submitData);
@@ -297,14 +303,10 @@ const AddEditStory = () => {
 
                   <Form.Group className="mb-3">
                     <Form.Label>Story Content <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={8}
-                      name="content"
-                      value={formData.content}
-                      onChange={handleChange}
+                    <TextEditor
+                      value={typeof formData.content === 'string' ? formData.content : ''}
+                      onChange={value => setFormData(prev => ({ ...prev, content: value }))}
                       placeholder="Write your story content here..."
-                      style={{ minHeight: '200px' }}
                     />
                   </Form.Group>
                 </Card.Body>
