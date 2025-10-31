@@ -123,17 +123,20 @@ const AddEditService = () => {
 
     try {
       console.log('🖼️ Uploading service image:', file.name);
+
+      const formDataUpload = new FormData();
+      formDataUpload.append('files', file); // Use 'files' key for backend
+      formDataUpload.append('folder', 'services');
+
+      const response = await uploadImage(formDataUpload).unwrap();
+      console.log('📤 Image upload response:', response);
       
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('folder', 'services');
-      
-      const response = await uploadImage(formData).unwrap();
-      
-      if (response?.imageUrl) {
-        setImagePreview(response.imageUrl);
-        setFormData(prev => ({ ...prev, image: response.imageUrl }));
-        console.log('✅ Service image uploaded:', response.imageUrl);
+      // Expecting response.files[0].url based on new API format
+      const imageUrl = response?.files?.[0]?.url;
+      if (imageUrl) {
+        setImagePreview(imageUrl);
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+        console.log('✅ Service image uploaded:', imageUrl);
         toast.success(`${file.name} uploaded successfully!`);
       } else {
         throw new Error('No image URL returned from server');
