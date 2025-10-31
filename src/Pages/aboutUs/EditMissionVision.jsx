@@ -385,8 +385,12 @@ const EditMissionVision = () => {
                     value={formData.mvHeading}
                     onChange={handleChange}
                     placeholder="Enter main heading"
+                    maxLength={80}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.mvHeading.length}/80 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* Main Description */}
@@ -399,8 +403,12 @@ const EditMissionVision = () => {
                     value={formData.mvDescription}
                     onChange={handleChange}
                     placeholder="Enter main description"
+                    maxLength={400}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.mvDescription.length}/400 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* Tabs Section */}
@@ -427,8 +435,12 @@ const EditMissionVision = () => {
                           value={formData.ourMissionTab.title}
                           onChange={(e) => handleTabChange('ourMissionTab', 'title', e.target.value)}
                           placeholder="Enter tab title"
+                          maxLength={30}
                           required
                         />
+                        <Form.Text className="text-muted">
+                          {formData.ourMissionTab.title.length}/30 characters
+                        </Form.Text>
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
@@ -449,8 +461,12 @@ const EditMissionVision = () => {
                           value={formData.ourVisionTab.title}
                           onChange={(e) => handleTabChange('ourVisionTab', 'title', e.target.value)}
                           placeholder="Enter tab title"
+                          maxLength={30}
                           required
                         />
+                        <Form.Text className="text-muted">
+                          {formData.ourVisionTab.title.length}/30 characters
+                        </Form.Text>
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
@@ -471,8 +487,12 @@ const EditMissionVision = () => {
                           value={formData.charityHistoryTab.title}
                           onChange={(e) => handleTabChange('charityHistoryTab', 'title', e.target.value)}
                           placeholder="Enter tab title"
+                          maxLength={30}
                           required
                         />
+                        <Form.Text className="text-muted">
+                          {formData.charityHistoryTab.title.length}/30 characters
+                        </Form.Text>
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>

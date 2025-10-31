@@ -7,7 +7,8 @@ import {
   useUpdateAboutTestimonialsSectionMutation,
   useCreateAboutTestimonialMutation,
   useUpdateAboutTestimonialMutation,
-  useDeleteAboutTestimonialMutation
+  useDeleteAboutTestimonialMutation,
+  useUploadImageMutation
 } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 import { useSelector } from 'react-redux';
@@ -30,12 +31,15 @@ const EditTestimonialSection = () => {
         content: '',
         isNew: true, // Track if this is a new testimonial
         isSaving: false, // Track saving state
-        isEditing: false // Track if testimonial is in edit mode
+        isEditing: false, // Track if testimonial is in edit mode
+        imageUploading: false // Track image upload state
       }
     ],
     // Right side - Content
     sectionHeading: '',
     sectionDescription: '',
+    sectionImage: '', // Add section image field
+    sectionImageUploading: false, // Track image upload state
     ctaButtonText: '',
     ctaButtonLink: '',
     stat1Number: '',
@@ -54,6 +58,7 @@ const EditTestimonialSection = () => {
   const [createAboutTestimonial] = useCreateAboutTestimonialMutation();
   const [updateAboutTestimonial] = useUpdateAboutTestimonialMutation();
   const [deleteAboutTestimonial] = useDeleteAboutTestimonialMutation();
+  const [uploadImage] = useUploadImageMutation();
 
   // Demo data for testing
   const demoData = {
@@ -68,7 +73,8 @@ const EditTestimonialSection = () => {
         role: 'Volunteer',
         content: '"Through their words, we\'re reminded that a legacy isn\'t just something you leave behind it\'s something you create every day inspiring all generations to follow in their footsteps."',
         isNew: false,
-        isSaving: false
+        isSaving: false,
+        imageUploading: false
       },
       {
         id: 2,
@@ -79,7 +85,8 @@ const EditTestimonialSection = () => {
         role: 'Community Leader',
         content: '"The impact this organization has made in our community is truly remarkable. They have brought hope and positive change to countless lives."',
         isNew: false,
-        isSaving: false
+        isSaving: false,
+        imageUploading: false
       },
       {
         id: 3,
@@ -90,11 +97,13 @@ const EditTestimonialSection = () => {
         role: 'Beneficiary',
         content: '"Thanks to their support, I was able to rebuild my life and give back to others in need. Their compassion knows no bounds."',
         isNew: false,
-        isSaving: false
+        isSaving: false,
+        imageUploading: false
       }
     ],
     sectionHeading: 'Lifelong Lessons: Stories from Our Elders',
     sectionDescription: 'Our seniors are heart of our community, each one with a unique story and a lifetime of experiences that inspire us daily. Their testimonials speak to the resilience, kindness, and courage.',
+    sectionImage: 'https://creative-story.s3.amazonaws.com/testimonials/section-bg.jpg',
     ctaButtonText: 'Learn More',
     ctaButtonLink: '/testimonials',
     stat1Number: '569 +',
@@ -127,6 +136,12 @@ const EditTestimonialSection = () => {
       // Check multiple possible response structures
       let sectionData = null;
       
+      console.log('🔍 Checking response structure...');
+      console.log('🔍 response.success:', response?.success);
+      console.log('🔍 response.about exists:', !!response?.about);
+      console.log('🔍 response.section exists:', !!response?.section);
+      console.log('🔍 response.data exists:', !!response?.data);
+      
       if (response?.success && response?.about) {
         sectionData = response.about;
         console.log('✅ Using response.about structure');
@@ -150,14 +165,23 @@ const EditTestimonialSection = () => {
         console.log('✅ Using response directly as section data');
       }
       
+      console.log('🎯 Final sectionData:', sectionData);
+      
       if (sectionData && Object.keys(sectionData).length > 0) {
         console.log('🔍 Section data found:', sectionData);
         console.log('🔍 Testimonials in section:', sectionData.testimonials);
+        console.log('🔍 Section heading:', sectionData.sectionHeading);
+        console.log('🔍 Section description:', sectionData.sectionDescription);
+        console.log('🔍 Section image:', sectionData.sectionImage);
+        console.log('🔍 Statistics:', sectionData.statistics);
         
         // Convert backend testimonials to frontend format
         const convertedTestimonials = sectionData.testimonials?.map((testimonial, index) => {
           console.log(`🔍 Processing testimonial ${index + 1}:`, testimonial);
-          return {
+          console.log(`🔍 Testimonial _id:`, testimonial._id);
+          console.log(`🔍 Testimonial keys:`, Object.keys(testimonial));
+          
+          const converted = {
             id: index + 1, // Frontend ID
             _id: testimonial._id, // Backend ID
             profileImage: testimonial.image || testimonial.profileImage || '',
@@ -167,8 +191,18 @@ const EditTestimonialSection = () => {
             content: testimonial.content || testimonial.message || '',
             isNew: false, // Existing testimonial
             isSaving: false,
-            isEditing: false // Not in edit mode by default
+            isEditing: false, // Not in edit mode by default
+            imageUploading: false // Not uploading by default
           };
+          
+          console.log(`✅ Converted testimonial ${index + 1}:`, converted);
+          
+          // Warn if _id is missing
+          if (!converted._id) {
+            console.warn(`⚠️ Testimonial ${index + 1} has no _id - updates will fail!`);
+          }
+          
+          return converted;
         }) || [];
         
         console.log('🔄 Converted testimonials:', convertedTestimonials);
@@ -190,11 +224,13 @@ const EditTestimonialSection = () => {
               content: '',
               isNew: true,
               isSaving: false,
-              isEditing: false
+              isEditing: false,
+              imageUploading: false
             }
           ],
           sectionHeading: sectionData.sectionHeading || sectionData.heading || '',
           sectionDescription: sectionData.sectionDescription || sectionData.description || '',
+          sectionImage: sectionData.sectionImage || '', // Add section image field
           ctaButtonText: sectionData.ctaButtonText || sectionData.buttonText || '',
           ctaButtonLink: sectionData.ctaButtonLink || sectionData.buttonLink || '',
           stat1Number: stats1.number || sectionData.stat1Number || '',
@@ -239,8 +275,68 @@ const EditTestimonialSection = () => {
     }));
   };
 
-  const handleImageUpload = (testimonialId, file) => {
-    if (file) {
+  const handleImageUpload = async (testimonialId, file) => {
+    if (!file) return;
+
+    try {
+      // Show loading state for this specific testimonial
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(testimonial =>
+          testimonial.id === testimonialId
+            ? { ...testimonial, imageUploading: true }
+            : testimonial
+        )
+      }));
+
+      // Create FormData for upload
+      const formData = new FormData();
+      formData.append('files', file);
+
+      console.log('📤 Uploading testimonial profile image:', file.name, 'for testimonial ID:', testimonialId);
+      
+      // Upload to server
+      const response = await uploadImage(formData).unwrap();
+      console.log('📥 Testimonial image upload response:', response);
+
+      // Handle different response formats
+      let imageUrl = '';
+      if (response.success && response.files && response.files[0]) {
+        imageUrl = response.files[0].url;
+      } else if (response.imageUrl) {
+        imageUrl = response.imageUrl;
+      } else if (response.url) {
+        imageUrl = response.url;
+      } else {
+        throw new Error('Invalid upload response format');
+      }
+
+      // Update form data with uploaded image URL
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(testimonial =>
+          testimonial.id === testimonialId
+            ? { ...testimonial, profileImage: imageUrl, imageUploading: false }
+            : testimonial
+        )
+      }));
+
+      toast.success('Profile image uploaded successfully!');
+      
+    } catch (error) {
+      console.error('❌ Testimonial image upload error:', error);
+      
+      // Reset uploading state
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(testimonial =>
+          testimonial.id === testimonialId
+            ? { ...testimonial, imageUploading: false }
+            : testimonial
+        )
+      }));
+
+      // Fallback to base64 preview if upload fails
       const reader = new FileReader();
       reader.onload = (e) => {
         setFormData(prev => ({
@@ -251,6 +347,74 @@ const EditTestimonialSection = () => {
               : testimonial
           )
         }));
+        toast.warn('Image upload failed, showing preview only. Save will use preview.', {
+          autoClose: 5000
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSectionImageUpload = async (file) => {
+    if (!file) return;
+
+    try {
+      // Show loading state
+      setFormData(prev => ({ 
+        ...prev, 
+        sectionImageUploading: true 
+      }));
+
+      // Create FormData for upload
+      const formData = new FormData();
+      formData.append('files', file);
+
+      console.log('📤 Uploading section image:', file.name);
+      
+      // Upload to server
+      const response = await uploadImage(formData).unwrap();
+      console.log('📥 Section image upload response:', response);
+
+      // Handle different response formats
+      let imageUrl = '';
+      if (response.success && response.files && response.files[0]) {
+        imageUrl = response.files[0].url;
+      } else if (response.imageUrl) {
+        imageUrl = response.imageUrl;
+      } else if (response.url) {
+        imageUrl = response.url;
+      } else {
+        throw new Error('Invalid upload response format');
+      }
+
+      // Update form data with uploaded image URL
+      setFormData(prev => ({
+        ...prev,
+        sectionImage: imageUrl,
+        sectionImageUploading: false
+      }));
+
+      toast.success('Section image uploaded successfully!');
+      
+    } catch (error) {
+      console.error('❌ Section image upload error:', error);
+      
+      // Reset uploading state
+      setFormData(prev => ({ 
+        ...prev, 
+        sectionImageUploading: false 
+      }));
+
+      // Fallback to base64 preview if upload fails
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFormData(prev => ({
+          ...prev,
+          sectionImage: e.target.result
+        }));
+        toast.warn('Image upload failed, showing preview only. Save will use preview.', {
+          autoClose: 5000
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -285,7 +449,8 @@ const EditTestimonialSection = () => {
         content: '',
         isNew: true,
         isSaving: false,
-        isEditing: false
+        isEditing: false,
+        imageUploading: false
       }]
     }));
   };
@@ -382,6 +547,23 @@ const EditTestimonialSection = () => {
       return false;
     }
 
+    // Check for invalid update scenario
+    if (!testimonial.isNew && !testimonial._id) {
+      console.error('❌ Attempting to update testimonial without valid _id:', testimonial);
+      toast.error('Cannot update testimonial - missing ID. This testimonial will be saved as new.');
+      
+      // Convert to new testimonial
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(t => 
+          t.id === testimonial.id ? { ...t, isNew: true, _id: null } : t
+        )
+      }));
+      
+      // Retry as new testimonial
+      return saveTestimonialToBackend({ ...testimonial, isNew: true, _id: null });
+    }
+
     try {
       // Mark this testimonial as saving
       setFormData(prev => ({
@@ -417,17 +599,54 @@ const EditTestimonialSection = () => {
         name: testimonial.name,
         content: testimonial.content
       };
+      
+      console.log('💾 Testimonial data being sent:', testimonialData);
+      console.log('💾 Testimonial ID for API:', testimonial._id);
 
       let response;
       if (testimonial.isNew) {
         // Create new testimonial
+        console.log('🆕 Creating new testimonial:', testimonialData);
         response = await createAboutTestimonial(testimonialData).unwrap();
       } else {
         // Update existing testimonial
+        console.log('🔄 Updating existing testimonial:', {
+          id: testimonial._id,
+          data: testimonialData
+        });
+        
+        // Validate that we have a valid testimonial ID
+        if (!testimonial._id) {
+          throw new Error('Testimonial ID is required for updates. Please save as new testimonial instead.');
+        }
+        
+        // Validate ID format (should be a MongoDB ObjectId)
+        if (typeof testimonial._id !== 'string' || testimonial._id === 'null' || testimonial._id.length !== 24) {
+          console.error('❌ Invalid testimonial ID format:', testimonial._id);
+          throw new Error(`Invalid testimonial ID format: ${testimonial._id}. Converting to new testimonial.`);
+        }
+        
         response = await updateAboutTestimonial({ 
           id: testimonial._id, 
           data: testimonialData 
         }).unwrap();
+      }
+      
+      // Handle response and update testimonial
+      console.log('📥 Save testimonial response:', response);
+      
+      let updatedTestimonialId = testimonial._id;
+      
+      // For create operations, extract the new ID from response
+      if (testimonial.isNew && response.success && response.about?.testimonials) {
+        // Find the newly created testimonial (should be the last one or match by content)
+        const newTestimonial = response.about.testimonials.find(t => 
+          t.name === testimonial.name && t.content === testimonial.content
+        );
+        if (newTestimonial) {
+          updatedTestimonialId = newTestimonial._id;
+          console.log('🆕 New testimonial ID:', updatedTestimonialId);
+        }
       }
       
       // Mark as saved and exit edit mode
@@ -439,7 +658,7 @@ const EditTestimonialSection = () => {
             isNew: false, 
             isSaving: false, 
             isEditing: false,
-            _id: response.testimonial?._id || response.data?._id || t._id 
+            _id: updatedTestimonialId
           } : t
         )
       }));
@@ -590,6 +809,7 @@ const EditTestimonialSection = () => {
       const sectionData = {
         sectionHeading: formData.sectionHeading,
         sectionDescription: formData.sectionDescription,
+        sectionImage: formData.sectionImage, // Include section image
         statistics: [
           {
             number: formData.stat1Number,
@@ -722,6 +942,12 @@ const EditTestimonialSection = () => {
                       <Form.Group className="mb-3">
                         <Form.Label>Profile Picture</Form.Label>
                         <div className="text-center">
+                          {testimonial.imageUploading && (
+                            <div className="mb-3">
+                              <Spinner animation="border" size="sm" className="me-2" />
+                              <span>Uploading...</span>
+                            </div>
+                          )}
                           {testimonial.profileImage && (
                             <Image
                               src={testimonial.profileImage}
@@ -735,7 +961,7 @@ const EditTestimonialSection = () => {
                             accept="image/*"
                             onChange={(e) => handleImageUpload(testimonial.id, e.target.files[0])}
                             className="mb-2"
-                            disabled={!testimonial.isNew && !testimonial.isEditing}
+                            disabled={(!testimonial.isNew && !testimonial.isEditing) || testimonial.imageUploading}
                           />
                         </div>
                       </Form.Group>
@@ -757,9 +983,15 @@ const EditTestimonialSection = () => {
                           value={testimonial.name}
                           onChange={(e) => handleTestimonialChange(testimonial.id, 'name', e.target.value)}
                           placeholder="Enter person's name"
+                          maxLength={30}
                           required
                           disabled={!testimonial.isNew && !testimonial.isEditing}
                         />
+                        {(testimonial.isNew || testimonial.isEditing) && (
+                          <Form.Text className="text-muted">
+                            {testimonial.name.length}/30 characters
+                          </Form.Text>
+                        )}
                       </Form.Group>
 
                       {/* Role */}
@@ -770,9 +1002,15 @@ const EditTestimonialSection = () => {
                           value={testimonial.role}
                           onChange={(e) => handleTestimonialChange(testimonial.id, 'role', e.target.value)}
                           placeholder="Enter role (e.g., Volunteer)"
+                          maxLength={40}
                           required
                           disabled={!testimonial.isNew && !testimonial.isEditing}
                         />
+                        {(testimonial.isNew || testimonial.isEditing) && (
+                          <Form.Text className="text-muted">
+                            {testimonial.role.length}/40 characters
+                          </Form.Text>
+                        )}
                       </Form.Group>
 
                       {/* Testimonial Content */}
@@ -784,9 +1022,15 @@ const EditTestimonialSection = () => {
                           value={testimonial.content}
                           onChange={(e) => handleTestimonialChange(testimonial.id, 'content', e.target.value)}
                           placeholder="Enter testimonial quote"
+                          maxLength={200}
                           required
                           disabled={!testimonial.isNew && !testimonial.isEditing}
                         />
+                        {(testimonial.isNew || testimonial.isEditing) && (
+                          <Form.Text className="text-muted">
+                            {testimonial.content.length}/200 characters
+                          </Form.Text>
+                        )}
                       </Form.Group>
                       
                       {/* Save/Status Section */}
@@ -865,8 +1109,12 @@ const EditTestimonialSection = () => {
                     value={formData.sectionHeading}
                     onChange={handleChange}
                     placeholder="Enter section heading"
+                    maxLength={60}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.sectionHeading.length}/60 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* Section Description */}
@@ -879,8 +1127,44 @@ const EditTestimonialSection = () => {
                     value={formData.sectionDescription}
                     onChange={handleChange}
                     placeholder="Enter section description"
+                    maxLength={200}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.sectionDescription.length}/200 characters
+                  </Form.Text>
+                </Form.Group>
+
+                {/* Section Image */}
+                <Form.Group className="mb-3">
+                  <Form.Label>Section Background Image</Form.Label>
+                  <div className="text-center">
+                    {formData.sectionImageUploading && (
+                      <div className="mb-3">
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        <span>Uploading image...</span>
+                      </div>
+                    )}
+                    {formData.sectionImage && (
+                      <Image
+                        src={formData.sectionImage}
+                        alt="Section Background"
+                        className="mb-3"
+                        style={{ width: '200px', height: '120px', objectFit: 'cover' }}
+                        thumbnail
+                      />
+                    )}
+                    <Form.Control
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleSectionImageUpload(e.target.files[0])}
+                      className="mb-2"
+                      disabled={formData.sectionImageUploading}
+                    />
+                    <Form.Text className="text-muted">
+                      Upload a background image for the testimonials section (optional)
+                    </Form.Text>
+                  </div>
                 </Form.Group>
 
                 {/* Statistics */}
@@ -895,8 +1179,12 @@ const EditTestimonialSection = () => {
                         value={formData.stat1Number}
                         onChange={handleChange}
                         placeholder="e.g., 569 +"
+                        maxLength={10}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat1Number.length}/10 characters
+                      </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
                       <Form.Label>Stat 1 Label <span className="text-danger">*</span></Form.Label>
@@ -906,8 +1194,12 @@ const EditTestimonialSection = () => {
                         value={formData.stat1Label}
                         onChange={handleChange}
                         placeholder="e.g., Satisfied Clients"
+                        maxLength={30}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat1Label.length}/30 characters
+                      </Form.Text>
                     </Form.Group>
                   </Col>
                   <Col md={6}>
@@ -919,8 +1211,12 @@ const EditTestimonialSection = () => {
                         value={formData.stat2Number}
                         onChange={handleChange}
                         placeholder="e.g., 12 +"
+                        maxLength={10}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat2Number.length}/10 characters
+                      </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
                       <Form.Label>Stat 2 Label <span className="text-danger">*</span></Form.Label>
@@ -930,8 +1226,12 @@ const EditTestimonialSection = () => {
                         value={formData.stat2Label}
                         onChange={handleChange}
                         placeholder="e.g., Years of Experience"
+                        maxLength={30}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat2Label.length}/30 characters
+                      </Form.Text>
                     </Form.Group>
                   </Col>
                 </Row>

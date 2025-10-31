@@ -446,8 +446,12 @@ const EditMainAboutSection = () => {
                     value={formData.description}
                     onChange={handleChange}
                     placeholder="Enter detailed description"
+                    maxLength={500}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.description.length}/500 characters
+                  </Form.Text>
                 </Form.Group>
               </Card.Body>
             </Card>
@@ -569,8 +573,12 @@ const EditMainAboutSection = () => {
                       value={point}
                       onChange={(e) => handleKeyPointChange(index, e.target.value)}
                       placeholder={`Enter key point ${index + 1}`}
+                      maxLength={80}
                       required
                     />
+                    <Form.Text className="text-muted">
+                      {point.length}/80 characters
+                    </Form.Text>
                   </Form.Group>
                 ))}
               </Card.Body>

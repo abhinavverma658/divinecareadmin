@@ -340,8 +340,12 @@ const EditOurMission = () => {
                     value={formData.missionHeading}
                     onChange={handleChange}
                     placeholder="Enter mission heading"
+                    maxLength={60}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.missionHeading.length}/60 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* Mission Description */}
@@ -354,8 +358,12 @@ const EditOurMission = () => {
                     value={formData.missionDescription}
                     onChange={handleChange}
                     placeholder="Enter detailed mission description"
+                    maxLength={500}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.missionDescription.length}/500 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* Mission Points */}
@@ -368,8 +376,12 @@ const EditOurMission = () => {
                       value={point}
                       onChange={(e) => handlePointChange(index, e.target.value)}
                       placeholder={`Enter mission point ${index + 1}`}
+                      maxLength={100}
                       required
                     />
+                    <Form.Text className="text-muted">
+                      {point.length}/100 characters
+                    </Form.Text>
                   </Form.Group>
                 ))}
               </Card.Body>

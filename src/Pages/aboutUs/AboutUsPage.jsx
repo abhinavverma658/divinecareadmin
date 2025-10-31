@@ -88,7 +88,7 @@ const AboutUsPage = () => {
                   </div>
                 </div>
                 
-                <p className="text-muted flex-grow-1 mb-3">
+                <p className="text-muted grow mb-3">
                   {section.description}
                 </p>
                 

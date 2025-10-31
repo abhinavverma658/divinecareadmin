@@ -315,8 +315,12 @@ const EditCompanyStatistics = () => {
                     value={formData.statsHeading}
                     onChange={handleChange}
                     placeholder="Enter statistics heading"
+                    maxLength={60}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.statsHeading.length}/60 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* Statistics Description */}
@@ -329,8 +333,12 @@ const EditCompanyStatistics = () => {
                     value={formData.statsDescription}
                     onChange={handleChange}
                     placeholder="Enter statistics description"
+                    maxLength={300}
                     required
                   />
+                  <Form.Text className="text-muted">
+                    {formData.statsDescription.length}/300 characters
+                  </Form.Text>
                 </Form.Group>
 
                 {/* ...removed CTA Button Text and Link fields... */}
@@ -357,8 +365,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat1Number}
                         onChange={handleChange}
                         placeholder="e.g., 12+"
+                        maxLength={10}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat1Number.length}/10 characters
+                      </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
                       <Form.Label>Label <span className="text-danger">*</span></Form.Label>
@@ -368,8 +380,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat1Label}
                         onChange={handleChange}
                         placeholder="e.g., Years of Foundation"
+                        maxLength={30}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat1Label.length}/30 characters
+                      </Form.Text>
                     </Form.Group>
                   </Col>
 
@@ -384,8 +400,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat2Number}
                         onChange={handleChange}
                         placeholder="e.g., 69+"
+                        maxLength={10}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat2Number.length}/10 characters
+                      </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
                       <Form.Label>Label <span className="text-danger">*</span></Form.Label>
@@ -395,8 +415,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat2Label}
                         onChange={handleChange}
                         placeholder="e.g., Monthly Donate"
+                        maxLength={30}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat2Label.length}/30 characters
+                      </Form.Text>
                     </Form.Group>
                   </Col>
 
@@ -411,8 +435,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat3Number}
                         onChange={handleChange}
                         placeholder="e.g., 3+"
+                        maxLength={10}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat3Number.length}/10 characters
+                      </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
                       <Form.Label>Label <span className="text-danger">*</span></Form.Label>
@@ -422,8 +450,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat3Label}
                         onChange={handleChange}
                         placeholder="e.g., Global Partners"
+                        maxLength={30}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat3Label.length}/30 characters
+                      </Form.Text>
                     </Form.Group>
                   </Col>
 
@@ -438,8 +470,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat4Number}
                         onChange={handleChange}
                         placeholder="e.g., 93+"
+                        maxLength={10}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat4Number.length}/10 characters
+                      </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
                       <Form.Label>Label <span className="text-danger">*</span></Form.Label>
@@ -449,8 +485,12 @@ const EditCompanyStatistics = () => {
                         value={formData.stat4Label}
                         onChange={handleChange}
                         placeholder="e.g., Project Complete"
+                        maxLength={30}
                         required
                       />
+                      <Form.Text className="text-muted">
+                        {formData.stat4Label.length}/30 characters
+                      </Form.Text>
                     </Form.Group>
                   </Col>
                 </Row>
