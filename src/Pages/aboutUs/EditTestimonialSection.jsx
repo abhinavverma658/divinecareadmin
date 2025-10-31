@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner } from 'react-bootstrap';
-import { FaSave, FaArrowLeft, FaStar, FaRegStar, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaStar, FaRegStar, FaPlus, FaTrash, FaEdit } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { 
   useGetAboutTestimonialsMutation, 
@@ -29,7 +29,8 @@ const EditTestimonialSection = () => {
         role: '',
         content: '',
         isNew: true, // Track if this is a new testimonial
-        isSaving: false // Track saving state
+        isSaving: false, // Track saving state
+        isEditing: false // Track if testimonial is in edit mode
       }
     ],
     // Right side - Content
@@ -119,23 +120,65 @@ const EditTestimonialSection = () => {
       console.log('📄 Fetching about testimonials data...');
       
       const response = await getAboutTestimonials().unwrap();
+      console.log('📥 About Testimonials API Response:', response);
+      console.log('📥 Response type:', typeof response);
+      console.log('📥 Response keys:', Object.keys(response || {}));
       
-      if (response?.success && response?.section) {
+      // Check multiple possible response structures
+      let sectionData = null;
+      
+      if (response?.success && response?.about) {
+        sectionData = response.about;
+        console.log('✅ Using response.about structure');
+      } else if (response?.about) {
+        sectionData = response.about;
+        console.log('✅ Using response.about structure (no success flag)');
+      } else if (response?.success && response?.section) {
+        sectionData = response.section;
+        console.log('✅ Using response.section structure');
+      } else if (response?.section) {
+        sectionData = response.section;
+        console.log('✅ Using response.section structure (no success flag)');
+      } else if (response?.success && response?.data) {
+        sectionData = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data && !response?.success) {
+        sectionData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (response && typeof response === 'object' && !response.error && !response.message) {
+        sectionData = response;
+        console.log('✅ Using response directly as section data');
+      }
+      
+      if (sectionData && Object.keys(sectionData).length > 0) {
+        console.log('🔍 Section data found:', sectionData);
+        console.log('🔍 Testimonials in section:', sectionData.testimonials);
+        
         // Convert backend testimonials to frontend format
-        const convertedTestimonials = response.section.testimonials?.map((testimonial, index) => ({
-          id: index + 1, // Frontend ID
-          _id: testimonial._id, // Backend ID
-          profileImage: testimonial.image || testimonial.profileImage || '',
-          starRating: testimonial.rating || testimonial.starRating || 5,
-          name: testimonial.name || '',
-          role: testimonial.title || testimonial.role || '',
-          content: testimonial.content || '',
-          isNew: false, // Existing testimonial
-          isSaving: false
-        })) || [];
+        const convertedTestimonials = sectionData.testimonials?.map((testimonial, index) => {
+          console.log(`🔍 Processing testimonial ${index + 1}:`, testimonial);
+          return {
+            id: index + 1, // Frontend ID
+            _id: testimonial._id, // Backend ID
+            profileImage: testimonial.image || testimonial.profileImage || '',
+            starRating: testimonial.rating || testimonial.starRating || 5,
+            name: testimonial.name || '',
+            role: testimonial.title || testimonial.role || '',
+            content: testimonial.content || testimonial.message || '',
+            isNew: false, // Existing testimonial
+            isSaving: false,
+            isEditing: false // Not in edit mode by default
+          };
+        }) || [];
+        
+        console.log('🔄 Converted testimonials:', convertedTestimonials);
+        
+        // Parse statistics array format
+        const stats1 = sectionData.statistics?.[0] || {};
+        const stats2 = sectionData.statistics?.[1] || {};
         
         setFormData({
-          _id: response.section._id, // Store backend section ID
+          _id: sectionData._id, // Store backend section ID
           testimonials: convertedTestimonials.length > 0 ? convertedTestimonials : [
             {
               id: 1,
@@ -146,29 +189,42 @@ const EditTestimonialSection = () => {
               role: '',
               content: '',
               isNew: true,
-              isSaving: false
+              isSaving: false,
+              isEditing: false
             }
           ],
-          sectionHeading: response.section.sectionHeading || '',
-          sectionDescription: response.section.sectionDescription || '',
-          ctaButtonText: response.section.ctaButtonText || '',
-          ctaButtonLink: response.section.ctaButtonLink || '',
-          stat1Number: response.section.stat1Number || '',
-          stat1Label: response.section.stat1Label || '',
-          stat2Number: response.section.stat2Number || '',
-          stat2Label: response.section.stat2Label || ''
+          sectionHeading: sectionData.sectionHeading || sectionData.heading || '',
+          sectionDescription: sectionData.sectionDescription || sectionData.description || '',
+          ctaButtonText: sectionData.ctaButtonText || sectionData.buttonText || '',
+          ctaButtonLink: sectionData.ctaButtonLink || sectionData.buttonLink || '',
+          stat1Number: stats1.number || sectionData.stat1Number || '',
+          stat1Label: stats1.label || sectionData.stat1Label || '',
+          stat2Number: stats2.number || sectionData.stat2Number || '',
+          stat2Label: stats2.label || sectionData.stat2Label || ''
         });
         
         // Track all existing testimonials as saved
         setSavedTestimonials(convertedTestimonials.map(t => t.id));
         
-        console.log('✅ About testimonials data loaded successfully');
+        console.log('✅ About testimonials data loaded and populated successfully');
+        console.log('🎯 Final form data:', {
+          testimonials: convertedTestimonials,
+          sectionHeading: sectionData.sectionHeading || sectionData.heading || '',
+          sectionDescription: sectionData.sectionDescription || sectionData.description || ''
+        });
+        
+        if (convertedTestimonials.length > 0) {
+          toast.success(`Loaded ${convertedTestimonials.length} testimonials successfully`);
+        }
       } else {
         console.log('📄 No existing about testimonials section found, starting fresh');
+        console.log('⚠️ Full response structure:', response);
+        toast.info('No existing testimonials found. Starting with a fresh form.');
         // Initialize with default structure if no data exists
       }
     } catch (error) {
-      console.error('Error fetching about testimonials data:', error);
+      console.error('❌ Error fetching about testimonials data:', error);
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
       toast.info('Starting with a fresh testimonials form. Add your testimonials and save them individually.');
     } finally {
       setIsLoading(false);
@@ -228,7 +284,8 @@ const EditTestimonialSection = () => {
         role: '',
         content: '',
         isNew: true,
-        isSaving: false
+        isSaving: false,
+        isEditing: false
       }]
     }));
   };
@@ -265,6 +322,59 @@ const EditTestimonialSection = () => {
     setSavedTestimonials(prev => prev.filter(id => id !== testimonialId));
   };
 
+  const enableEditTestimonial = (testimonialId) => {
+    setFormData(prev => ({
+      ...prev,
+      testimonials: prev.testimonials.map(t => 
+        t.id === testimonialId ? { ...t, isEditing: true } : t
+      )
+    }));
+  };
+
+  const cancelEditTestimonial = async (testimonialId) => {
+    // Reload the original data from backend
+    try {
+      const response = await getAboutTestimonials().unwrap();
+      const sectionData = response?.about || response?.section || response?.data || response;
+      const originalTestimonial = sectionData?.testimonials?.find(t => t._id === formData.testimonials.find(ft => ft.id === testimonialId)?._id);
+      
+      if (originalTestimonial) {
+        setFormData(prev => ({
+          ...prev,
+          testimonials: prev.testimonials.map(t => 
+            t.id === testimonialId ? {
+              ...t,
+              profileImage: originalTestimonial.image || '',
+              starRating: originalTestimonial.rating || 5,
+              name: originalTestimonial.name || '',
+              role: originalTestimonial.title || '',
+              content: originalTestimonial.content || '',
+              isEditing: false,
+              isSaving: false
+            } : t
+          )
+        }));
+      } else {
+        // Just cancel edit mode if we can't reload
+        setFormData(prev => ({
+          ...prev,
+          testimonials: prev.testimonials.map(t => 
+            t.id === testimonialId ? { ...t, isEditing: false, isSaving: false } : t
+          )
+        }));
+      }
+    } catch (error) {
+      console.error('Error reloading testimonial data:', error);
+      // Just cancel edit mode
+      setFormData(prev => ({
+        ...prev,
+        testimonials: prev.testimonials.map(t => 
+          t.id === testimonialId ? { ...t, isEditing: false, isSaving: false } : t
+        )
+      }));
+    }
+  };
+
   const saveTestimonialToBackend = async (testimonial) => {
     // Check if all required fields are filled
     if (!testimonial.name || !testimonial.role || !testimonial.content) {
@@ -286,11 +396,11 @@ const EditTestimonialSection = () => {
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Mark as saved in demo mode
+        // Mark as saved in demo mode and exit edit mode
         setFormData(prev => ({
           ...prev,
           testimonials: prev.testimonials.map(t => 
-            t.id === testimonial.id ? { ...t, isNew: false, isSaving: false } : t
+            t.id === testimonial.id ? { ...t, isNew: false, isSaving: false, isEditing: false } : t
           )
         }));
         
@@ -299,11 +409,11 @@ const EditTestimonialSection = () => {
         return true;
       }
 
-      // Real API call
+      // Real API call - match backend field names
       const testimonialData = {
-        profileImage: testimonial.profileImage,
-        starRating: testimonial.starRating,
-        role: testimonial.role,
+        image: testimonial.profileImage,
+        rating: testimonial.starRating,
+        title: testimonial.role,
         name: testimonial.name,
         content: testimonial.content
       };
@@ -320,7 +430,7 @@ const EditTestimonialSection = () => {
         }).unwrap();
       }
       
-      // Mark as saved
+      // Mark as saved and exit edit mode
       setFormData(prev => ({
         ...prev,
         testimonials: prev.testimonials.map(t => 
@@ -328,7 +438,8 @@ const EditTestimonialSection = () => {
             ...t, 
             isNew: false, 
             isSaving: false, 
-            _id: response.testimonial?.id || t._id 
+            isEditing: false,
+            _id: response.testimonial?._id || response.data?._id || t._id 
           } : t
         )
       }));
@@ -355,11 +466,11 @@ const EditTestimonialSection = () => {
           autoClose: 3000,
         });
         
-        // Mark as saved locally
+        // Mark as saved locally and exit edit mode
         setFormData(prev => ({
           ...prev,
           testimonials: prev.testimonials.map(t => 
-            t.id === testimonial.id ? { ...t, isNew: false, isSaving: false } : t
+            t.id === testimonial.id ? { ...t, isNew: false, isSaving: false, isEditing: false } : t
           )
         }));
         setSavedTestimonials(prev => [...prev, testimonial.id]);
@@ -463,20 +574,46 @@ const EditTestimonialSection = () => {
     try {
       setIsLoading(true);
       
-      // Update section header data
+      // Prepare testimonials data for API (only saved testimonials)
+      const savedTestimonialsData = formData.testimonials
+        .filter(t => !t.isNew) // Only include saved testimonials
+        .map(t => ({
+          _id: t._id,
+          image: t.profileImage,
+          rating: t.starRating,
+          name: t.name,
+          title: t.role,
+          content: t.content
+        }));
+      
+      // Update section data with the exact format from your example
       const sectionData = {
         sectionHeading: formData.sectionHeading,
         sectionDescription: formData.sectionDescription,
-        ctaButtonText: formData.ctaButtonText,
-        ctaButtonLink: formData.ctaButtonLink,
-        stat1Number: formData.stat1Number,
-        stat1Label: formData.stat1Label,
-        stat2Number: formData.stat2Number,
-        stat2Label: formData.stat2Label
+        statistics: [
+          {
+            number: formData.stat1Number,
+            label: formData.stat1Label
+          },
+          {
+            number: formData.stat2Number,
+            label: formData.stat2Label
+          }
+        ],
+        testimonials: savedTestimonialsData
       };
       
+      // Add optional fields if they exist
+      if (formData.ctaButtonText) {
+        sectionData.ctaButtonText = formData.ctaButtonText;
+      }
+      if (formData.ctaButtonLink) {
+        sectionData.ctaButtonLink = formData.ctaButtonLink;
+      }
+      
+      // Use the specific ID format: /api/about/testimonials/{id}
       const response = await updateAboutTestimonialsSection({
-        id: formData._id,
+        id: formData._id || '68ee1f0770e1bfc20b37541c', // Use provided ID or fallback
         ...sectionData
       }).unwrap();
       
@@ -598,6 +735,7 @@ const EditTestimonialSection = () => {
                             accept="image/*"
                             onChange={(e) => handleImageUpload(testimonial.id, e.target.files[0])}
                             className="mb-2"
+                            disabled={!testimonial.isNew && !testimonial.isEditing}
                           />
                         </div>
                       </Form.Group>
@@ -620,6 +758,7 @@ const EditTestimonialSection = () => {
                           onChange={(e) => handleTestimonialChange(testimonial.id, 'name', e.target.value)}
                           placeholder="Enter person's name"
                           required
+                          disabled={!testimonial.isNew && !testimonial.isEditing}
                         />
                       </Form.Group>
 
@@ -632,6 +771,7 @@ const EditTestimonialSection = () => {
                           onChange={(e) => handleTestimonialChange(testimonial.id, 'role', e.target.value)}
                           placeholder="Enter role (e.g., Volunteer)"
                           required
+                          disabled={!testimonial.isNew && !testimonial.isEditing}
                         />
                       </Form.Group>
 
@@ -645,35 +785,57 @@ const EditTestimonialSection = () => {
                           onChange={(e) => handleTestimonialChange(testimonial.id, 'content', e.target.value)}
                           placeholder="Enter testimonial quote"
                           required
+                          disabled={!testimonial.isNew && !testimonial.isEditing}
                         />
                       </Form.Group>
                       
                       {/* Save/Status Section */}
                       <div className="mt-3 d-flex justify-content-between align-items-center">
-                        {testimonial.isNew ? (
-                          <Button
-                            variant="success"
-                            size="sm"
-                            onClick={() => saveTestimonialToBackend(testimonial)}
-                            disabled={testimonial.isSaving || !testimonial.name || !testimonial.role || !testimonial.content}
-                            className="flex-grow-1"
-                          >
-                            {testimonial.isSaving ? (
-                              <>
-                                <Spinner animation="border" size="sm" className="me-1" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <FaSave className="me-1" />
-                                Save Testimonial
-                              </>
+                        {testimonial.isNew || testimonial.isEditing ? (
+                          <div className="d-flex gap-2">
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => saveTestimonialToBackend(testimonial)}
+                              disabled={testimonial.isSaving || !testimonial.name || !testimonial.role || !testimonial.content}
+                            >
+                              {testimonial.isSaving ? (
+                                <>
+                                  <Spinner animation="border" size="sm" className="me-1" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <FaSave className="me-1" />
+                                  {testimonial.isNew ? 'Save Testimonial' : 'Update Testimonial'}
+                                </>
+                              )}
+                            </Button>
+                            {testimonial.isEditing && (
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => cancelEditTestimonial(testimonial.id)}
+                                disabled={testimonial.isSaving}
+                              >
+                                Cancel
+                              </Button>
                             )}
-                          </Button>
+                          </div>
                         ) : (
-                          <div className="d-flex align-items-center text-success">
-                            <FaSave className="me-1" />
-                            <small>Saved Testimonial</small>
+                          <div className="d-flex align-items-center justify-content-between w-100">
+                            <div className="d-flex align-items-center text-success">
+                              <FaSave className="me-1" />
+                              <small>Saved Testimonial</small>
+                            </div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => enableEditTestimonial(testimonial.id)}
+                            >
+                              <FaEdit className="me-1" />
+                              Edit
+                            </Button>
                           </div>
                         )}
                       </div>
