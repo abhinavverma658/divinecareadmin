@@ -245,7 +245,7 @@ const HomePage = () => {
                     {section.icon}
                   </span>
                 </div>
-                <div className="flex-grow-1">
+                <div className="grow">
                   <h5 className="mb-2 fw-semibold" style={{ color: '#2c3e50', fontSize: '1.125rem' }}>
                     {section.title}
                   </h5>
@@ -253,7 +253,7 @@ const HomePage = () => {
               </div>
 
               {/* Description */}
-              <p className="text-muted mb-4 flex-grow-1" style={{ 
+              <p className="text-muted mb-4 grow" style={{ 
                 fontSize: '0.875rem', 
                 lineHeight: '1.5',
                 color: '#6c757d'

@@ -71,6 +71,10 @@ const AddEditEvent = () => {
       if (response?.success && response?.event) {
         eventData = response.event;
         console.log('✅ Using response.event structure (success + event)');
+      } else if (response?.success && response?.events && Array.isArray(response.events)) {
+        // Handle case where API returns events array even for single event
+        eventData = response.events[0]; 
+        console.log('✅ Using response.events[0] structure (events array)');
       } else if (response?.event) {
         eventData = response.event;
         console.log('✅ Using response.event structure (no success flag)');
@@ -88,14 +92,45 @@ const AddEditEvent = () => {
       console.log('📝 Extracted event data:', eventData);
       
       if (eventData && Object.keys(eventData).length > 0) {
-        setFormData({
-          ...eventData,
-          startDate: eventData.startDate ? new Date(eventData.startDate).toISOString().slice(0, 16) : '',
-          endDate: eventData.endDate ? new Date(eventData.endDate).toISOString().slice(0, 16) : '',
-          registrationDeadline: eventData.registrationDeadline ? new Date(eventData.registrationDeadline).toISOString().slice(0, 16) : '',
+        console.log('🔄 Processing event data for form...');
+        
+        // Safe date conversion with error handling
+        const formatDateForInput = (dateString) => {
+          try {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+              console.warn('Invalid date:', dateString);
+              return '';
+            }
+            // Return in YYYY-MM-DD format for date inputs
+            return date.toISOString().split('T')[0];
+          } catch (error) {
+            console.error('Error formatting date:', dateString, error);
+            return '';
+          }
+        };
+
+        const processedFormData = {
+          title: eventData.title || '',
+          description: eventData.description || '',
+          shortDescription: eventData.shortDescription || '',
+          startDate: formatDateForInput(eventData.startDate),
+          endDate: formatDateForInput(eventData.endDate),
+          registrationDeadline: formatDateForInput(eventData.registrationDeadline),
+          location: eventData.location || '',
+          venue: eventData.venueDetails || eventData.venue || '', // Handle both venueDetails and venue
+          images: Array.isArray(eventData.images) ? eventData.images : (eventData.image ? [eventData.image] : []),
+          featuredImage: eventData.featuredImage || eventData.image || '', // Handle both featuredImage and image
+          isActive: typeof eventData.isActive === 'boolean' ? eventData.isActive : true,
+          featured: typeof eventData.featured === 'boolean' ? eventData.featured : false,
+          priority: eventData.priority || 'medium',
           maxAttendees: eventData.maxAttendees || '',
           currentAttendees: eventData.currentAttendees || 0
-        });
+        };
+
+        console.log('✅ Processed form data:', processedFormData);
+        setFormData(processedFormData);
         
         if (eventData.images && Array.isArray(eventData.images)) {
           setImagePreviews(eventData.images);
@@ -110,8 +145,29 @@ const AddEditEvent = () => {
       }
     } catch (error) {
       console.error('❌ Error fetching event data:', error);
-      toast.error(error?.data?.message || 'Failed to load event');
-      navigate('/dash/events');
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+      
+      // Don't navigate away immediately, show error but allow form to render
+      toast.error(error?.data?.message || 'Failed to load event. You can still create a new event.');
+      
+      // Set default form data to prevent blank page
+      setFormData({
+        title: '',
+        description: '',
+        shortDescription: '',
+        startDate: '',
+        endDate: '',
+        registrationDeadline: '',
+        location: '',
+        venue: '',
+        images: [],
+        featuredImage: '',
+        isActive: true,
+        featured: false,
+        priority: 'medium',
+        maxAttendees: '',
+        currentAttendees: 0
+      });
     }
   };
 
@@ -162,24 +218,39 @@ const AddEditEvent = () => {
       try {
         console.log('🖼️ Uploading event image:', file.name);
         
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('folder', 'events');
+        const uploadFormData = new FormData();
+        uploadFormData.append('files', file); // Use 'files' key for new API format
         
-        const response = await uploadImage(formData).unwrap();
+        const response = await uploadImage(uploadFormData).unwrap();
+        console.log('📥 Image upload response:', response);
         
-        if (response?.imageUrl) {
-          setImagePreviews(prev => [...prev, response.imageUrl]);
+        // Handle new API response format with files array
+        let imageUrl = '';
+        if (response.success && response.files && response.files.length > 0) {
+          imageUrl = response.files[0].url; // Get URL from first file in array
+          console.log('✅ Using new API format - files[0].url:', imageUrl);
+        } else if (response?.imageUrl) {
+          imageUrl = response.imageUrl; // Fallback to old format
+          console.log('✅ Using fallback format - imageUrl:', imageUrl);
+        } else if (response?.url) {
+          imageUrl = response.url; // Another fallback
+          console.log('✅ Using fallback format - url:', imageUrl);
+        } else {
+          throw new Error('Invalid upload response format - no URL found');
+        }
+        
+        if (imageUrl) {
+          setImagePreviews(prev => [...prev, imageUrl]);
           
           // Set as featured image if no featured image is set
           if (!formData.featuredImage) {
-            setFormData(prev => ({ ...prev, featuredImage: response.imageUrl }));
+            setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
           }
           
-          console.log('✅ Event image uploaded:', response.imageUrl);
+          console.log('✅ Event image uploaded successfully:', imageUrl);
           toast.success(`${file.name} uploaded successfully!`);
         } else {
-          throw new Error('No image URL returned from server');
+          throw new Error('No valid image URL found in response');
         }
       } catch (error) {
         console.error('❌ Error uploading event image:', error);
@@ -244,13 +315,23 @@ const AddEditEvent = () => {
         endDate: new Date(formData.endDate).toISOString(),
         registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : null,
         images: imagePreviews,
-        maxAttendees: parseInt(formData.maxAttendees) || 0
+        maxAttendees: parseInt(formData.maxAttendees) || 0,
+        // Map frontend field names to API field names
+        venueDetails: formData.venue, // API expects venueDetails
       };
 
-      // Set featured image if not already set but images exist
+      // Handle featured image - if single image, use 'image' field for API compatibility
       if (!submitData.featuredImage && submitData.images.length > 0) {
         submitData.featuredImage = submitData.images[0];
       }
+      
+      // For API compatibility, also set 'image' field if single image
+      if (submitData.images.length > 0) {
+        submitData.image = submitData.featuredImage || submitData.images[0];
+      }
+
+      // Remove venue field since API expects venueDetails
+      delete submitData.venue;
 
       console.log('📤 Submitting event data:', submitData);
 
@@ -270,6 +351,40 @@ const AddEditEvent = () => {
   };
 
   const isLoading_ = isLoading || createLoading || updateLoading;
+
+  // Show loading spinner while fetching event data for edit mode
+  if (id && isLoading) {
+    return (
+      <MotionDiv>
+        <Container fluid className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <div className="mt-3">Loading event data...</div>
+        </Container>
+      </MotionDiv>
+    );
+  }
+
+  // Add error boundary check - more comprehensive validation
+  if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
+    return (
+      <MotionDiv>
+        <Container fluid className="text-center py-5">
+          <Alert variant="danger">
+            <h4>Error Loading Event</h4>
+            <p>There was an issue loading the event data. Please try refreshing the page or go back to events list.</p>
+            <div className="mt-3">
+              <Button variant="outline-primary" onClick={() => window.location.reload()} className="me-2">
+                Refresh Page
+              </Button>
+              <Button variant="outline-secondary" onClick={() => navigate('/dash/events')}>
+                Back to Events
+              </Button>
+            </div>
+          </Alert>
+        </Container>
+      </MotionDiv>
+    );
+  }
 
   return (
     <MotionDiv>
@@ -308,7 +423,11 @@ const AddEditEvent = () => {
                     onChange={handleChange}
                     required
                     placeholder="Enter event title"
+                    maxLength="100"
                   />
+                  <Form.Text className="text-muted">
+                    {(formData.title || '').length}/100 characters
+                  </Form.Text>
 
                   <FormField
                     type="text"
@@ -320,6 +439,9 @@ const AddEditEvent = () => {
                     placeholder="Brief one-line description for event cards"
                     maxLength="200"
                   />
+                  <Form.Text className="text-muted">
+                    {(formData.shortDescription || '').length}/200 characters
+                  </Form.Text>
 
                   <Form.Group className="mb-3">
                     <Form.Label>Detailed Description <span className="text-danger">*</span></Form.Label>
@@ -337,7 +459,7 @@ const AddEditEvent = () => {
                 <Card.Header>
                   <h5 className="mb-0 d-flex align-items-center">
                     <FaCalendarAlt className="me-2" />
-                    Date & Time Information
+                    Date Information
                   </h5>
                 </Card.Header>
                 <Card.Body>
@@ -387,7 +509,11 @@ const AddEditEvent = () => {
                         onChange={handleChange}
                         required
                         placeholder="e.g., New York, NY or Virtual Platform"
+                        maxLength="100"
                       />
+                      <Form.Text className="text-muted">
+                        {(formData.location || '').length}/100 characters
+                      </Form.Text>
                     </Col>
                     <Col md={6}>
                       <FormField
@@ -397,7 +523,11 @@ const AddEditEvent = () => {
                         value={formData.venue}
                         onChange={handleChange}
                         placeholder="e.g., Conference Hall A or Zoom Meeting Room"
+                        maxLength="150"
                       />
+                      <Form.Text className="text-muted">
+                        {(formData.venue || '').length}/150 characters
+                      </Form.Text>
                     </Col>
                   </Row>
                 </Card.Body>

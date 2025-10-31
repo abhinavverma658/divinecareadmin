@@ -572,7 +572,7 @@ const Events = () => {
                     <div className="d-flex align-items-center">
                       <FaUsers className="me-2 text-success" />
                       <span>{selectedEvent.currentAttendees}/{selectedEvent.maxAttendees}</span>
-                      <div className="progress ms-2 flex-grow-1" style={{ height: '8px' }}>
+                      <div className="progress ms-2 grow" style={{ height: '8px' }}>
                         <div 
                           className="progress-bar bg-success" 
                           style={{ width: `${(selectedEvent.currentAttendees / selectedEvent.maxAttendees) * 100}%` }}
