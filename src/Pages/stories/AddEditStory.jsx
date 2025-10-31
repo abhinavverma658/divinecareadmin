@@ -39,11 +39,62 @@ const AddEditStory = () => {
     try {
       console.log('🔄 Starting Story Data fetch for ID:', id);
       
+      // Check if demo mode
+      if (token && token.startsWith("demo-token")) {
+        // Demo mode - use mock data
+        console.log('🎭 Demo mode: Using mock story data');
+        const mockStoryData = {
+          _id: id,
+          title: 'Sample Story Title',
+          content: '<p>This is a sample story content in demo mode. You can edit this content and see how it works in the story editor.</p>',
+          author: 'Demo Author',
+          date: new Date().toISOString(),
+          image: 'https://via.placeholder.com/600x400/007bff/ffffff?text=Demo+Story+Image',
+          isPublished: Math.random() > 0.5,
+          createdAt: new Date().toISOString()
+        };
+        
+        setFormData({
+          title: mockStoryData.title,
+          content: mockStoryData.content,
+          author: mockStoryData.author,
+          date: new Date(mockStoryData.date).toISOString().split('T')[0],
+          image: mockStoryData.image
+        });
+        
+        if (mockStoryData.image) {
+          setImagePreview(mockStoryData.image);
+        }
+        
+        console.log('🎯 Demo story data populated successfully');
+        toast.success('Demo story data loaded successfully');
+        return;
+      }
+      
       const response = await getStoryById(id).unwrap();
       console.log('📥 Story Data Response:', response);
       
+      // Check multiple possible response structures (similar to Stories.jsx)
+      let storyData = null;
+      
       if (response?.success && response?.data) {
-        const storyData = response.data;
+        storyData = response.data;
+        console.log('✅ Using response.data structure');
+      } else if (response?.data && !response?.success) {
+        storyData = response.data;
+        console.log('✅ Using response.data structure (no success flag)');
+      } else if (response?.success && response?.story) {
+        storyData = response.story;
+        console.log('✅ Using response.story structure');
+      } else if (response?.story) {
+        storyData = response.story;
+        console.log('✅ Using response.story structure (no success flag)');
+      } else if (response && typeof response === 'object' && response._id) {
+        storyData = response;
+        console.log('✅ Using response directly as story data');
+      }
+      
+      if (storyData && storyData._id) {
         setFormData({
           title: storyData.title || '',
           content: storyData.content || '',
@@ -59,7 +110,8 @@ const AddEditStory = () => {
         console.log('🎯 Story data populated successfully');
         toast.success('Story data loaded successfully');
       } else {
-        console.log('⚠️ No story data found');
+        console.log('⚠️ No story data found or invalid story structure');
+        console.log('⚠️ Response structure:', response);
         toast.error('Story not found');
         navigate('/dash/stories');
       }
@@ -180,6 +232,15 @@ const AddEditStory = () => {
     }
 
     try {
+      // Check if demo mode
+      if (token && token.startsWith("demo-token")) {
+        // Demo mode - simulate save
+        console.log('🎭 Demo mode: Simulating story save operation');
+        toast.success(`Story ${id ? 'updated' : 'created'} successfully! (Demo Mode)`);
+        navigate('/dash/stories');
+        return;
+      }
+
       // Upload image if new file selected
       let finalImageUrl = formData.image;
       if (imageFile) {

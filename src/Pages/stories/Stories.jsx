@@ -260,7 +260,7 @@ const Stories = () => {
                 {[...Array(5)].map((_, index) => (
                   <div key={index} className="d-flex align-items-center mb-3">
                     <Skeleton circle width={60} height={60} className="me-3" />
-                    <div className="flex-grow-1">
+                    <div className="grow">
                       <Skeleton height={20} width="80%" className="mb-2" />
                       <Skeleton height={16} width="60%" />
                     </div>
