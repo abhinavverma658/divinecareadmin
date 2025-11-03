@@ -7,32 +7,6 @@ export const imgAddr = "https://creative-story.s3.amazonaws.com";
 const getBaseUrl = () => {
   // Force use of remote backend since it's working (as shown in Postman)
   return "https://divinecare-backend.onrender.com/api"; // Always use remote backend for all API calls
-  console.log('Using remote API (forced):', url);
-  return url;
-  
-  // Original local/remote logic (commented out for now)
-  // Check if running locally
-  // if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-  //   const url = "http://localhost:5001/api";
-  //   console.log('Using local API:', url);
-  //   return url;
-  // }
-  // Use production backend URL
-  // const url = "https://divinecare-backend.onrender.com/api";
-  // console.log('Using production API:', url);
-  // return url;
-  
-  // Original logic (commented out for now)
-  // Check if running locally
-  // if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-  //   const url = "http://localhost:5001/api";
-  //   console.log('Using local API:', url);
-  //   return url;
-  // }
-  // Use production backend URL
-  // const url = "https://divinecare-backend.onrender.com/api";
-  // console.log('Using production API:', url);
-  // return url;
 };
 
 const baseQueryOriginal = fetchBaseQuery({
@@ -155,6 +129,62 @@ const baseQuery = async (args, api, extraOptions) => {
         url: "/query/get-queries",
         method: "GET",
       }),
+    }),
+    // Admin contacts (new unified endpoint)
+    getAdminContacts: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/admin/contacts`;
+          console.log('🔄 Fetching admin contacts:', { endpoint, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch(e) { data = text; }
+          console.log('🔁 Admin contacts response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getAdminContacts error:', error);
+          throw error;
+        }
+      }
+      }),
+    // Delete a contact by id
+    deleteContact: builder.mutation({
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/contacts/${id}`;
+          console.log('🔄 Deleting contact:', { endpoint, id, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Delete contact response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('deleteContact error:', error);
+          throw error;
+        }
+      }
     }),
     deleteQuery: builder.mutation({
       query: (id) => ({
@@ -280,8 +310,8 @@ const baseQuery = async (args, api, extraOptions) => {
 
     // Job applications
     getJobApplications: builder.mutation({
-      query: () => ({
-        url: "/job-applications/get-applications",
+      query: (id) => ({
+        url: `/careers/${id}/applicants`,
         method: "GET",
       }),
     }),
@@ -417,6 +447,35 @@ const baseQuery = async (args, api, extraOptions) => {
           throw error;
         }
       },
+    }),
+
+    // Get applicants for a specific career/job posting
+    getCareerApplicants: builder.mutation({
+      queryFn: async (careerId, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${careerId}/applicants`;
+          console.log('🔄 Fetching career applicants:', { endpoint, careerId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Career applicants response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getCareerApplicants error:', error);
+          throw error;
+        }
+      }
     }),
 
     // Event registrations
@@ -2363,6 +2422,7 @@ export const {
   useResetPasswordMutation,
   useGetDashboardDataMutation,
   useGetQueriesMutation,
+  useGetAdminContactsMutation,
   useDeleteQueryMutation,
   useGetBlogsMutation,
   useGetBlogByIdMutation,
@@ -2385,6 +2445,7 @@ export const {
   useCreateCareerMutation,
   useGetCareersMutation,
   useGetCareerByIdMutation,
+  useGetCareerApplicantsMutation,
   useUpdateCareerMutation,
   useDeleteCareerMutation,
   useGetEventRegistrationsByEventIdMutation,

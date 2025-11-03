@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Form, Modal, ProgressBar } from 'react-bootstrap';
-import { useGetJobApplicationsMutation, useDeleteJobApplicationMutation, useUpdateJobApplicationStatusMutation, useCreateCareerMutation, useGetCareersMutation, useGetCareerByIdMutation, useUpdateCareerMutation, useDeleteCareerMutation } from '../../features/apiSlice';
+import { useGetJobApplicationsMutation, useDeleteJobApplicationMutation, useUpdateJobApplicationStatusMutation, useCreateCareerMutation, useGetCareersMutation, useGetCareerByIdMutation, useUpdateCareerMutation, useDeleteCareerMutation, useGetCareerApplicantsMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -11,8 +11,9 @@ import DeleteModal from '../../Components/DeleteModal';
 import { 
   FaEye, FaTrash, FaDownload, FaUser, FaEnvelope, FaPhone, FaBriefcase, 
   FaCalendarAlt, FaFileAlt, FaCheckCircle, FaClock, FaTimes, FaStar,
-  FaGraduationCap, FaMapMarkerAlt, FaFilter, FaEdit
+  FaGraduationCap, FaMapMarkerAlt, FaFilter, FaEdit, FaUsers
 } from 'react-icons/fa';
+// FaUsers imported above
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 import Skeleton from 'react-loading-skeleton';
@@ -29,6 +30,7 @@ const JobApplications = () => {
   const [getCareerById, { isLoading: jobLoading }] = useGetCareerByIdMutation();
   const [updateCareer, { isLoading: updateJobLoading }] = useUpdateCareerMutation();
   const [deleteCareer, { isLoading: deleteJobLoading }] = useDeleteCareerMutation();
+  const [getCareerApplicants, { isLoading: applicantsLoading }] = useGetCareerApplicantsMutation();
   
   const [applications, setApplications] = useState([]);
   const [filteredApplications, setFilteredApplications] = useState([]);
@@ -66,6 +68,9 @@ const JobApplications = () => {
   const [editingJobId, setEditingJobId] = useState(null);
   const [showDeleteJobModal, setShowDeleteJobModal] = useState(false);
   const [selectedJobToDelete, setSelectedJobToDelete] = useState(null);
+  const [showApplicantsModal, setShowApplicantsModal] = useState(false);
+  const [applicants, setApplicants] = useState([]);
+  const [selectedJobForApplicants, setSelectedJobForApplicants] = useState(null);
 
   // Demo data for job applications
   const demoApplications = [
@@ -610,6 +615,25 @@ const JobApplications = () => {
 
   const uniquePositions = [...new Set(applications.map(app => app.position))];
 
+  const openApplicantsModal = async (jobId, jobTitle) => {
+    setSelectedJobForApplicants(jobTitle || null);
+    setApplicants([]);
+    try {
+      const res = await getCareerApplicants(jobId).unwrap();
+      // res may be { data: { success: true, applicants: [...] } } or { success: true, applicants: [...] }
+      const payload = res?.data || res || {};
+      let list = [];
+      if (Array.isArray(payload)) list = payload;
+      else if (Array.isArray(payload.applicants)) list = payload.applicants;
+      else if (Array.isArray(payload.data)) list = payload.data;
+      setApplicants(list);
+      setShowApplicantsModal(true);
+    } catch (error) {
+      const msg = getError(error) || 'Failed to fetch applicants';
+      toast.error(msg);
+    }
+  };
+
   const columns = [
     {
       header: 'Applicant',
@@ -864,9 +888,12 @@ const JobApplications = () => {
                             <div className="mt-1">{job.shortDescription}</div>
                           </div>
                           <div className="d-flex flex-column gap-1">
-                            <Button size="sm" variant="outline-primary" onClick={() => openJobModal(job._id)} title="View">
-                              <FaEye />
-                            </Button>
+                                <Button size="sm" variant="outline-primary" onClick={() => openJobModal(job._id)} title="View">
+                                  <FaEye />
+                                </Button>
+                                <Button size="sm" variant="outline-info" onClick={() => openApplicantsModal(job._id, job.title)} title="Applicants">
+                                  <FaUsers />
+                                </Button>
                             <Button size="sm" variant="outline-secondary" onClick={() => openEditJob(job)} title="Edit">
                               <FaEdit />
                             </Button>
@@ -1085,6 +1112,49 @@ const JobApplications = () => {
             <Button variant="outline-danger" onClick={() => { setShowJobModal(false); setSelectedJobToDelete(jobDetail); setShowDeleteJobModal(true); }} disabled={!jobDetail} title="Delete">
               <FaTrash />
             </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Applicants Modal */}
+        <Modal show={showApplicantsModal} onHide={() => setShowApplicantsModal(false)} size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>Applicants {selectedJobForApplicants ? `- ${selectedJobForApplicants}` : ''}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {applicantsLoading ? (
+              <div className="text-center text-muted">Loading applicants...</div>
+            ) : applicants.length === 0 ? (
+              <div className="text-center text-muted">No applicants found for this job.</div>
+            ) : (
+              <div className="list-group">
+                {applicants.map((a) => (
+                  <div key={a._id || a.id || Math.random()} className="list-group-item">
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h6 className="mb-1">{a.name || `${a.firstName || ''} ${a.lastName || ''}`.trim() || 'Unnamed'}</h6>
+                        <small className="text-muted d-block">{a.email}</small>
+                        <small className="text-muted d-block">{a.contactNumber || a.phone}</small>
+                        {a.address && <div className="text-muted">{a.address}</div>}
+                      </div>
+                      <div className="text-end">
+                        {a.resume && (
+                          <a href={a.resume} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-primary me-2">
+                            View Resume
+                          </a>
+                        )}
+                        <div className="text-muted small">{a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}</div>
+                      </div>
+                    </div>
+                    {a.coverLetter && (
+                      <div className="mt-2 text-muted" style={{ whiteSpace: 'pre-wrap' }}>{a.coverLetter}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowApplicantsModal(false)}>Close</Button>
           </Modal.Footer>
         </Modal>
 

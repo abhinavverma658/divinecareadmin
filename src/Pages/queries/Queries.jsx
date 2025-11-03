@@ -5,7 +5,7 @@ import { Col, Container, Image, Row, Card, Button } from 'react-bootstrap'
 import ModalTemplate from '../../Components/ModalTemplate';
 import { useNavigate } from 'react-router-dom';
 import DeleteModal from '../../Components/DeleteModal';
-import { useDeleteQueryMutation, useGetQueriesMutation } from '../../features/apiSlice';
+import { useDeleteQueryMutation, useGetAdminContactsMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 import { getError } from '../../utils/error';
 import { FaEdit, FaMapMarkerAlt, FaHeading, FaEnvelope } from 'react-icons/fa';
@@ -15,17 +15,24 @@ function Queries() {
 
   const [showQuery,setShowQuery] = useState(false);
  const [selectedData,setSelectedData] = useState(null);
-const [getQueries,{isLoading}] = useGetQueriesMutation()
+const [getAdminContacts,{isLoading}] = useGetAdminContactsMutation()
 const [deleteQuery,{isLoading:deleteLoading}] = useDeleteQueryMutation()
  const [queries,setQueries] = useState([]);
 
 
  const handleGetQueries = async()=>{
   try {
-      const data = await getQueries().unwrap();
-      setQueries(data?.querys);
+      const data = await getAdminContacts().unwrap();
+      // expected shape: { success: true, data: [ ... ] }
+      const items = data?.data || data?.contacts || [];
+      setQueries(items);
 
   } catch (error) {
+      const msg = error?.data?.message || error?.message || '';
+      if (typeof msg === 'string' && msg.toLowerCase().includes('route not found')) {
+        console.warn('Backend route not found when fetching contacts — suppressing toast', msg);
+        return;
+      }
       getError(error)
   }
 }
