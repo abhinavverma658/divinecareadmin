@@ -659,10 +659,11 @@ John Smith`,
         <DeleteModal
           show={showDeleteModal}
           onHide={() => setShowDeleteModal(false)}
-          onDelete={handleDelete}
+          onDiscard={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
           title="Delete Job Application"
-          message={`Are you sure you want to delete the application from "${application.firstName} ${application.lastName}"? This action cannot be undone.`}
-          isLoading={deleteLoading}
+          description={`Are you sure you want to delete the application from "${application.firstName} ${application.lastName}"? This action cannot be undone.`}
+          loading={deleteLoading}
         />
       </Container>
     </MotionDiv>

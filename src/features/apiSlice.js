@@ -304,6 +304,120 @@ const baseQuery = async (args, api, extraOptions) => {
         body: { status },
       }),
     }),
+    // Careers (job postings)
+    createCareer: builder.mutation({
+      query: (data) => ({
+        url: "/careers",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    getCareers: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers`;
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const data = await response.json();
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getCareers error:', error);
+          throw error;
+        }
+      },
+    }),
+    getCareerById: builder.mutation({
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${id}`;
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const data = await response.json();
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getCareerById error:', error);
+          throw error;
+        }
+      },
+    }),
+    updateCareer: builder.mutation({
+      queryFn: async ({ id, data }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${id}`;
+          const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          const result = await response.json();
+          if (response.ok) return { data: result };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(result)}`);
+        } catch (error) {
+          console.error('updateCareer error:', error);
+          throw error;
+        }
+      },
+    }),
+    deleteCareer: builder.mutation({
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${id}`;
+          console.log('🔄 deleteCareer request:', { endpoint, id, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          let resultText;
+          try {
+            resultText = await response.text();
+          } catch (e) {
+            resultText = '';
+          }
+          let result;
+          try {
+            result = resultText ? JSON.parse(resultText) : {};
+          } catch (e) {
+            result = resultText;
+          }
+          console.log('🔁 deleteCareer response:', { status: response.status, ok: response.ok, result });
+          if (response.ok) return { data: result };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(result)}`);
+        } catch (error) {
+          console.error('deleteCareer error:', error);
+          throw error;
+        }
+      },
+    }),
 
     // Event registrations
     getEventRegistrations: builder.mutation({
@@ -690,6 +804,38 @@ const baseQuery = async (args, api, extraOptions) => {
         url: `/events/${id}`,
         method: "GET",
       }),
+    }),
+    // Get registrations for a specific event
+    getEventRegistrationsByEventId: builder.mutation({
+      queryFn: async (id, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/events/${id}/registrations`;
+          console.log('🔄 Fetching event registrations:', { endpoint, id, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try {
+            data = text ? JSON.parse(text) : {};
+          } catch (e) {
+            data = text;
+          }
+          console.log('🔁 Event registrations response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getEventRegistrationsByEventId error:', error);
+          throw error;
+        }
+      },
     }),
     createEvent: builder.mutation({
       query: (data) => ({
@@ -2236,6 +2382,12 @@ export const {
   useGetJobApplicationByIdMutation,
   useDeleteJobApplicationMutation,
   useUpdateJobApplicationStatusMutation,
+  useCreateCareerMutation,
+  useGetCareersMutation,
+  useGetCareerByIdMutation,
+  useUpdateCareerMutation,
+  useDeleteCareerMutation,
+  useGetEventRegistrationsByEventIdMutation,
   useGetEventRegistrationsMutation,
   useGetEventRegistrationByIdMutation,
   useDeleteEventRegistrationMutation,

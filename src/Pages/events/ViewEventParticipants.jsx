@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
+import { imgAddr } from '../../features/apiSlice';
 import SearchField from '../../Components/SearchField';
 import { 
   FaArrowLeft, FaUsers, FaEnvelope, FaPhone, FaCalendarAlt, 
@@ -12,6 +13,7 @@ import {
 } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
+import { useGetEventByIdMutation, useGetEventRegistrationsByEventIdMutation } from '../../features/apiSlice';
 import Skeleton from 'react-loading-skeleton';
 
 const ViewEventParticipants = () => {
@@ -24,6 +26,9 @@ const ViewEventParticipants = () => {
   const [filteredParticipants, setFilteredParticipants] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  const [getEventById] = useGetEventByIdMutation();
+  const [getEventRegistrationsByEventId] = useGetEventRegistrationsByEventIdMutation();
 
   // Demo event data
   const demoEvents = {
@@ -215,10 +220,25 @@ const ViewEventParticipants = () => {
         return;
       }
 
-      // Real API calls would go here
-      // const eventData = await getEventById(id).unwrap();
-      // const participantsData = await getEventParticipants(id).unwrap();
-      
+      // Real API calls
+      const eventResp = await getEventById(id).unwrap();
+      // eventResp may be { event } or { data } or the event object itself
+      const eventData = eventResp?.event || eventResp?.data || eventResp;
+
+      const regsResp = await getEventRegistrationsByEventId(id).unwrap();
+      // regsResp expected shape: { success: true, registrations: [...] }
+      const participantsData = regsResp?.registrations || regsResp?.data || regsResp || [];
+
+      if (!eventData) {
+        toast.error('Event not found');
+        navigate('/dash/events');
+        setIsLoading(false);
+        return;
+      }
+
+      setEvent(eventData);
+      setParticipants(Array.isArray(participantsData) ? participantsData : []);
+      setFilteredParticipants(Array.isArray(participantsData) ? participantsData : []);
       setIsLoading(false);
     } catch (error) {
       setIsLoading(false);
@@ -266,6 +286,19 @@ const ViewEventParticipants = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const resolveImageUrl = (path) => {
+    if (!path) return null;
+    // If it's already a full URL, return as-is
+    if (typeof path === 'string' && (path.startsWith('http://') || path.startsWith('https://'))) return path;
+    // If it's an object with url property
+    if (typeof path === 'object' && path.url) {
+      return resolveImageUrl(path.url);
+    }
+    // Otherwise prefix with imgAddr
+    const cleanPath = typeof path === 'string' ? path.replace(/^\//, '') : '';
+    return `${imgAddr}/${cleanPath}`;
   };
 
   const exportParticipants = () => {
@@ -372,11 +405,12 @@ const ViewEventParticipants = () => {
             <Row>
               <Col md={3}>
                 <Image
-                  src={event.featuredImage}
+                  src={resolveImageUrl(event.featuredImage || event.image || event.images?.[0]) || 'https://via.placeholder.com/400x200?text=No+Image'}
                   alt={event.title}
                   fluid
                   rounded
                   style={{ height: '120px', objectFit: 'cover', width: '100%' }}
+                  onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/400x200?text=No+Image'; }}
                 />
               </Col>
               <Col md={9}>

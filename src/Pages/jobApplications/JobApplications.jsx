@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Form, Modal, ProgressBar } from 'react-bootstrap';
-import { useGetJobApplicationsMutation, useDeleteJobApplicationMutation, useUpdateJobApplicationStatusMutation } from '../../features/apiSlice';
+import { useGetJobApplicationsMutation, useDeleteJobApplicationMutation, useUpdateJobApplicationStatusMutation, useCreateCareerMutation, useGetCareersMutation, useGetCareerByIdMutation, useUpdateCareerMutation, useDeleteCareerMutation } from '../../features/apiSlice';
 import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +11,7 @@ import DeleteModal from '../../Components/DeleteModal';
 import { 
   FaEye, FaTrash, FaDownload, FaUser, FaEnvelope, FaPhone, FaBriefcase, 
   FaCalendarAlt, FaFileAlt, FaCheckCircle, FaClock, FaTimes, FaStar,
-  FaGraduationCap, FaMapMarkerAlt, FaFilter
+  FaGraduationCap, FaMapMarkerAlt, FaFilter, FaEdit
 } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
@@ -24,6 +24,11 @@ const JobApplications = () => {
   const [getJobApplications, { isLoading }] = useGetJobApplicationsMutation();
   const [deleteJobApplication, { isLoading: deleteLoading }] = useDeleteJobApplicationMutation();
   const [updateJobApplicationStatus, { isLoading: updateLoading }] = useUpdateJobApplicationStatusMutation();
+  const [createCareer, { isLoading: createLoading }] = useCreateCareerMutation();
+  const [getCareers, { isLoading: jobsLoading }] = useGetCareersMutation();
+  const [getCareerById, { isLoading: jobLoading }] = useGetCareerByIdMutation();
+  const [updateCareer, { isLoading: updateJobLoading }] = useUpdateCareerMutation();
+  const [deleteCareer, { isLoading: deleteJobLoading }] = useDeleteCareerMutation();
   
   const [applications, setApplications] = useState([]);
   const [filteredApplications, setFilteredApplications] = useState([]);
@@ -32,6 +37,20 @@ const JobApplications = () => {
   const [positionFilter, setPositionFilter] = useState('all');
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+
+  // Create job form state
+  const [jobTitle, setJobTitle] = useState('');
+  const [shortDescription, setShortDescription] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+  const [experienceReq, setExperienceReq] = useState('');
+  const [salaryRange, setSalaryRange] = useState('');
+  const [openings, setOpenings] = useState(1);
+  const [responsibilityInput, setResponsibilityInput] = useState('');
+  const [responsibilities, setResponsibilities] = useState([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [keySkills, setKeySkills] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -40,6 +59,13 @@ const JobApplications = () => {
     rejected: 0,
     hired: 0
   });
+  const [jobs, setJobs] = useState([]);
+  const [showJobModal, setShowJobModal] = useState(false);
+  const [jobDetail, setJobDetail] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingJobId, setEditingJobId] = useState(null);
+  const [showDeleteJobModal, setShowDeleteJobModal] = useState(false);
+  const [selectedJobToDelete, setSelectedJobToDelete] = useState(null);
 
   // Demo data for job applications
   const demoApplications = [
@@ -201,7 +227,7 @@ const JobApplications = () => {
     try {
       // Check if demo mode
       if (token && token.startsWith("demo-token")) {
-        setApplications(demoApplications);
+        setJobs(prev => prev.filter(j => j._id !== selectedJobToDelete._id));
         setFilteredApplications(demoApplications);
         calculateStats(demoApplications);
         return;
@@ -214,6 +240,12 @@ const JobApplications = () => {
       setFilteredApplications(applicationsData);
       calculateStats(applicationsData);
     } catch (error) {
+      // suppress noisy backend 'Route not found' messages on page refresh
+      const msg = error?.data?.message || error?.message || '';
+      if (typeof msg === 'string' && msg.toLowerCase().includes('route not found')) {
+        console.warn('Backend route not found when fetching job applications — suppressing toast', msg);
+        return;
+      }
       getError(error);
     }
   };
@@ -232,7 +264,149 @@ const JobApplications = () => {
 
   useEffect(() => {
     fetchJobApplications();
+    fetchCareers();
   }, []);
+
+  const openJobModal = async (id) => {
+    try {
+      if (token && token.startsWith('demo-token')) {
+        const demo = jobs.find(j => j._id === id) || jobs[0];
+        setJobDetail(demo);
+        setShowJobModal(true);
+        return;
+      }
+
+      const data = await getCareerById(id).unwrap();
+      const job = data?.job || data;
+      setJobDetail(job);
+      setShowJobModal(true);
+    } catch (error) {
+      getError(error);
+    }
+  };
+
+  const openEditJob = (job) => {
+    setEditMode(true);
+    setEditingJobId(job._id);
+    // populate form
+    setJobTitle(job.title || '');
+    setShortDescription(job.shortDescription || '');
+    setDescription(job.description || '');
+    setLocation(job.location || '');
+    setExperienceReq(job.experience || '');
+    setSalaryRange(job.salary || '');
+    setOpenings(job.openings || 1);
+    setResponsibilities(job.responsibilities || []);
+    setKeySkills(job.keySkills || []);
+    setShowCreateJobModal(true);
+  };
+
+  const handleUpdateJob = async () => {
+    if (!editingJobId) return;
+    if (!jobTitle.trim() || !description.trim()) {
+      toast.error('Please provide at least a job title and description');
+      return;
+    }
+
+    const payload = {
+      title: jobTitle,
+      shortDescription,
+      description,
+      location,
+      experience: experienceReq,
+      salary: salaryRange,
+      openings: Number(openings) || 0,
+      responsibilities,
+      keySkills,
+    };
+
+    try {
+      if (token && token.startsWith('demo-token')) {
+        toast.success('Job updated (demo mode)');
+        setShowCreateJobModal(false);
+        setEditMode(false);
+        setEditingJobId(null);
+        resetCreateForm();
+        return;
+      }
+
+      await updateCareer({ id: editingJobId, data: payload }).unwrap();
+      toast.success('Job updated successfully');
+      setShowCreateJobModal(false);
+      setEditMode(false);
+      setEditingJobId(null);
+      resetCreateForm();
+      fetchCareers();
+    } catch (error) {
+      getError(error);
+    }
+  };
+
+  const handleDeleteJob = async () => {
+    try {
+      if (!selectedJobToDelete) return;
+      console.log('Deleting job:', selectedJobToDelete);
+      if (token && token.startsWith('demo-token')) {
+        setJobs(prev => prev.filter(j => j._id !== selectedJobToDelete._id));
+        toast.success('Job deleted (demo mode)');
+        setShowDeleteJobModal(false);
+        setSelectedJobToDelete(null);
+        return;
+      }
+
+      await deleteCareer(selectedJobToDelete._id).unwrap();
+      toast.success('Job deleted successfully');
+      setShowDeleteJobModal(false);
+      setSelectedJobToDelete(null);
+      fetchCareers();
+    } catch (error) {
+      setShowDeleteJobModal(false);
+      getError(error);
+    }
+  };
+
+  const fetchCareers = async () => {
+    try {
+      if (token && token.startsWith('demo-token')) {
+        // Demo jobs example
+        const demoJobs = [
+          {
+            _id: '69084b5c6fec096df0885deb',
+            title: 'Disability Support Worker 2',
+            shortDescription: 'Support individuals with daily living tasks and community participation.',
+            description: 'Full description of responsibilities, shift patterns, salary and other details.',
+            location: 'Madurai, Coimbatore',
+            experience: '0-2 years',
+            salary: '1-2.5 Lacs P.A.',
+            openings: 5,
+            responsibilities: [
+              'Develop and maintain strong relationships with clients',
+              'Assist with daily living activities and personal care',
+              'Support participation in community activities'
+            ],
+            keySkills: ['Compassion', 'Communication', 'Patience', 'Teamwork'],
+            postedAt: new Date().toISOString(),
+            applicants: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        ];
+        setJobs(demoJobs);
+        return;
+      }
+
+      const data = await getCareers().unwrap();
+      const jobsData = data?.jobs || [];
+      setJobs(jobsData);
+    } catch (error) {
+      const msg = error?.data?.message || error?.message || '';
+      if (typeof msg === 'string' && msg.toLowerCase().includes('route not found')) {
+        console.warn('Backend route not found when fetching careers — suppressing toast', msg);
+        return;
+      }
+      getError(error);
+    }
+  };
 
   useEffect(() => {
     let filtered = applications;
@@ -316,6 +490,91 @@ const JobApplications = () => {
       fetchJobApplications();
     } catch (error) {
       setShowDeleteModal(false);
+      getError(error);
+    }
+  };
+
+  // Create job helpers
+  const addResponsibility = () => {
+    const val = responsibilityInput.trim();
+    if (val) {
+      setResponsibilities(prev => [...prev, val]);
+      setResponsibilityInput('');
+    }
+  };
+
+  const removeResponsibility = (index) => {
+    setResponsibilities(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addSkill = () => {
+    const val = skillInput.trim();
+    if (val) {
+      setKeySkills(prev => [...prev, val]);
+      setSkillInput('');
+    }
+  };
+
+  const removeSkill = (index) => {
+    setKeySkills(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const resetCreateForm = () => {
+    setJobTitle('');
+    setShortDescription('');
+    setDescription('');
+    setLocation('');
+    setExperienceReq('');
+    setSalaryRange('');
+    setOpenings(1);
+    setResponsibilities([]);
+    setKeySkills([]);
+    setResponsibilityInput('');
+    setSkillInput('');
+  };
+
+  const handleCreateJob = async () => {
+    // basic validation
+    if (!jobTitle.trim() || !description.trim()) {
+      toast.error('Please provide at least a job title and description');
+      return;
+    }
+
+    const payload = {
+      title: jobTitle,
+      shortDescription,
+      description,
+      location,
+      experience: experienceReq,
+      salary: salaryRange,
+      openings: Number(openings) || 0,
+      responsibilities,
+      keySkills,
+    };
+
+    try {
+      // Demo mode: simulate creation
+      if (token && token.startsWith('demo-token')) {
+        const fakeId = `demo-${Date.now()}`;
+        const job = {
+          ...payload,
+          _id: fakeId,
+          postedAt: new Date().toISOString(),
+          applicants: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        toast.success('Job created (demo mode)');
+        setShowCreateJobModal(false);
+        resetCreateForm();
+        return;
+      }
+
+      await createCareer(payload).unwrap();
+      toast.success('Job created successfully');
+      setShowCreateJobModal(false);
+      resetCreateForm();
+    } catch (error) {
       getError(error);
     }
   };
@@ -491,7 +750,7 @@ const JobApplications = () => {
         >
           {icon}
         </div>
-        <div className="flex-grow-1">
+        <div className="grow">
           <h3 className="mb-0" style={{ color: 'var(--dark-color)' }}>
             {isLoading ? <Skeleton width={50} /> : value}
           </h3>
@@ -518,6 +777,11 @@ const JobApplications = () => {
               <span style={{ color: 'var(--neutral-color)' }}>Applications</span>
             </h2>
             <p className="text-muted">Manage submitted job applications and resumes</p>
+          </div>
+          <div>
+            <Button variant="primary" onClick={() => setShowCreateJobModal(true)}>
+              Create Job
+            </Button>
           </div>
         </div>
 
@@ -571,6 +835,52 @@ const JobApplications = () => {
               bgColor="rgba(220, 53, 69, 0.1)"
               percentage={stats.total ? (stats.rejected / stats.total) * 100 : 0}
             />
+          </Col>
+        </Row>
+
+        {/* Open Jobs List */}
+        <Row className="mb-4">
+          <Col>
+            <Card className="mb-3">
+              <Card.Header>
+                <h5 className="mb-0 d-flex align-items-center">
+                  <FaBriefcase className="me-2" />
+                  Open Jobs
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                {jobsLoading && jobs.length === 0 ? (
+                  <div className="text-center text-muted">Loading jobs...</div>
+                ) : jobs.length === 0 ? (
+                  <div className="text-center text-muted">No open jobs</div>
+                ) : (
+                  <div className="d-flex flex-column gap-2">
+                    {jobs.map((job) => (
+                      <Card key={job._id} className="p-2">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <h6 className="mb-1">{job.title}</h6>
+                            <small className="text-muted">{job.location} • {job.openings} opening(s)</small>
+                            <div className="mt-1">{job.shortDescription}</div>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            <Button size="sm" variant="outline-primary" onClick={() => openJobModal(job._id)} title="View">
+                              <FaEye />
+                            </Button>
+                            <Button size="sm" variant="outline-secondary" onClick={() => openEditJob(job)} title="Edit">
+                              <FaEdit />
+                            </Button>
+                            <Button size="sm" variant="outline-danger" onClick={() => { setSelectedJobToDelete(job); setShowDeleteJobModal(true); }} title="Delete">
+                              <FaTrash />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
           </Col>
         </Row>
 
@@ -637,13 +947,165 @@ const JobApplications = () => {
         </Card>
 
         {/* Delete Confirmation Modal */}
+        {/* Create Job Modal */}
+        <Modal show={showCreateJobModal} onHide={() => setShowCreateJobModal(false)} size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>{editMode ? 'Edit Job' : 'Create Job'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form>
+              <Row className="mb-3">
+                <Col md={8}>
+                  <Form.Group>
+                    <Form.Label>Job Title</Form.Label>
+                    <Form.Control value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="e.g. Disability Support Worker" />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Openings</Form.Label>
+                    <Form.Control type="number" min={0} value={openings} onChange={(e) => setOpenings(e.target.value)} />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Short Description</Form.Label>
+                <Form.Control value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} placeholder="Short summary" />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Full Description</Form.Label>
+                <Form.Control as="textarea" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Full description, responsibilities, shifts, salary details" />
+              </Form.Group>
+
+              <Row className="mb-3">
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Location</Form.Label>
+                    <Form.Control value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, State" />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Experience</Form.Label>
+                    <Form.Control value={experienceReq} onChange={(e) => setExperienceReq(e.target.value)} placeholder="e.g. 0-2 years" />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Salary</Form.Label>
+                    <Form.Control value={salaryRange} onChange={(e) => setSalaryRange(e.target.value)} placeholder="e.g. 1-2.5 Lacs P.A." />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Responsibilities</Form.Label>
+                <div className="d-flex mb-2">
+                  <Form.Control value={responsibilityInput} onChange={(e) => setResponsibilityInput(e.target.value)} placeholder="Add responsibility and click Add" />
+                  <Button className="ms-2" onClick={addResponsibility}>Add</Button>
+                </div>
+                <div className="d-flex flex-wrap gap-2">
+                  {responsibilities.map((r, i) => (
+                    <Badge key={i} bg="light" className="text-dark p-2" style={{ cursor: 'pointer' }} onClick={() => removeResponsibility(i)}>
+                      {r} &times;
+                    </Badge>
+                  ))}
+                </div>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Key Skills</Form.Label>
+                <div className="d-flex mb-2">
+                  <Form.Control value={skillInput} onChange={(e) => setSkillInput(e.target.value)} placeholder="Add skill and click Add" />
+                  <Button className="ms-2" onClick={addSkill}>Add</Button>
+                </div>
+                <div className="d-flex flex-wrap gap-2">
+                  {keySkills.map((s, i) => (
+                    <Badge key={i} bg="light" className="text-dark p-2" style={{ cursor: 'pointer' }} onClick={() => removeSkill(i)}>
+                      {s} &times;
+                    </Badge>
+                  ))}
+                </div>
+              </Form.Group>
+            </Form>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowCreateJobModal(false)}>Cancel</Button>
+            {editMode ? (
+              <Button variant="primary" onClick={handleUpdateJob} disabled={updateJobLoading}>{updateJobLoading ? 'Saving...' : 'Save Changes'}</Button>
+            ) : (
+              <Button variant="primary" onClick={handleCreateJob} disabled={createLoading}>{createLoading ? 'Creating...' : 'Create Job'}</Button>
+            )}
+          </Modal.Footer>
+        </Modal>
+
+        {/* Job Detail Modal */}
+        <Modal show={showJobModal} onHide={() => setShowJobModal(false)} size="lg">
+          <Modal.Header closeButton>
+            <Modal.Title>{jobDetail?.title || 'Job Details'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {jobDetail ? (
+              <div>
+                <p className="text-muted">{jobDetail.shortDescription}</p>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{jobDetail.description}</div>
+                <hr />
+                <div className="mb-2"><strong>Location:</strong> {jobDetail.location}</div>
+                <div className="mb-2"><strong>Experience:</strong> {jobDetail.experience}</div>
+                <div className="mb-2"><strong>Salary:</strong> {jobDetail.salary}</div>
+                <div className="mb-2"><strong>Openings:</strong> {jobDetail.openings}</div>
+                {jobDetail.responsibilities && jobDetail.responsibilities.length > 0 && (
+                  <div className="mt-3">
+                    <strong>Responsibilities</strong>
+                    <ul>
+                      {jobDetail.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {jobDetail.keySkills && jobDetail.keySkills.length > 0 && (
+                  <div className="mt-3">
+                    <strong>Key Skills</strong>
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      {jobDetail.keySkills.map((s, i) => <Badge key={i} bg="light" className="text-dark p-2">{s}</Badge>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center text-muted">Loading...</div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowJobModal(false)}>Close</Button>
+            <Button variant="outline-secondary" onClick={() => { setShowJobModal(false); openEditJob(jobDetail); }} disabled={!jobDetail} title="Edit">
+              <FaEdit />
+            </Button>
+            <Button variant="outline-danger" onClick={() => { setShowJobModal(false); setSelectedJobToDelete(jobDetail); setShowDeleteJobModal(true); }} disabled={!jobDetail} title="Delete">
+              <FaTrash />
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
         <DeleteModal
           show={showDeleteModal}
           onHide={() => setShowDeleteModal(false)}
-          onDelete={handleDelete}
+          onDiscard={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
           title="Delete Job Application"
-          message={`Are you sure you want to delete the application from "${selectedApplication?.firstName} ${selectedApplication?.lastName}"? This action cannot be undone.`}
-          isLoading={deleteLoading}
+          description={`Are you sure you want to delete the application from "${selectedApplication?.firstName} ${selectedApplication?.lastName}"? This action cannot be undone.`}
+          loading={deleteLoading}
+        />
+        {/* Delete Job Confirmation */}
+        <DeleteModal
+          show={showDeleteJobModal}
+          onHide={() => setShowDeleteJobModal(false)}
+          onDiscard={() => setShowDeleteJobModal(false)}
+          onConfirm={handleDeleteJob}
+          title="Delete Job"
+          description={`Are you sure you want to delete the job "${selectedJobToDelete?.title}"? This action cannot be undone.`}
+          loading={deleteJobLoading}
         />
       </Container>
     </MotionDiv>
