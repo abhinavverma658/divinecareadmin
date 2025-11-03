@@ -6,6 +6,7 @@ import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
 import FormField from '../../Components/FormField';
+import TextEditor from '../../Components/TextEditor';
 import { FaSave, FaArrowLeft, FaUpload, FaTrash } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
@@ -101,6 +102,10 @@ const AddEditService = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleDescriptionChange = (content) => {
+    setFormData(prev => ({ ...prev, description: content }));
   };
 
   const handleImageChange = async (e) => {
@@ -262,7 +267,11 @@ const AddEditService = () => {
                     onChange={handleChange}
                     required
                     placeholder="Enter service title"
+                    maxLength="100"
                   />
+                  <Form.Text className="text-muted">
+                    {(formData.title || '').length}/100 characters
+                  </Form.Text>
 
                   <FormField
                     type="text"
@@ -274,17 +283,16 @@ const AddEditService = () => {
                     placeholder="Brief one-line description"
                     maxLength="150"
                   />
+                  <Form.Text className="text-muted">
+                    {(formData.shortDescription || '').length}/150 characters
+                  </Form.Text>
 
                   <Form.Group className="mb-3">
                     <Form.Label>Detailed Description <span className="text-danger">*</span></Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={6}
-                      name="description"
+                    <TextEditor
                       value={formData.description}
-                      onChange={handleChange}
+                      onChange={handleDescriptionChange}
                       placeholder="Write a detailed description of the service..."
-                      style={{ minHeight: '150px' }}
                     />
                   </Form.Group>
                 </Card.Body>
