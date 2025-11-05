@@ -394,7 +394,7 @@ const ViewEventParticipants = () => {
             </Button>
             <h2 className="d-inline">
               <span style={{ color: 'var(--dark-color)' }}>Event</span>{' '}
-              <span style={{ color: 'var(--neutral-color)' }}>Participants</span>
+              <span style={{ color: 'var(--dark-color)' }}>Participants</span>
             </h2>
           </div>
         </div>
@@ -499,7 +499,6 @@ const ViewEventParticipants = () => {
                     <th>First Name</th>
                     <th>Last Name</th>
                     <th>Email Address</th>
-                    <th>Registration Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -527,9 +526,6 @@ const ViewEventParticipants = () => {
                           <FaEnvelope className="me-2 text-muted" size={12} />
                           <span>{participant.email}</span>
                         </div>
-                      </td>
-                      <td>
-                        <small>{new Date(participant.registrationDate).toLocaleDateString()}</small>
                       </td>
                     </tr>
                   ))}

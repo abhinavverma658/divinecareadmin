@@ -232,23 +232,69 @@ const JobApplications = () => {
     try {
       // Check if demo mode
       if (token && token.startsWith("demo-token")) {
-        setJobs(prev => prev.filter(j => j._id !== selectedJobToDelete._id));
+        setApplications(demoApplications);
         setFilteredApplications(demoApplications);
         calculateStats(demoApplications);
         return;
       }
 
-      // Real API call for production
-      const data = await getJobApplications().unwrap();
-      const applicationsData = data?.applications || [];
-      setApplications(applicationsData);
-      setFilteredApplications(applicationsData);
-      calculateStats(applicationsData);
+      // Real API call - fetch all jobs first, then get applicants for each
+      const careersData = await getCareers().unwrap();
+      const jobsList = careersData?.jobs || [];
+      
+      if (jobsList.length === 0) {
+        setApplications([]);
+        setFilteredApplications([]);
+        return;
+      }
+
+      // Fetch applicants for all jobs and combine them
+      const allApplicationsPromises = jobsList.map(async (job) => {
+        try {
+          const response = await getCareerApplicants(job._id).unwrap();
+          const applicants = response?.applicants || [];
+          
+          // Map applicants to include job position
+          return applicants.map(applicant => ({
+            _id: applicant._id,
+            firstName: applicant.name?.split(' ')[0] || applicant.name || '',
+            lastName: applicant.name?.split(' ').slice(1).join(' ') || '',
+            email: applicant.email || '',
+            phone: applicant.contactNumber || '',
+            position: job.title || '',
+            department: job.department || '',
+            location: applicant.address || '',
+            resumeUrl: applicant.resume || '',
+            resumeFileName: `${applicant.name?.replace(/\s+/g, '-') || 'resume'}.pdf`,
+            coverLetter: applicant.coverLetter || '',
+            status: 'pending', // Default status
+            appliedDate: applicant.createdAt || new Date().toISOString(),
+            jobId: job._id
+          }));
+        } catch (error) {
+          console.warn(`Failed to fetch applicants for job ${job._id}:`, error);
+          return [];
+        }
+      });
+
+      const applicationsArrays = await Promise.all(allApplicationsPromises);
+      const allApplications = applicationsArrays.flat();
+      
+      setApplications(allApplications);
+      setFilteredApplications(allApplications);
+      calculateStats(allApplications);
     } catch (error) {
-      // suppress noisy backend 'Route not found' messages on page refresh
+      // suppress noisy backend errors
       const msg = error?.data?.message || error?.message || '';
-      if (typeof msg === 'string' && msg.toLowerCase().includes('route not found')) {
-        console.warn('Backend route not found when fetching job applications — suppressing toast', msg);
+      if (typeof msg === 'string' && (
+        msg.toLowerCase().includes('route not found') ||
+        msg.toLowerCase().includes('cast to objectid failed') ||
+        msg.toLowerCase().includes('undefined')
+      )) {
+        console.warn('Backend error when fetching job applications — suppressing toast', msg);
+        // Set empty applications on error
+        setApplications([]);
+        setFilteredApplications([]);
         return;
       }
       getError(error);
@@ -405,8 +451,15 @@ const JobApplications = () => {
       setJobs(jobsData);
     } catch (error) {
       const msg = error?.data?.message || error?.message || '';
-      if (typeof msg === 'string' && msg.toLowerCase().includes('route not found')) {
-        console.warn('Backend route not found when fetching careers — suppressing toast', msg);
+      // Suppress common backend errors in demo/development
+      if (typeof msg === 'string' && (
+        msg.toLowerCase().includes('route not found') ||
+        msg.toLowerCase().includes('cast to objectid failed') ||
+        msg.toLowerCase().includes('undefined')
+      )) {
+        console.warn('Backend error when fetching careers — suppressing toast', msg);
+        // Set empty jobs array on error
+        setJobs([]);
         return;
       }
       getError(error);
@@ -416,13 +469,10 @@ const JobApplications = () => {
   useEffect(() => {
     let filtered = applications;
 
-    // Filter by search term
+    // Filter by search term (applicant name only)
     if (searchTerm) {
       filtered = filtered.filter(app =>
-        `${app.firstName} ${app.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        app.department.toLowerCase().includes(searchTerm.toLowerCase())
+        `${app.firstName} ${app.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -613,7 +663,8 @@ const JobApplications = () => {
     return <Badge bg={config.bg}>{config.text}</Badge>;
   };
 
-  const uniquePositions = [...new Set(applications.map(app => app.position))];
+  // Get unique job positions from jobs (current openings) instead of applications
+  const uniquePositions = jobs.map(job => job.title);
 
   const openApplicantsModal = async (jobId, jobTitle) => {
     setSelectedJobForApplicants(jobTitle || null);
@@ -634,136 +685,7 @@ const JobApplications = () => {
     }
   };
 
-  const columns = [
-    {
-      header: 'Applicant',
-      render: (app) => (
-        <div className="d-flex align-items-center">
-          <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
-               style={{ width: '40px', height: '40px', fontSize: '14px', fontWeight: 'bold' }}>
-            {app.firstName.charAt(0)}{app.lastName.charAt(0)}
-          </div>
-          <div>
-            <h6 className="mb-1">{app.firstName} {app.lastName}</h6>
-            <small className="text-muted d-flex align-items-center">
-              <FaEnvelope className="me-1" />
-              {app.email}
-            </small>
-            <small className="text-muted d-flex align-items-center">
-              <FaPhone className="me-1" />
-              {app.phone}
-            </small>
-          </div>
-        </div>
-      )
-    },
-    {
-      header: 'Position & Location',
-      render: (app) => (
-        <div>
-          <h6 className="mb-1 d-flex align-items-center">
-            <FaBriefcase className="me-1 text-primary" />
-            {app.position}
-          </h6>
-          <small className="text-muted d-flex align-items-center">
-            <FaMapMarkerAlt className="me-1" />
-            {app.location}
-          </small>
-          <Badge bg="light" className="text-dark mt-1">
-            {app.department}
-          </Badge>
-        </div>
-      )
-    },
-    {
-      header: 'Experience & Education',
-      render: (app) => (
-        <div>
-          <div className="mb-1">
-            <strong>Experience:</strong> {app.experience}
-          </div>
-          <div className="d-flex align-items-center">
-            <FaGraduationCap className="me-1 text-success" />
-            <small>{app.education}</small>
-          </div>
-        </div>
-      )
-    },
-    {
-      header: 'Status & Priority',
-      render: (app) => (
-        <div className="text-center">
-          <div className="mb-2">
-            {getStatusBadge(app.status)}
-          </div>
-          <div>
-            {getPriorityBadge(app.priority)}
-          </div>
-        </div>
-      )
-    },
-    {
-      header: 'Applied Date',
-      render: (app) => (
-        <div className="text-center">
-          <div className="d-flex align-items-center justify-content-center mb-1">
-            <FaCalendarAlt className="me-1 text-muted" />
-            <small>{new Date(app.appliedDate).toLocaleDateString()}</small>
-          </div>
-          <small className="text-muted">
-            Updated: {new Date(app.lastUpdated).toLocaleDateString()}
-          </small>
-        </div>
-      )
-    },
-    {
-      header: 'Actions',
-      render: (app) => (
-        <div className="d-flex gap-1 justify-content-center">
-          <Button
-            size="sm"
-            variant="outline-info"
-            onClick={() => navigate(`/dash/job-applications/view/${app._id}`)}
-            title="View Details"
-          >
-            <FaEye />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-success"
-            onClick={() => handleDownloadResume(app.resumeUrl, app.resumeFileName)}
-            title="Download Resume"
-          >
-            <FaDownload />
-          </Button>
-          <Form.Select
-            size="sm"
-            value={app.status}
-            onChange={(e) => handleStatusUpdate(app._id, e.target.value)}
-            disabled={updateLoading}
-            style={{ width: '120px' }}
-          >
-            <option value="pending">Pending</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="shortlisted">Shortlisted</option>
-            <option value="rejected">Rejected</option>
-            <option value="hired">Hired</option>
-          </Form.Select>
-          <Button
-            size="sm"
-            variant="outline-danger"
-            onClick={() => {
-              setSelectedApplication(app);
-              setShowDeleteModal(true);
-            }}
-            title="Delete Application"
-          >
-            <FaTrash />
-          </Button>
-        </div>
-      )
-    }
-  ];
+
 
   const StatCard = ({ title, value, icon, color, bgColor, percentage }) => (
     <Card className="h-100 border-0 shadow-sm">
@@ -798,7 +720,7 @@ const JobApplications = () => {
           <div>
             <h2>
               <span style={{ color: 'var(--dark-color)' }}>Job</span>{' '}
-              <span style={{ color: 'var(--neutral-color)' }}>Applications</span>
+              <span style={{ color: 'var(--dark-color)' }}>Applications</span>
             </h2>
             <p className="text-muted">Manage submitted job applications and resumes</p>
           </div>
@@ -811,53 +733,13 @@ const JobApplications = () => {
 
         {/* Statistics Cards */}
         <Row className="mb-4">
-          <Col md className="mb-3">
+          <Col md={3} className="mb-3">
             <StatCard
               title="Total Applications"
               value={stats.total}
               icon={<FaFileAlt size={24} />}
               color="#6f42c1"
               bgColor="rgba(111, 66, 193, 0.1)"
-            />
-          </Col>
-          <Col md className="mb-3">
-            <StatCard
-              title="Pending Review"
-              value={stats.pending}
-              icon={<FaClock size={24} />}
-              color="#ffc107"
-              bgColor="rgba(255, 193, 7, 0.1)"
-              percentage={stats.total ? (stats.pending / stats.total) * 100 : 0}
-            />
-          </Col>
-          <Col md className="mb-3">
-            <StatCard
-              title="Shortlisted"
-              value={stats.shortlisted}
-              icon={<FaStar size={24} />}
-              color="#007bff"
-              bgColor="rgba(0, 123, 255, 0.1)"
-              percentage={stats.total ? (stats.shortlisted / stats.total) * 100 : 0}
-            />
-          </Col>
-          <Col md className="mb-3">
-            <StatCard
-              title="Hired"
-              value={stats.hired}
-              icon={<FaCheckCircle size={24} />}
-              color="#28a745"
-              bgColor="rgba(40, 167, 69, 0.1)"
-              percentage={stats.total ? (stats.hired / stats.total) * 100 : 0}
-            />
-          </Col>
-          <Col md className="mb-3">
-            <StatCard
-              title="Rejected"
-              value={stats.rejected}
-              icon={<FaTimes size={24} />}
-              color="#dc3545"
-              bgColor="rgba(220, 53, 69, 0.1)"
-              percentage={stats.total ? (stats.rejected / stats.total) * 100 : 0}
             />
           </Col>
         </Row>
@@ -915,25 +797,12 @@ const JobApplications = () => {
         <Card className="mb-4">
           <Card.Body>
             <Row className="align-items-center">
-              <Col md={4}>
+              <Col md={7}>
                 <SearchField
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
-                  placeholder="Search applications..."
+                  query={searchTerm}
+                  setQuery={setSearchTerm}
+                  placeholder="Search by applicant name..."
                 />
-              </Col>
-              <Col md={3}>
-                <Form.Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="reviewed">Reviewed</option>
-                  <option value="shortlisted">Shortlisted</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="hired">Hired</option>
-                </Form.Select>
               </Col>
               <Col md={3}>
                 <Form.Select
@@ -941,8 +810,8 @@ const JobApplications = () => {
                   onChange={(e) => setPositionFilter(e.target.value)}
                 >
                   <option value="all">All Positions</option>
-                  {uniquePositions.map(position => (
-                    <option key={position} value={position}>{position}</option>
+                  {uniquePositions.map((position, index) => (
+                    <option key={index} value={position}>{position}</option>
                   ))}
                 </Form.Select>
               </Col>
@@ -965,11 +834,49 @@ const JobApplications = () => {
           </Card.Header>
           <Card.Body className="p-0">
             <CustomTable
-              data={filteredApplications}
-              columns={columns}
-              isLoading={isLoading}
-              emptyMessage="No job applications found"
-            />
+              column={['S.No.', 'Applicant Name', 'Email', 'Phone No.', 'Position Applied For', 'View Resume']}
+              isSearch={false}
+              loading={isLoading}
+            >
+              {filteredApplications && filteredApplications.length > 0 ? (
+                filteredApplications.map((app, index) => (
+                  <tr key={app._id || index}>
+                    <td className="text-center">
+                      <strong>{index + 1}</strong>
+                    </td>
+                    <td>
+                      <h6 className="mb-0">{app.firstName} {app.lastName}</h6>
+                    </td>
+                    <td>
+                      <span className="text-muted">{app.email}</span>
+                    </td>
+                    <td>
+                      <span className="text-muted">{app.phone}</span>
+                    </td>
+                    <td>
+                      <span>{app.position}</span>
+                    </td>
+                    <td className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => handleDownloadResume(app.resumeUrl, app.resumeFileName)}
+                        title="Download Resume"
+                      >
+                        <FaDownload className="me-1" />
+                        Download
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted py-4">
+                    No job applications found
+                  </td>
+                </tr>
+              )}
+            </CustomTable>
           </Card.Body>
         </Card>
 

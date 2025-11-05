@@ -95,8 +95,8 @@ const Services = () => {
   const calculateStats = (servicesData) => {
     const stats = {
       total: servicesData.length,
-      active: servicesData.filter(service => service.isActive).length,
-      inactive: servicesData.filter(service => !service.isActive).length,
+      active: servicesData.filter(service => service.isActive !== false).length, // Active by default
+      inactive: servicesData.filter(service => service.isActive === false).length,
       featured: servicesData.filter(service => service.featured).length
     };
     setStats(stats);
@@ -110,20 +110,25 @@ const Services = () => {
     let filtered = services;
 
     // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(service =>
-        service.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        service.shortDescription?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (service.description || service.detailedDescription || '')?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(service => {
+        const title = (service.title || '').toLowerCase();
+        const shortDesc = (service.shortDescription || '').toLowerCase();
+        const desc = (service.description || service.detailedDescription || '').toLowerCase();
+        
+        return title.includes(searchLower) || 
+               shortDesc.includes(searchLower) || 
+               desc.includes(searchLower);
+      });
     }
 
     // Filter by status
     if (statusFilter !== 'all') {
       if (statusFilter === 'active') {
-        filtered = filtered.filter(service => service.isActive);
+        filtered = filtered.filter(service => service.isActive !== false); // Active by default
       } else if (statusFilter === 'inactive') {
-        filtered = filtered.filter(service => !service.isActive);
+        filtered = filtered.filter(service => service.isActive === false);
       } else if (statusFilter === 'featured') {
         filtered = filtered.filter(service => service.featured);
       }
@@ -239,8 +244,8 @@ const Services = () => {
             <Row className="align-items-center">
               <Col md={6}>
                 <SearchField
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
+                  query={searchTerm}
+                  setQuery={setSearchTerm}
                   placeholder="Search services..."
                 />
               </Col>
@@ -293,22 +298,25 @@ const Services = () => {
                         />
                       )}
                       <div>
-                        <h6 className="mb-1">{service.title}</h6>
-                        <small className="text-muted">{service.shortDescription}</small>
+                        <h6 className="mb-1" style={{ textAlign:'left'}}>{service.title}</h6>
+                        <small className="text-muted"  style={{ textAlign:'left'}}>{service.shortDescription}</small>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div className="text-start">
-                      <span className="text-muted">
-                        {(service.description || service.detailedDescription || '').substring(0, 100)}
-                        {(service.description || service.detailedDescription || '').length > 100 ? '...' : ''}
-                      </span>
+                      <span 
+                        className="text-muted"
+                        dangerouslySetInnerHTML={{
+                          __html: (service.description || service.detailedDescription || '').substring(0, 100) +
+                                  ((service.description || service.detailedDescription || '').length > 100 ? '...' : '')
+                        }}
+                      />
                     </div>
                   </td>
                   <td className="text-center">
-                    <Badge bg={service.isActive ? 'success' : 'secondary'} className="me-1">
-                      {service.isActive ? 'Active' : 'Inactive'}
+                    <Badge bg={service.isActive !== false ? 'success' : 'secondary'} className="me-1">
+                      {service.isActive !== false ? 'Active' : 'Inactive'}
                     </Badge>
                     {service.featured && (
                       <Badge bg="warning" className="text-dark">
@@ -377,8 +385,8 @@ const Services = () => {
                   )}
                   <div className="text-center">
                     <div>
-                      <Badge bg={selectedService.isActive ? 'success' : 'secondary'} className="me-1">
-                        {selectedService.isActive ? 'Active' : 'Inactive'}
+                      <Badge bg={selectedService.isActive !== false ? 'success' : 'secondary'} className="me-1">
+                        {selectedService.isActive !== false ? 'Active' : 'Inactive'}
                       </Badge>
                       {selectedService.featured && (
                         <Badge bg="warning" className="text-dark">
@@ -394,7 +402,12 @@ const Services = () => {
                   <p className="text-muted mb-3">
                     <strong>Short Description:</strong> {selectedService.shortDescription}
                   </p>
-                  <p>{selectedService.description || selectedService.detailedDescription}</p>
+                  <div 
+                    className="text-start"
+                    dangerouslySetInnerHTML={{
+                      __html: selectedService.description || selectedService.detailedDescription || ''
+                    }}
+                  />
                   
                   <small className="text-muted">
                     Created: {new Date(selectedService.createdAt).toLocaleDateString()}

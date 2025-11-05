@@ -86,12 +86,17 @@ const Stories = () => {
   }, [token]);
 
   useEffect(() => {
-    if (searchTerm) {
-      const filtered = stories.filter(story =>
-        story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        story.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        story.author.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchLower = searchTerm.toLowerCase();
+      const filtered = stories.filter(story => {
+        const title = (story.title || '').toLowerCase();
+        const content = (story.content || '').toLowerCase();
+        const author = (story.author || '').toLowerCase();
+        
+        return title.includes(searchLower) || 
+               content.includes(searchLower) || 
+               author.includes(searchLower);
+      });
       setFilteredStories(filtered);
     } else {
       setFilteredStories(stories);
@@ -126,18 +131,18 @@ const Stories = () => {
       if (token && token.startsWith("demo-token")) {
         // Demo mode - simulate status toggle
         const updatedStories = stories.map(s => 
-          s._id === story._id ? { ...s, isPublished: !(s.isPublished === true) } : s
+          s._id === story._id ? { ...s, isPublished: !(s.isPublished === false) } : s
         );
         setStories(updatedStories);
         setFilteredStories(updatedStories);
-        toast.success(`Story ${story.isPublished === true ? 'unpublished' : 'published'} successfully (Demo)`);
+        toast.success(`Story ${story.isPublished === false ? 'published' : 'unpublished'} successfully (Demo)`);
         return;
       }
 
       // Real API call
       const data = await toggleStoryStatus({ 
         id: story._id, 
-        isPublished: !(story.isPublished === true)
+        isPublished: !(story.isPublished === false)
       }).unwrap();
       toast.success(data?.message || 'Story status updated successfully');
       fetchStories();
@@ -162,11 +167,11 @@ const Stories = () => {
   };
 
   const getStats = () => {
-    const published = stories.filter(story => story.isPublished === true).length;
-    const drafts = stories.filter(story => story.isPublished !== true).length;
-    const totalViews = stories.reduce((sum, story) => sum + (story.views || 0), 0);
+    // Stories are published by default when posted (unless explicitly set to draft)
+    const published = stories.filter(story => story.isPublished !== false).length;
+    const drafts = stories.filter(story => story.isPublished === false).length;
     
-    return { published, drafts, total: stories.length, totalViews };
+    return { published, drafts, total: stories.length };
   };
 
   const stats = getStats();
@@ -179,7 +184,7 @@ const Stories = () => {
           <div>
             <h2>
               <span style={{ color: 'var(--dark-color)' }}>Stories</span>{' '}
-              <span style={{ color: 'var(--neutral-color)' }}>Management</span>
+              <span style={{ color: 'var(--dark-color)' }}>Management</span>
             </h2>
             <p className="text-muted mb-0">
               Manage your company stories and share your journey with the world
@@ -196,7 +201,7 @@ const Stories = () => {
 
         {/* Stats Cards */}
         <Row className="mb-4">
-          <Col md={3} sm={6} className="mb-3">
+          <Col md={4} sm={6} className="mb-3">
             <Card className="text-center h-100">
               <Card.Body>
                 <div className="h3 mb-0 text-primary">
@@ -206,7 +211,7 @@ const Stories = () => {
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3} sm={6} className="mb-3">
+          <Col md={4} sm={6} className="mb-3">
             <Card className="text-center h-100">
               <Card.Body>
                 <div className="h3 mb-0 text-success">
@@ -216,23 +221,13 @@ const Stories = () => {
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3} sm={6} className="mb-3">
+          <Col md={4} sm={6} className="mb-3">
             <Card className="text-center h-100">
               <Card.Body>
                 <div className="h3 mb-0 text-warning">
                   {isLoading ? <Skeleton width={40} /> : stats.drafts}
                 </div>
                 <small className="text-muted">Drafts</small>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3} sm={6} className="mb-3">
-            <Card className="text-center h-100">
-              <Card.Body>
-                <div className="h3 mb-0 text-info">
-                  {isLoading ? <Skeleton width={40} /> : stats.totalViews}
-                </div>
-                <small className="text-muted">Total Views</small>
               </Card.Body>
             </Card>
           </Col>
@@ -243,8 +238,8 @@ const Stories = () => {
           <Col md={6}>
             <SearchField
               placeholder="Search stories by title, content, or author..."
-              value={searchTerm}
-              onChange={setSearchTerm}
+              query={searchTerm}
+              setQuery={setSearchTerm}
             />
           </Col>
         </Row>
@@ -353,8 +348,8 @@ const Stories = () => {
                           </div>
                         </td>
                         <td>
-                          <Badge bg={story.isPublished === true ? 'success' : 'warning'}>
-                            {story.isPublished === true ? 'Published' : 'Draft'}
+                          <Badge bg={story.isPublished !== false ? 'success' : 'warning'}>
+                            {story.isPublished !== false ? 'Published' : 'Draft'}
                           </Badge>
                         </td>
                         <td>
@@ -384,13 +379,13 @@ const Stories = () => {
                               <FaEdit />
                             </Button>
                             <Button
-                              variant={story.isPublished === true ? 'outline-warning' : 'outline-success'}
+                              variant={story.isPublished !== false ? 'outline-warning' : 'outline-success'}
                               size="sm"
                               onClick={() => handleToggleStatus(story)}
                               disabled={toggleLoading}
-                              title={story.isPublished === true ? 'Unpublish' : 'Publish'}
+                              title={story.isPublished !== false ? 'Unpublish' : 'Publish'}
                             >
-                              {story.isPublished === true ? <FaEyeSlash /> : <FaEye />}
+                              {story.isPublished !== false ? <FaEyeSlash /> : <FaEye />}
                             </Button>
                             <Button
                               variant="outline-danger"

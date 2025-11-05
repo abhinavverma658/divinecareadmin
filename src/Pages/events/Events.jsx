@@ -129,7 +129,10 @@ const Events = () => {
         const end = new Date(event.endDate);
         return start <= now && end >= now && event.status !== 'cancelled';
       }).length,
-      completed: eventsData.filter(event => event.status === 'completed').length,
+      completed: eventsData.filter(event => {
+        const end = new Date(event.endDate);
+        return (end < now && event.status !== 'cancelled') || event.status === 'completed';
+      }).length,
       cancelled: eventsData.filter(event => event.status === 'cancelled').length,
       featured: eventsData.filter(event => event.featured).length
     };
@@ -146,31 +149,33 @@ const Events = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(event =>
-        event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.location.toLowerCase().includes(searchTerm.toLowerCase())
+        (event.title && event.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (event.shortDescription && event.shortDescription.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (event.location && event.location.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     // Filter by status
     if (statusFilter !== 'all') {
+      const now = new Date();
       if (statusFilter === 'upcoming') {
-        const now = new Date();
         filtered = filtered.filter(event => new Date(event.startDate) > now && event.status !== 'cancelled');
       } else if (statusFilter === 'ongoing') {
-        const now = new Date();
         filtered = filtered.filter(event => {
           const start = new Date(event.startDate);
           const end = new Date(event.endDate);
           return start <= now && end >= now && event.status !== 'cancelled';
         });
-      } else {
-        filtered = filtered.filter(event => event.status === statusFilter);
+      } else if (statusFilter === 'completed') {
+        filtered = filtered.filter(event => {
+          const end = new Date(event.endDate);
+          return (end < now && event.status !== 'cancelled') || event.status === 'completed';
+        });
+      } else if (statusFilter === 'cancelled') {
+        filtered = filtered.filter(event => event.status === 'cancelled');
       }
     }
-
-    // Filter by type
-    // Type filter removed
 
     setFilteredEvents(filtered);
   }, [events, searchTerm, statusFilter]);
@@ -222,7 +227,7 @@ const Events = () => {
 
     if (event.status === 'cancelled') {
       return <Badge bg="danger">Cancelled</Badge>;
-    } else if (event.status === 'completed') {
+    } else if (end < now) {
       return <Badge bg="success">Completed</Badge>;
     } else if (start <= now && end >= now) {
       return <Badge bg="warning">Ongoing</Badge>;
@@ -232,18 +237,6 @@ const Events = () => {
       return <Badge bg="secondary">Past</Badge>;
     }
   };
-
-  const getEventTypeBadge = (type) => {
-    const typeConfig = {
-      'virtual': { bg: 'primary', text: 'Virtual' },
-      'in-person': { bg: 'success', text: 'In-Person' },
-      'hybrid': { bg: 'info', text: 'Hybrid' }
-    };
-    
-    const config = typeConfig[type] || typeConfig['in-person'];
-    return <Badge bg={config.bg}>{config.text}</Badge>;
-  };
-
   const formatEventDate = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -296,7 +289,7 @@ const Events = () => {
           <div>
             <h2>
               <span style={{ color: 'var(--dark-color)' }}>Event</span>{' '}
-              <span style={{ color: 'var(--neutral-color)' }}>Management</span>
+              <span style={{ color: 'var(--dark-color)' }}>Management</span>
             </h2>
             <p className="text-muted">Manage events, workshops, and seminars</p>
           </div>
@@ -365,8 +358,8 @@ const Events = () => {
             <Row className="align-items-center">
               <Col md={4}>
                 <SearchField
-                  searchTerm={searchTerm}
-                  setSearchTerm={setSearchTerm}
+                  query={searchTerm}
+                  setQuery={setSearchTerm}
                   placeholder="Search events..."
                 />
               </Col>
@@ -547,9 +540,6 @@ const Events = () => {
                   </div>
                   <div className="text-center">
                     {getStatusBadge(selectedEvent)}
-                    <div className="mt-2">
-                      {getEventTypeBadge(selectedEvent.eventType)}
-                    </div>
                     {selectedEvent.featured && (
                       <div className="mt-2">
                         <Badge bg="warning" className="text-dark">
@@ -563,30 +553,12 @@ const Events = () => {
                 <Col md={7}>
                   <h4>{selectedEvent.title}</h4>
                   <p className="text-muted mb-2">
-                    <strong>Category:</strong> {selectedEvent.category}
-                  </p>
-                  <p className="text-muted mb-2">
                     <strong>Location:</strong> {selectedEvent.location}
                   </p>
                   <p className="text-muted mb-3">
                     <strong>Date:</strong> {formatEventDate(selectedEvent.startDate, selectedEvent.endDate)}
                   </p>
                   <p>{selectedEvent.shortDescription}</p>
-                  
-                  <div className="mb-3">
-                    <strong>Attendees:</strong>
-                    <div className="d-flex align-items-center">
-                      <FaUsers className="me-2 text-success" />
-                      <span>{selectedEvent.currentAttendees}/{selectedEvent.maxAttendees}</span>
-                      <div className="progress ms-2 grow" style={{ height: '8px' }}>
-                        <div 
-                          className="progress-bar bg-success" 
-                          style={{ width: `${(selectedEvent.currentAttendees / selectedEvent.maxAttendees) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   {selectedEvent.tags && selectedEvent.tags.length > 0 && (
                     <div>
                       <h6>Tags:</h6>
@@ -599,10 +571,7 @@ const Events = () => {
                       </div>
                     </div>
                   )}
-                  
-                  <small className="text-muted">
-                    Registration Deadline: {new Date(selectedEvent.registrationDeadline).toLocaleDateString()}
-                  </small>
+
                 </Col>
               </Row>
             )}

@@ -400,8 +400,8 @@ const AddEditEvent = () => {
               Back to Events
             </Button>
             <h2 className="d-inline">
-              <span style={{ color: 'var(--dark-color)' }}>{id ? 'Edit' : 'Add'}</span>{' '}
-              <span style={{ color: 'var(--neutral-color)' }}>Event</span>
+              <span style={{ color: 'nlack' }}>{id ? 'Edit' : 'Add'}</span>{' '}
+              <span style={{ color: 'black' }}>Event</span>
             </h2>
           </div>
         </div>
