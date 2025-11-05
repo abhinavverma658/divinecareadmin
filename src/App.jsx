@@ -51,7 +51,6 @@ import EditAboutBanner from './Pages/aboutUs/EditAboutBanner.jsx'
 import EditCompanyStatistics from './Pages/aboutUs/EditCompanyStatistics.jsx'
 import EditTestimonialSection from './Pages/aboutUs/EditTestimonialSection.jsx'
 import Documents from './Pages/documents/Documents.jsx'
-import AddEditDocument from './Pages/documents/AddEditDocument.jsx'
 
 
 function App() {
@@ -113,8 +112,6 @@ function App() {
     { path: "/dash/about-us/statistics", comp: <EditCompanyStatistics /> },
     { path: "/dash/about-us/testimonial", comp: <EditTestimonialSection /> },
     { path: "/dash/documents", comp: <Documents /> },
-    { path: "/dash/documents/add", comp: <AddEditDocument /> },
-    { path: "/dash/documents/edit/:id", comp: <AddEditDocument /> },
     { path: "/dash/queries", comp: <Queries /> },
     { path: "/dash/queries/edit-contact-page", comp: <EditContactPage /> },
 

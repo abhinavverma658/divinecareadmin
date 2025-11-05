@@ -11,6 +11,9 @@ const ImageUpload = ({
   value, 
   onChange, 
   label = "Upload Image", 
+  buttonText = null, // Custom button text (optional)
+  successMessage = "Image uploaded successfully", // Custom success message
+  helpText = null, // Custom help text (optional)
   required = false,
   multiple = false,
   maxSize = 5, // MB
@@ -97,7 +100,7 @@ const ImageUpload = ({
             onChange(imageUrl);
           }
           
-          toast.success(`Demo upload completed: ${file.name}`);
+          toast.success(`${successMessage}: ${file.name}`);
           setUploadProgress(0);
         }, 500);
       };
@@ -156,7 +159,7 @@ const ImageUpload = ({
             onChange(imageUrl);
           }
 
-          toast.success(`Image uploaded successfully: ${file.name}`);
+          toast.success(`${successMessage}: ${file.name}`);
           setUploadProgress(100);
 
           // Reset progress after a short delay
@@ -296,7 +299,7 @@ const ImageUpload = ({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FaUpload className="me-1" />
-                Select {multiple ? 'Files' : 'File'}
+                {buttonText || `Select ${multiple ? 'Files' : 'File'}`}
               </Button>
             </>
           )}
@@ -321,7 +324,7 @@ const ImageUpload = ({
       
       {/* Help Text */}
       <div className="text-muted small mt-1">
-        {multiple ? 'You can upload multiple images' : 'Upload a single image'}. 
+        {helpText || (multiple ? 'You can upload multiple images' : 'Upload a single image')}. 
         Drag and drop supported.
       </div>
 
