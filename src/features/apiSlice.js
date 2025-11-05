@@ -2278,9 +2278,53 @@ const baseQuery = async (args, api, extraOptions) => {
     }),
 
     // Document Management
+    uploadDocument: builder.mutation({
+      // Use queryFn so we can send FormData (multipart) and handle non-JSON responses (HTML 500 page)
+      queryFn: async (formData, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+
+          const response = await fetch(`${baseUrl}/upload`, {
+            method: 'POST',
+            headers: {
+              // Don't set Content-Type so browser can set multipart/form-data boundary
+              ...(cleanToken && { Authorization: `Bearer ${cleanToken}` }),
+            },
+            body: formData,
+          });
+
+          const text = await response.text();
+          let data;
+          try {
+            data = text ? JSON.parse(text) : {};
+          } catch (jsonErr) {
+            // Response is not JSON (could be HTML error page). Return raw text for debugging.
+            data = { success: false, raw: text };
+          }
+
+          if (response.ok) {
+            return { data };
+          }
+
+          // Non-2xx response: surface status and parsed/raw body
+          return {
+            error: {
+              status: response.status,
+              data,
+            },
+          };
+        } catch (error) {
+          console.error('uploadDocument queryFn error:', error);
+          return { error };
+        }
+      },
+    }),
+
     getDocuments: builder.mutation({
-      query: (params = {}) => ({
-        url: `/documents?${new URLSearchParams(params).toString()}`,
+      query: () => ({
+        url: "/documents",
         method: "GET",
       }),
     }),
@@ -2290,19 +2334,22 @@ const baseQuery = async (args, api, extraOptions) => {
         method: "GET",
       }),
     }),
-    createDocument: builder.mutation({
-      query: (data) => ({
-        url: "/documents",
-        method: "POST",
-        body: data,
-      }),
-    }),
     updateDocument: builder.mutation({
       query: ({ id, data }) => ({
         url: `/documents/${id}`,
         method: "PUT",
         body: data,
       }),
+      // Transform the response to match what the component expects
+      transformResponse: (response) => {
+        if (response.success && response.document) {
+          return {
+            success: true,
+            document: response.document
+          };
+        }
+        return response;
+      },
     }),
     deleteDocument: builder.mutation({
       query: (id) => ({
@@ -2379,6 +2426,13 @@ const baseQuery = async (args, api, extraOptions) => {
         }
       },
     }),
+    createDocumentUser: builder.mutation({
+      query: (data) => ({
+       url: "/users/create",
+       method: "POST",
+       body: data
+      }),
+    }),
     updateHomeEventsData: builder.mutation({
       queryFn: async ({ id = "68ee3ad670e1bfc20b37541f", ...data }, { getState }) => {
         try {
@@ -2418,6 +2472,7 @@ const baseQuery = async (args, api, extraOptions) => {
 
 export const {
   useLoginUserMutation,
+  useCreateDocumentUserMutation,
   useGenerateAccessTokenMutation,
   useResetPasswordMutation,
   useGetDashboardDataMutation,
@@ -2545,13 +2600,13 @@ export const {
   useGetUploadedImagesMutation,
   useGetDocumentsMutation,
   useGetDocumentByIdMutation,
-  useCreateDocumentMutation,
   useUpdateDocumentMutation,
   useDeleteDocumentMutation,
   useToggleDocumentStatusMutation,
   useToggleDocumentPublicMutation,
   useGetDocumentCategoriesMutation,
   useGetDocumentStatsMutation,
+  useUploadDocumentMutation,
   useGetHomeEventsDataMutation,
   useUpdateHomeEventsDataMutation,
 } = apiSlice;

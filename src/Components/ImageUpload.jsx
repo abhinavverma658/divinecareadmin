@@ -51,11 +51,16 @@ const ImageUpload = ({
     if (validFiles.length === 0) return;
     
     try {
+      // For documents (non-image types), pass the File object directly to parent
+      if (validFiles[0] && !validFiles[0].type.startsWith('image/')) {
+        onChange(validFiles[0]);
+        return;
+      }
+
+      // For images, continue with normal upload flow
       if (token && token.startsWith("demo-token")) {
-        // Demo mode - simulate upload with FileReader
         await handleDemoUpload(validFiles);
       } else {
-        // Real upload
         await handleRealUpload(validFiles);
       }
     } catch (error) {
