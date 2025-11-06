@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Modal, Table } from 'react-bootstrap';
 import MotionDiv from '../../Components/MotionDiv';
-import { useGetDocumentsMutation, useUpdateDocumentMutation, useUploadDocumentMutation } from '../../features/apiSlice';
+import { useGetDocumentsMutation, useUpdateDocumentMutation, useUploadDocumentMutation, useGetTeamUsersMutation } from '../../features/apiSlice';
 import { FaUpload, FaFileContract, FaUserTie, FaCalendarAlt, FaChartLine, FaBook, FaBriefcase, FaExclamationTriangle, FaClock, FaGraduationCap, FaUniversity, FaIdCard, FaCalculator, FaHandshake, FaEye, FaEdit, FaTrash, FaFile, FaPlus, FaUserPlus, FaUsers, FaSave } from 'react-icons/fa';
 import ImageUpload from '../../Components/ImageUpload';
 import { toast } from 'react-toastify';
@@ -27,10 +27,9 @@ const Documents = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [showViewUsersModal, setShowViewUsersModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '' });
-  const [users, setUsers] = useState([
-    { id: 1, name: 'John Doe', email: 'john@example.com' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com' }
-  ]); // Sample data - replace with API call
+  // Team users state from API
+  const [users, setUsers] = useState([]);
+  const [getTeamUsers, { isLoading: isUsersLoading }] = useGetTeamUsersMutation();
   const [editingUser, setEditingUser] = useState(null);
   
   const [getDocuments] = useGetDocumentsMutation();
@@ -317,7 +316,19 @@ const Documents = () => {
             </Button>
             <Button 
               variant="outline-primary" 
-              onClick={() => setShowViewUsersModal(true)}
+              onClick={async () => {
+                setShowViewUsersModal(true);
+                try {
+                  const res = await getTeamUsers().unwrap();
+                  if (res && res.success && Array.isArray(res.users)) {
+                    setUsers(res.users);
+                  } else {
+                    setUsers([]);
+                  }
+                } catch (e) {
+                  setUsers([]);
+                }
+              }}
               className="d-flex align-items-center gap-2"
             >
               <FaUsers />
@@ -487,43 +498,37 @@ const Documents = () => {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            {users.length === 0 ? (
-              <Alert variant="info">No users found. Add your first user!</Alert>
+            {isUsersLoading ? (
+              <Alert variant="info">Loading users...</Alert>
+            ) : users.length === 0 ? (
+              <Alert variant="info">No users found.</Alert>
             ) : (
               <Table striped bordered hover responsive>
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Name</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
                     <th>Email</th>
-                    <th className="text-center">Actions</th>
+                    <th>Role</th>
+                    <th>Active</th>
+                    <th>Created</th>
+                    <th>Updated</th>
+                    <th>Last Login</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user, index) => (
-                    <tr key={user.id}>
+                    <tr key={user._id}>
                       <td>{index + 1}</td>
-                      <td>{user.name}</td>
+                      <td>{user.firstName}</td>
+                      <td>{user.lastName}</td>
                       <td>{user.email}</td>
-                      <td className="text-center">
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          className="me-2"
-                          onClick={() => handleEditUser(user)}
-                          title="Edit User"
-                        >
-                          <FaEdit />
-                        </Button>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
-                          title="Delete User"
-                        >
-                          <FaTrash />
-                        </Button>
-                      </td>
+                      <td>{user.role}</td>
+                      <td>{user.isActive ? 'Yes' : 'No'}</td>
+                      <td>{user.createdAt ? new Date(user.createdAt).toLocaleString() : ''}</td>
+                      <td>{user.updatedAt ? new Date(user.updatedAt).toLocaleString() : ''}</td>
+                      <td>{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '-'}</td>
                     </tr>
                   ))}
                 </tbody>

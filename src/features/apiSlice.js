@@ -2433,6 +2433,32 @@ const baseQuery = async (args, api, extraOptions) => {
        body: data
       }),
     }),
+    // Get all team users (for admin)
+    getTeamUsers: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/users/team`;
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getTeamUsers error:', error);
+          throw error;
+        }
+      }
+    }),
     updateHomeEventsData: builder.mutation({
       queryFn: async ({ id = "68ee3ad670e1bfc20b37541f", ...data }, { getState }) => {
         try {
@@ -2485,6 +2511,7 @@ export const {
   useUpdateBlogByIdMutation,
   useDeleteBlogMutation,
   useGetTestimonialsMutation,
+  useGetTeamUsersMutation,
   useGetTestimonialByIdMutation,
   useCreateTestimonialMutation,
   useUpdateTestimonialByIdMutation,
