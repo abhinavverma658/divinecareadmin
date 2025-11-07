@@ -26,7 +26,7 @@ const Documents = () => {
   const [uploadedDocs, setUploadedDocs] = useState({});
   const [showUserModal, setShowUserModal] = useState(false);
   const [showViewUsersModal, setShowViewUsersModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', contactNumber: '', designation: '' });
   // Team users state from API
   const [users, setUsers] = useState([]);
   const [getTeamUsers, { isLoading: isUsersLoading }] = useGetTeamUsersMutation();
@@ -444,7 +444,9 @@ const Documents = () => {
           <Modal.Body>
             <Form>
               <Form.Group className="mb-3">
-                <Form.Label>Name</Form.Label>
+                <Form.Label>
+                  Name <span style={{ color: 'red' }}>*</span>
+                </Form.Label>
                 <Form.Control
                   type="text"
                   placeholder="Enter name"
@@ -453,12 +455,32 @@ const Documents = () => {
                 />
               </Form.Group>
               <Form.Group className="mb-3">
-                <Form.Label>Email</Form.Label>
+                <Form.Label>
+                  Email <span style={{ color: 'red' }}>*</span>
+                </Form.Label>
                 <Form.Control
                   type="email"
                   placeholder="Enter email"
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Contact Number</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter contact number (optional)"
+                  value={newUser.contactNumber}
+                  onChange={(e) => setNewUser({ ...newUser, contactNumber: e.target.value })}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Designation</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter designation (optional)"
+                  value={newUser.designation}
+                  onChange={(e) => setNewUser({ ...newUser, designation: e.target.value })}
                 />
               </Form.Group>
               <Button 
