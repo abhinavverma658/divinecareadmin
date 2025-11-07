@@ -188,7 +188,7 @@ const baseQuery = async (args, api, extraOptions) => {
     }),
     deleteQuery: builder.mutation({
       query: (id) => ({
-        url: `/query/delete-query/${id}`,
+        url: `/admin/contacts/${id}`,
         method: "DELETE",
       }),
     }),
