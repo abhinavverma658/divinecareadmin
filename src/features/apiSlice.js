@@ -2334,6 +2334,13 @@ const baseQuery = async (args, api, extraOptions) => {
         method: "GET",
       }),
     }),
+    createDocument: builder.mutation({
+      query: (data) => ({
+        url: `/documents`,
+        method: "POST",
+        body: data,
+      }),
+    }),
     updateDocument: builder.mutation({
       query: ({ id, data }) => ({
         url: `/documents/${id}`,
@@ -2627,6 +2634,7 @@ export const {
   useGetUploadedImagesMutation,
   useGetDocumentsMutation,
   useGetDocumentByIdMutation,
+  useCreateDocumentMutation,
   useUpdateDocumentMutation,
   useDeleteDocumentMutation,
   useToggleDocumentStatusMutation,

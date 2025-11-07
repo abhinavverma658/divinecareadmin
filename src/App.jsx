@@ -3,6 +3,7 @@ import './App.css'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import Home from './Pages/Home.jsx'
 import Auth from './Pages/Auth.jsx'
+import ForgotPassword from './Pages/ForgotPassword.jsx'
 import Aos from "aos";
 import { useDispatch, useSelector } from 'react-redux'
 import SideNavbar from './layout/SideNavBar.jsx'
@@ -37,6 +38,7 @@ import AddEditEvent from './Pages/events/AddEditEvent.jsx'
 import ViewEventParticipants from './Pages/events/ViewEventParticipants.jsx'
 import EmailAlerts from './Pages/emailAlerts/EmailAlerts.jsx'
 import HomePage from './Pages/homePage/HomePage.jsx'
+import Subscribers from './Pages/subscribers/Subscribers.jsx'
 import EditHomeHero from './Pages/homePage/EditHomeHero.jsx'
 import EditAboutUs from './Pages/homePage/EditAboutUs.jsx'
 import EditEvents from './Pages/homePage/EditEvents.jsx'
@@ -86,6 +88,7 @@ function App() {
     { path: "/dash/events/edit/:id", comp: <AddEditEvent /> },
     { path: "/dash/events/participants/:id", comp: <ViewEventParticipants /> },
     { path: "/dash/email-alerts", comp: <EmailAlerts /> },
+  { path: "/dash/subscribers", comp: <Subscribers /> },
     { path: "/dash/website-pages", comp: <WebsitePages /> },
     { path: "/dash/website-pages/edit/:pageId", comp: <EditWebsitePage /> },
     { path: "/dash/testimonials", comp: <Testimonials /> },
@@ -138,6 +141,7 @@ function App() {
 
       <Routes location={pageLocation} key={pageLocation.pathname}>
         <Route path="/" element={<Auth />  } />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
 
         {routeList?.map(({ path, comp }) => (

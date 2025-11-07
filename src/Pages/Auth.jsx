@@ -252,6 +252,11 @@ function Auth() {
                     </Button>
                     </Col>
                  </Row>
+                                 <Row className="mt-2">
+                                        <Col className='text-center'>
+                                            <Link to="/forgot-password" className="text-decoration-none">Forgot password?</Link>
+                                        </Col>
+                                 </Row>
                 
             </Form>
             </Card>

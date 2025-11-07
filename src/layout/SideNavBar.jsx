@@ -72,6 +72,12 @@ const linkList = [
     text: "Documents",
     url: "/dash/documents",
   },
+  // Subscribers
+  {
+    icon: <LuUsers className="icon-md" />,
+    text: "Subscribers",
+    url: "/dash/subscribers",
+  },
   //  {
   //   icon: <FaClockRotateLeft className="icon-md" />,
   //   text: "Event Registrations",

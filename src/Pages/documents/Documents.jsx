@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Form, Alert, Modal, Table } from 'react-bootstrap';
 import MotionDiv from '../../Components/MotionDiv';
-import { useGetDocumentsMutation, useUpdateDocumentMutation, useUploadDocumentMutation, useGetTeamUsersMutation } from '../../features/apiSlice';
+import { useGetDocumentsMutation, useCreateDocumentMutation, useUpdateDocumentMutation, useUploadDocumentMutation, useGetTeamUsersMutation } from '../../features/apiSlice';
 import { FaUpload, FaFileContract, FaUserTie, FaCalendarAlt, FaChartLine, FaBook, FaBriefcase, FaExclamationTriangle, FaClock, FaGraduationCap, FaUniversity, FaIdCard, FaCalculator, FaHandshake, FaEye, FaEdit, FaTrash, FaFile, FaPlus, FaUserPlus, FaUsers, FaSave } from 'react-icons/fa';
 import ImageUpload from '../../Components/ImageUpload';
 import { toast } from 'react-toastify';
@@ -26,6 +26,10 @@ const Documents = () => {
   const [uploadedDocs, setUploadedDocs] = useState({});
   const [showUserModal, setShowUserModal] = useState(false);
   const [showViewUsersModal, setShowViewUsersModal] = useState(false);
+  const [showAddDocModal, setShowAddDocModal] = useState(false);
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocFile, setNewDocFile] = useState(null);
+  const [customDocuments, setCustomDocuments] = useState([]);
   const [newUser, setNewUser] = useState({ name: '', email: '', contactNumber: '', designation: '' });
   // Team users state from API
   const [users, setUsers] = useState([]);
@@ -33,6 +37,7 @@ const Documents = () => {
   const [editingUser, setEditingUser] = useState(null);
   
   const [getDocuments] = useGetDocumentsMutation();
+  const [createDocument] = useCreateDocumentMutation();
   const [updateDocument] = useUpdateDocumentMutation();
 
   useEffect(() => {
@@ -252,29 +257,60 @@ const Documents = () => {
 
   const handleSaveDocument = async (key) => {
     const doc = uploadedDocs[key];
-    if (!doc || !doc.id) {
-      toast.error('Cannot save document: missing document ID');
+    if (!doc || !doc.url) {
+      toast.error('Cannot save document: missing document data');
       return;
     }
 
     try {
-      const response = await updateDocument({
-        id: doc.id,
-        data: {
-          title: doc.title,
-          category: doc.category,
+      // Check if this is a custom document (no id) - need to create it
+      if (!doc.id) {
+        // Get the label for custom documents
+        const customDoc = customDocuments.find(d => d.key === key);
+        const docLabel = customDoc ? customDoc.label : key;
+        
+        const response = await createDocument({
+          title: docLabel,
+          category: key,
+          fileName: doc.title || getFileName(doc.url),
           fileUrl: doc.url,
-          filePublicId: doc.filePublicId,
-          mimeType: doc.mimeType,
-          docId: doc.docId,
-          size: doc.size || 0
-        }
-      }).unwrap();
+          fileSize: doc.size || 0,
+          description: `Custom document: ${docLabel}`
+        }).unwrap();
 
-      if (response.success) {
-        toast.success('Document saved successfully!');
+        if (response.success) {
+          // Update the uploadedDocs with the new document ID
+          setUploadedDocs(prev => ({
+            ...prev,
+            [key]: {
+              ...prev[key],
+              id: response.document.id
+            }
+          }));
+          toast.success('Document saved successfully!');
+        } else {
+          toast.error(response.message || 'Failed to save document');
+        }
       } else {
-        toast.error(response.message || 'Failed to save document');
+        // Existing document - update it
+        const response = await updateDocument({
+          id: doc.id,
+          data: {
+            title: doc.title,
+            category: doc.category,
+            fileUrl: doc.url,
+            filePublicId: doc.filePublicId,
+            mimeType: doc.mimeType,
+            docId: doc.docId,
+            size: doc.size || 0
+          }
+        }).unwrap();
+
+        if (response.success) {
+          toast.success('Document saved successfully!');
+        } else {
+          toast.error(response.message || 'Failed to save document');
+        }
       }
     } catch (error) {
       console.error('Error saving document:', error);
@@ -293,6 +329,77 @@ const Documents = () => {
     }
   };
 
+  // Handle custom document upload
+  const handleAddCustomDocument = async () => {
+    if (!newDocName.trim()) {
+      toast.error('Document name is required');
+      return;
+    }
+    if (!newDocFile) {
+      toast.error('Please upload a file');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('files', newDocFile);
+      formData.append('folder', 'documents');
+
+      const uploadResponse = await uploadDocument(formData).unwrap();
+      
+      if (uploadResponse.success && uploadResponse.files && uploadResponse.files[0]) {
+        const fileData = uploadResponse.files[0];
+        
+        // Create a unique key for this custom document
+        const customKey = `custom-${Date.now()}`;
+        
+        // Add to custom documents list
+        const newDoc = {
+          key: customKey,
+          label: newDocName,
+          icon: FaFile,
+          url: fileData.url,
+          filePublicId: fileData.public_id,
+          mimeType: newDocFile.type,
+          size: newDocFile.size,
+          title: newDocFile.name,
+          category: customKey
+        };
+        
+        setCustomDocuments(prev => [...prev, newDoc]);
+        
+        // Also add to uploadedDocs for consistency
+        setUploadedDocs(prev => ({
+          ...prev,
+          [customKey]: {
+            url: fileData.url,
+            filePublicId: fileData.public_id,
+            mimeType: newDocFile.type,
+            size: newDocFile.size,
+            title: newDocFile.name,
+            category: customKey
+          }
+        }));
+        
+        // Reset form and close modal
+        setNewDocName('');
+        setNewDocFile(null);
+        setShowAddDocModal(false);
+        toast.success('Document added successfully');
+      } else {
+        toast.error('Upload failed: ' + (uploadResponse.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Upload failed: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteCustomDocument = (key) => {
+    setCustomDocuments(prev => prev.filter(doc => doc.key !== key));
+    handleDelete(key);
+  };
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -302,6 +409,18 @@ const Documents = () => {
             <p className="text-muted">Upload company documents, policies, and employee records</p>
           </div>
           <div className="d-flex gap-2">
+            <Button 
+              variant="info" 
+              onClick={() => {
+                setNewDocName('');
+                setNewDocFile(null);
+                setShowAddDocModal(true);
+              }}
+              className="d-flex align-items-center gap-2"
+            >
+              <FaPlus />
+              Add Document
+            </Button>
             <Button 
               variant="primary" 
               onClick={() => {
@@ -346,6 +465,95 @@ const Documents = () => {
           </div>
         </div>
         <Row>
+          {/* Render custom documents first */}
+          {customDocuments.map(field => (
+            <Col md={6} lg={4} key={field.key} className="mb-4">
+              <Card className="shadow-sm">
+                <Card.Header>
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="d-flex align-items-center">
+                      {React.createElement(field.icon, { className: 'me-2 text-primary', size: 20 })}
+                      <strong>{field.label}</strong>
+                    </div>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger p-0"
+                      onClick={() => handleDeleteCustomDocument(field.key)}
+                      title="Remove this document type"
+                    >
+                      <FaTrash />
+                    </Button>
+                  </div>
+                </Card.Header>
+                <Card.Body>
+                  <ImageUpload
+                    value={(uploadedDocs[field.key] && uploadedDocs[field.key].url) || ''}
+                    onChange={val => handleUpload(field.key, val)}
+                    label={uploadedDocs[field.key] ? 'Edit File' : `Upload ${field.label}`}
+                    buttonText={uploadedDocs[field.key] ? 'Edit File' : 'Select File'}
+                    successMessage="Document uploaded successfully"
+                    helpText="Upload a single document"
+                    showPreview={false}
+                    acceptedTypes={[
+                      'application/pdf',
+                      'application/msword',
+                      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                      'application/vnd.ms-excel',
+                      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      'application/vnd.ms-powerpoint',
+                      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                    ]}
+                    maxSize={10}
+                  />
+                  {uploadedDocs[field.key] && uploadedDocs[field.key].url && (
+                    <div className="uploaded-file-info mt-3">
+                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                        <div className="d-flex align-items-center grow">
+                          <FaFile className="me-2 text-primary" size={24} />
+                          <span className="text-truncate" style={{ maxWidth: '200px' }}>
+                            {getFileName(uploadedDocs[field.key] && uploadedDocs[field.key].url)}
+                          </span>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleView(
+                              uploadedDocs[field.key].url,
+                              uploadedDocs[field.key].mimeType
+                            )}
+                            title="View Document"
+                          >
+                            <FaEye />
+                          </Button>
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => handleSaveDocument(field.key)}
+                            title="Save Document"
+                            className="me-2"
+                          >
+                            <FaSave />
+                          </Button>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleDelete(field.key)}
+                            title="Delete Document"
+                          >
+                            <FaTrash />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+
+          {/* Render default document fields */}
           {documentFields.map(field => (
             <Col md={6} lg={4} key={field.key} className="mb-4">
               <Card className="shadow-sm">
@@ -422,6 +630,76 @@ const Documents = () => {
             </Col>
           ))}
         </Row>
+
+        {/* Add Document Modal */}
+        <Modal 
+          show={showAddDocModal} 
+          onHide={() => {
+            setShowAddDocModal(false);
+            setNewDocName('');
+            setNewDocFile(null);
+          }} 
+          centered
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <FaPlus className="me-2" />
+              Add New Document
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Label>
+                  Document Name <span style={{ color: 'red' }}>*</span>
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter document name"
+                  value={newDocName}
+                  onChange={(e) => setNewDocName(e.target.value)}
+                />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>
+                  Upload File <span style={{ color: 'red' }}>*</span>
+                </Form.Label>
+                <ImageUpload
+                  value={newDocFile ? 'file-selected' : ''}
+                  onChange={(file) => setNewDocFile(file)}
+                  label="Upload File"
+                  buttonText={newDocFile ? 'Change File' : 'Select File'}
+                  successMessage="File selected successfully"
+                  helpText="Upload a document file"
+                  showPreview={false}
+                  acceptedTypes={[
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'application/vnd.ms-powerpoint',
+                    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                  ]}
+                  maxSize={10}
+                />
+                {newDocFile && (
+                  <small className="text-muted d-block mt-2">
+                    Selected: {newDocFile.name}
+                  </small>
+                )}
+              </Form.Group>
+              <Button 
+                variant="primary" 
+                onClick={handleAddCustomDocument}
+                className="w-100"
+                disabled={!newDocName.trim() || !newDocFile}
+              >
+                Add Document
+              </Button>
+            </Form>
+          </Modal.Body>
+        </Modal>
 
         {/* Add/Edit User Modal */}
         <Modal 
