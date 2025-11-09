@@ -305,13 +305,28 @@ const Services = () => {
                   </td>
                   <td>
                     <div className="text-start">
-                      <span 
+                      <span
                         className="text-muted"
-                        dangerouslySetInnerHTML={{
-                          __html: (service.description || service.detailedDescription || '').substring(0, 100) +
-                                  ((service.description || service.detailedDescription || '').length > 100 ? '...' : '')
-                        }}
-                      />
+                        style={{ width: '100%' }}
+                      >
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              <style>
+                                .service-desc-table h1, .service-desc-table h2, .service-desc-table h3, .service-desc-table h4, .service-desc-table h5, .service-desc-table h6 {
+                                  font-size: 1rem !important;
+                                  font-weight: 500 !important;
+                                  text-align: left !important;
+                                  margin: 0 0 0.25em 0 !important;
+                                }
+                              </style>
+                              <div class='service-desc-table'>
+                                ${(service.description || service.detailedDescription || '').substring(0, 100) + ((service.description || service.detailedDescription || '').length > 100 ? '...' : '')}
+                              </div>
+                            `
+                          }}
+                        />
+                      </span>
                     </div>
                   </td>
                   <td className="text-center">
