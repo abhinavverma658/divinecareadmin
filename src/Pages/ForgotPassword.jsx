@@ -11,11 +11,13 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // For testing: redirect to reset password page without verification
+    // navigate('/reset-password');
+    // ...existing code for real API call remains below...
     if (!email || !email.includes('@')) {
       toast.error('Please enter a valid email address');
       return;
     }
-
     try {
       setLoading(true);
       // Call backend API to send reset link
@@ -24,25 +26,20 @@ const ForgotPassword = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() })
       });
-
       let payload;
       try {
         payload = await res.json();
       } catch (jsonErr) {
         payload = null;
       }
-
       if (res.ok && payload && payload.success) {
-        // Show the requested success message
         toast.success('Password reset email sent successfully. Please check on you Email Id');
         navigate('/');
       } else {
-        // Prefer server message if available
         const msg = (payload && (payload.message || payload.error)) || `Failed to send reset link (status ${res.status})`;
         toast.error(msg);
       }
     } catch (err) {
-      // Network or unexpected error
       console.error('Forgot password error:', err);
       toast.error('Failed to send reset link. Please try again later.');
     } finally {

@@ -4,6 +4,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import Home from './Pages/Home.jsx'
 import Auth from './Pages/Auth.jsx'
 import ForgotPassword from './Pages/ForgotPassword.jsx'
+import ResetPassword from './Pages/ResetPassword.jsx'
 import Aos from "aos";
 import { useDispatch, useSelector } from 'react-redux'
 import SideNavbar from './layout/SideNavBar.jsx'
@@ -142,6 +143,7 @@ function App() {
       <Routes location={pageLocation} key={pageLocation.pathname}>
         <Route path="/" element={<Auth />  } />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
 
         {routeList?.map(({ path, comp }) => (
