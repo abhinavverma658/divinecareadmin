@@ -284,9 +284,9 @@ const Services = () => {
                 <tr key={service._id || index}>
                   <td>
                     <div className="d-flex align-items-center">
-                      {service.image && (
+                      {service.image1 && (
                         <Image
-                          src={service.image}
+                          src={service.image1}
                           alt={service.title}
                           width={50}
                           height={50}
@@ -371,17 +371,35 @@ const Services = () => {
             {selectedService && (
               <Row>
                 <Col md={4}>
-                  {selectedService.image && (
-                    <Image
-                      src={selectedService.image}
-                      alt={selectedService.title}
-                      fluid
-                      rounded
-                      className="mb-3"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
+                  {selectedService.image1 && (
+                    <div className="mb-3">
+                      <p className="text-muted mb-2"><strong>Outer Image:</strong></p>
+                      <Image
+                        src={selectedService.image1}
+                        alt={selectedService.title}
+                        fluid
+                        rounded
+                        className="mb-3"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                  {selectedService.image2 && (
+                    <div className="mb-3">
+                      <p className="text-muted mb-2"><strong>Inner Image:</strong></p>
+                      <Image
+                        src={selectedService.image2}
+                        alt={selectedService.title}
+                        fluid
+                        rounded
+                        className="mb-3"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    </div>
                   )}
                   <div className="text-center">
                     <div>

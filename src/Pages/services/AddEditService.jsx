@@ -25,14 +25,19 @@ const AddEditService = () => {
     title: '',
     description: '',
     shortDescription: '',
-    image: '',
+    image1: '',
+    image1PublicId: '',
+    image2: '',
+    image2PublicId: '',
     isActive: true,
     featured: false,
   });
 
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [innerImagePreview, setInnerImagePreview] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingInnerImage, setUploadingInnerImage] = useState(false);
 
   const fetchService = async () => {
     if (!id) return;
@@ -68,12 +73,23 @@ const AddEditService = () => {
         const description = serviceData.description || serviceData.detailedDescription || '';
         
         setFormData({
-          ...serviceData,
-          description: description // Always use 'description' internally in form
+          title: serviceData.title || '',
+          description: description,
+          shortDescription: serviceData.shortDescription || '',
+          image1: serviceData.image1 || '',
+          image1PublicId: serviceData.image1PublicId || '',
+          image2: serviceData.image2 || '',
+          image2PublicId: serviceData.image2PublicId || '',
+          isActive: serviceData.isActive !== undefined ? serviceData.isActive : true,
+          featured: serviceData.featured || false,
         });
         
-        if (serviceData.image) {
-          setImagePreview(serviceData.image);
+        if (serviceData.image1) {
+          setImagePreview(serviceData.image1);
+        }
+        
+        if (serviceData.image2) {
+          setInnerImagePreview(serviceData.image2);
         }
         
         console.log('🎯 Service data populated successfully');
@@ -127,7 +143,7 @@ const AddEditService = () => {
     setUploadingImage(true);
 
     try {
-      console.log('🖼️ Uploading service image:', file.name);
+      console.log('🖼️ Uploading outer service image:', file.name);
 
       const formDataUpload = new FormData();
       formDataUpload.append('files', file); // Use 'files' key for backend
@@ -138,26 +154,107 @@ const AddEditService = () => {
       
       // Expecting response.files[0].url based on new API format
       const imageUrl = response?.files?.[0]?.url;
+      const publicId = response?.files?.[0]?.public_id || '';
+      
       if (imageUrl) {
         setImagePreview(imageUrl);
-        setFormData(prev => ({ ...prev, image: imageUrl }));
-        console.log('✅ Service image uploaded:', imageUrl);
+        setFormData(prev => {
+          const updated = { 
+            ...prev, 
+            image1: imageUrl,
+            image1PublicId: publicId
+          };
+          console.log('🔍 Updated formData after image1 upload:', updated);
+          return updated;
+        });
+        console.log('✅ Outer service image uploaded:', imageUrl);
+        console.log('✅ Outer service publicId:', publicId);
         toast.success(`${file.name} uploaded successfully!`);
       } else {
         throw new Error('No image URL returned from server');
       }
     } catch (error) {
-      console.error('❌ Error uploading service image:', error);
+      console.error('❌ Error uploading outer service image:', error);
       toast.error(`Failed to upload ${file.name}. Please try again.`);
     } finally {
       setUploadingImage(false);
     }
   };
 
+  const handleInnerImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setUploadingInnerImage(true);
+
+    try {
+      console.log('🖼️ Uploading inner service image:', file.name);
+
+      const formDataUpload = new FormData();
+      formDataUpload.append('files', file); // Use 'files' key for backend
+      formDataUpload.append('folder', 'services');
+
+      const response = await uploadImage(formDataUpload).unwrap();
+      console.log('📤 Inner image upload response:', response);
+      
+      // Expecting response.files[0].url based on new API format
+      const imageUrl = response?.files?.[0]?.url;
+      const publicId = response?.files?.[0]?.public_id || '';
+      
+      if (imageUrl) {
+        setInnerImagePreview(imageUrl);
+        setFormData(prev => {
+          const updated = { 
+            ...prev, 
+            image2: imageUrl,
+            image2PublicId: publicId
+          };
+          console.log('🔍 Updated formData after image2 upload:', updated);
+          return updated;
+        });
+        console.log('✅ Inner service image uploaded:', imageUrl);
+        console.log('✅ Inner service publicId:', publicId);
+        toast.success(`${file.name} uploaded successfully!`);
+      } else {
+        throw new Error('No image URL returned from server');
+      }
+    } catch (error) {
+      console.error('❌ Error uploading inner service image:', error);
+      toast.error(`Failed to upload ${file.name}. Please try again.`);
+    } finally {
+      setUploadingInnerImage(false);
+    }
+  };
+
   const removeImage = () => {
     setImageFile(null);
     setImagePreview('');
-    setFormData(prev => ({ ...prev, image: '' }));
+    setFormData(prev => ({ 
+      ...prev, 
+      image1: '',
+      image1PublicId: ''
+    }));
+  };
+
+  const removeInnerImage = () => {
+    setInnerImagePreview('');
+    setFormData(prev => ({ 
+      ...prev, 
+      image2: '',
+      image2PublicId: ''
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -178,28 +275,30 @@ const AddEditService = () => {
     }
 
     try {
+      // Debug: Check formData before submission
+      console.log('🔍 FormData before submission:', formData);
+      console.log('🔍 image1:', formData.image1);
+      console.log('🔍 image1PublicId:', formData.image1PublicId);
+      console.log('🔍 image2:', formData.image2);
+      console.log('🔍 image2PublicId:', formData.image2PublicId);
+      
       // Prepare data with correct field mapping for backend
       let submitData = {
         title: formData.title.trim(),
         detailedDescription: formData.description.trim(), // Backend expects 'detailedDescription'
         shortDescription: formData.shortDescription.trim(),
+        image1: formData.image1 || '',
+        image1PublicId: formData.image1PublicId || '',
+        image2: formData.image2 || '',
+        image2PublicId: formData.image2PublicId || '',
+        isActive: Boolean(formData.isActive),
+        featured: Boolean(formData.featured),
       };
-
-      // Add optional fields only if they have values
-      if (formData.image) {
-        submitData.image = formData.image;
-      }
-
-      // Add boolean fields with default values
-      submitData.isActive = Boolean(formData.isActive);
-      submitData.featured = Boolean(formData.featured);
 
       console.log('📤 Submitting service data:', submitData);
       console.log('📤 Request type:', id ? 'UPDATE' : 'CREATE');
       console.log('📤 Service ID:', id || 'N/A');
-      console.log('📤 Data types:', Object.keys(submitData).map(key => 
-        `${key}: ${typeof submitData[key]} (${submitData[key]})`
-      ));
+      console.log('📤 Stringified submitData:', JSON.stringify(submitData, null, 2));
 
       const response = id 
         ? await updateService({ id, data: submitData }).unwrap()
@@ -228,7 +327,7 @@ const AddEditService = () => {
     }
   };
 
-  const isLoading_ = isLoading || createLoading || updateLoading || uploadingImage;
+  const isLoading_ = isLoading || createLoading || updateLoading || uploadingImage || uploadingInnerImage;
 
   return (
     <MotionDiv>
@@ -298,63 +397,128 @@ const AddEditService = () => {
                 </Card.Body>
               </Card>
 
-              {/* Service Image */}
-              <Card className="mb-4">
-                <Card.Header>
-                  <h5 className="mb-0">Service Image</h5>
-                </Card.Header>
-                <Card.Body className="text-center">
-                  {imagePreview ? (
-                    <div className="mb-3">
-                      <Image
-                        src={imagePreview}
-                        alt="Preview"
-                        fluid
-                        rounded
-                        style={{ maxHeight: '200px', objectFit: 'cover' }}
-                      />
-                      <div className="mt-2">
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={removeImage}
-                        >
-                          <FaTrash className="me-1" />
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mb-3">
-                      <div 
-                        className="bg-light rounded mx-auto d-flex align-items-center justify-content-center"
-                        style={{ height: '200px' }}
-                      >
-                        <FaUpload size={40} className="text-muted" />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <Form.Group>
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="mb-2"
-                      disabled={uploadingImage}
-                    />
-                    <Form.Text className="text-muted">
-                      Upload service image (Max 5MB, JPG/PNG recommended)
-                    </Form.Text>
-                    {uploadingImage && (
-                      <div className="mt-2">
-                        <Spinner animation="border" size="sm" className="me-2" />
-                        <small className="text-muted">Uploading image...</small>
-                      </div>
-                    )}
-                  </Form.Group>
-                </Card.Body>
-              </Card>
+              {/* Service Images */}
+              <Row className="mb-4">
+                {/* Outer Image Card */}
+                <Col md={6}>
+                  <Card>
+                    <Card.Header>
+                      <h5 className="mb-0">Outer Image</h5>
+                    </Card.Header>
+                    <Card.Body className="text-center">
+                      {imagePreview ? (
+                        <div className="mb-3">
+                          <Image
+                            src={imagePreview}
+                            alt="Outer Image Preview"
+                            fluid
+                            rounded
+                            style={{ maxHeight: '200px', objectFit: 'cover' }}
+                          />
+                          <div className="mt-2">
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={removeImage}
+                            >
+                              <FaTrash className="me-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-3">
+                          <div 
+                            className="bg-light rounded mx-auto d-flex align-items-center justify-content-center"
+                            style={{ height: '200px' }}
+                          >
+                            <FaUpload size={40} className="text-muted" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      <Form.Group>
+                        <Form.Control
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="mb-2"
+                          disabled={uploadingImage}
+                        />
+                        <Form.Text className="text-muted">
+                          Upload outer image (Max 5MB)
+                        </Form.Text>
+                        {uploadingImage && (
+                          <div className="mt-2">
+                            <Spinner animation="border" size="sm" className="me-2" />
+                            <small className="text-muted">Uploading...</small>
+                          </div>
+                        )}
+                      </Form.Group>
+                    </Card.Body>
+                  </Card>
+                </Col>
+
+                {/* Inner Image Card */}
+                <Col md={6}>
+                  <Card>
+                    <Card.Header>
+                      <h5 className="mb-0">Inner Image</h5>
+                    </Card.Header>
+                    <Card.Body className="text-center">
+                      {innerImagePreview ? (
+                        <div className="mb-3">
+                          <Image
+                            src={innerImagePreview}
+                            alt="Inner Image Preview"
+                            fluid
+                            rounded
+                            style={{ maxHeight: '200px', objectFit: 'cover' }}
+                          />
+                          <div className="mt-2">
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={removeInnerImage}
+                            >
+                              <FaTrash className="me-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-3">
+                          <div 
+                            className="bg-light rounded mx-auto d-flex align-items-center justify-content-center"
+                            style={{ height: '200px' }}
+                          >
+                            <FaUpload size={40} className="text-muted" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      <Form.Group>
+                        <Form.Control
+                          type="file"
+                          accept="image/*"
+                          onChange={handleInnerImageChange}
+                          className="mb-2"
+                          disabled={uploadingInnerImage}
+                        />
+                        <Form.Text className="text-muted">
+                          Upload inner image (Max 5MB)
+                        </Form.Text>
+                        {uploadingInnerImage && (
+                          <div className="mt-2">
+                            <Spinner animation="border" size="sm" className="me-2" />
+                            <small className="text-muted">Uploading...</small>
+                          </div>
+                        )}
+                      </Form.Group>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
 
               {/* Action Buttons */}
               <Card>

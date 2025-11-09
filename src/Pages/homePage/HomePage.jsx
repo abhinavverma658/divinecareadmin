@@ -272,7 +272,7 @@ const HomePage = () => {
                     fontWeight: '500',
                     fontSize: '0.875rem',
                     border: section.comingSoon ? '1px solid #6c757d' : '1px solid #007bff',
-                    color: section.comingSoon ? '#6c757d' : '#007bff'
+                    color: section.comingSoon ? '#6c757d' : '#00000'
                   }}
                   onClick={() => !section.comingSoon && navigate(section.route)}
                   disabled={section.comingSoon}
