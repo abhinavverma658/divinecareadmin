@@ -14,6 +14,12 @@ import { toast } from 'react-toastify';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+ 
+ 
+
 const EditTestimonialSection = () => {
   const { token } = useSelector(selectAuth);
   
@@ -301,23 +307,23 @@ const EditTestimonialSection = () => {
 
       // Handle different response formats
       let imageUrl = '';
+      let imageKey = '';
+
       if (response.success && response.files && response.files[0]) {
-        imageUrl = response.files[0].url;
-      } else if (response.imageUrl) {
-        imageUrl = response.imageUrl;
-      } else if (response.url) {
-        imageUrl = response.url;
+        imageUrl = response.files[0].url || response.files[0].fileUrl;
+        imageKey = response.files[0].key || response.files[0].objectKey || response.files[0].antrykKey;
+      } else if (response.imageUrl || response.url) {
+        imageUrl = response.imageUrl || response.url;
+        imageKey = response.key || response.imageKey || ''; // the upload API sometimes returns key at top level
       } else {
         throw new Error('Invalid upload response format');
       }
 
-      // Update form data with uploaded image URL
+      // Save both into local form state
       setFormData(prev => ({
         ...prev,
-        testimonials: prev.testimonials.map(testimonial =>
-          testimonial.id === testimonialId
-            ? { ...testimonial, profileImage: imageUrl, imageUploading: false }
-            : testimonial
+        testimonials: prev.testimonials.map(t =>
+          t.id === testimonialId ? { ...t, profileImage: imageUrl, profileImageKey: imageKey, imageUploading: false } : t
         )
       }));
 
@@ -593,7 +599,8 @@ const EditTestimonialSection = () => {
 
       // Real API call - match backend field names
       const testimonialData = {
-        image: testimonial.profileImage,
+        image: testimonial.profileImage,          // URL for display (preferred)
+        imageKey: testimonial.profileImageKey,   // Antryk object key (if available)
         rating: testimonial.starRating,
         title: testimonial.role,
         name: testimonial.name,
@@ -855,6 +862,9 @@ const EditTestimonialSection = () => {
     );
   }
 
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <Container fluid className="px-4 py-3">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -950,7 +960,7 @@ const EditTestimonialSection = () => {
                           )}
                           {testimonial.profileImage && (
                             <Image
-                              src={testimonial.profileImage}
+                              src={getImageUrl(testimonial.profileImage)}
                               alt="Profile"
                               className="rounded-circle mb-3"
                               style={{ width: '80px', height: '80px', objectFit: 'cover' }}
@@ -1147,7 +1157,7 @@ const EditTestimonialSection = () => {
                     )}
                     {formData.sectionImage && (
                       <Image
-                        src={formData.sectionImage}
+                        src={getImageUrl(formData.sectionImage)}
                         alt="Section Background"
                         className="mb-3"
                         style={{ width: '200px', height: '120px', objectFit: 'cover' }}

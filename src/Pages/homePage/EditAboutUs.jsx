@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+
 import { Container, Row, Col, Card, Button, Form, Alert, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useGetAboutUsDataMutation, useUpdateAboutUsDataMutation } from '../../features/apiSlice';
@@ -10,6 +11,9 @@ import FormField from '../../Components/FormField';
 import { FaSave, FaArrowLeft, FaPlus, FaTrash, FaUsers, FaHandsHelping, FaHeart, FaShieldAlt, FaHome, FaBullseye, FaStar, FaLeaf, FaHandHoldingHeart, FaGlobeAmericas, FaLightbulb, FaRocket } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
 
 const EditAboutUs = () => {
   const navigate = useNavigate();
@@ -359,6 +363,10 @@ const EditAboutUs = () => {
     }
   };
 
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -579,7 +587,7 @@ const EditAboutUs = () => {
                                   <label className="form-label">Preview</label>
                                   <div className="border rounded" style={{ padding: '10px' }}>
                                     <img
-                                      src={formData.centerImage}
+                                      src={getImageUrl(formData.centerImage)}
                                       alt="Center Image"
                                       style={{ 
                                         width: '100%', 
@@ -631,7 +639,7 @@ const EditAboutUs = () => {
                                   <label className="form-label">Preview</label>
                                   <div className="border rounded" style={{ padding: '10px' }}>
                                     <img
-                                      src={formData.rightImage}
+                                      src={getImageUrl(formData.rightImage)}
                                       alt="Right Image"
                                       style={{ 
                                         width: '100%', 

@@ -11,6 +11,10 @@ import { FaSave, FaArrowLeft, FaImages, FaPlus, FaTrash, FaUpload } from 'react-
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
+
 const EditGallery = () => {
   const navigate = useNavigate();
   const { token } = useSelector(selectAuth);
@@ -326,6 +330,9 @@ const EditGallery = () => {
     }
   };
 
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -456,7 +463,7 @@ const EditGallery = () => {
                           </Card.Header>
                           <Card.Body>
                             <ImageUpload
-                              value={image.url}
+                              value={getImageUrl(image.url)}
                               onChange={(imageUrl) => {
                                 handleImageChange(image.id, 'url', imageUrl);
                                 // Generate a public_id when image URL changes

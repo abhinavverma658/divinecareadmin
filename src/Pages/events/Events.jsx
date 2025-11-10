@@ -17,6 +17,12 @@ import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 import Skeleton from 'react-loading-skeleton';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+ 
+
+
 const Events = () => {
   const navigate = useNavigate();
   const { token } = useSelector(selectAuth);
@@ -282,6 +288,14 @@ const Events = () => {
     </Card>
   );
 
+    const getImageUrl = (val) =>
+    !val ? '' : (() => {
+      const str = String(val).trim();
+      if (/^https?:\/\//i.test(str)) return str;
+      const clean = str.replace(/^\/+/, '');
+      return `${BASE_URL.replace(/\/$/, '')}/${encodeURI(clean)}`;
+    })();
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -418,7 +432,7 @@ const Events = () => {
                       <td>
                         <div className="d-flex align-items-center">
                           <Image
-                            src={event.featuredImage || event.image || event.images?.[0] || 'https://via.placeholder.com/60x60?text=No+Image'}
+                            src={getImageUrl(event.featuredImage || event.image || event.images?.[0])}
                             alt={event.title}
                             width={60}
                             height={60}

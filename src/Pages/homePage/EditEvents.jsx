@@ -11,6 +11,10 @@ import { FaSave, FaArrowLeft, FaCalendarAlt, FaUpload, FaTrash } from 'react-ico
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
+
 const EditEvents = () => {
   const navigate = useNavigate();
   const { token } = useSelector(selectAuth);
@@ -295,6 +299,9 @@ const EditEvents = () => {
     }
   };
 
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -390,7 +397,7 @@ const EditEvents = () => {
                     </Col>
                     <Col md={6}>
                       <ImageUpload
-                        value={formData.image}
+                        value={getImageUrl(formData.image)}
                         onChange={(imageUrl) => {
                           setFormData(prev => ({ ...prev, image: imageUrl }));
                           setHasChanges(true);
@@ -408,7 +415,7 @@ const EditEvents = () => {
                         <label className="form-label">Background Image Preview</label>
                         <div className="border rounded" style={{ padding: '10px' }}>
                           <img
-                            src={formData.image}
+                            src={getImageUrl(formData.image)}
                             alt="Background Preview"
                             style={{ 
                               width: '100%', 

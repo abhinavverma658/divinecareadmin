@@ -13,7 +13,7 @@ const Subscribers = () => {
   const fetchSubscribers = async () => {
     try {
       setLoading(true);
-      const url = 'https://divinecare-backend.onrender.com/api/subscribe';
+      const url = `${import.meta.env.VITE_API_URL}/api/subscribe`;
       const token = auth?.token;
       if (!token) {
         toast.error('Not authenticated.');

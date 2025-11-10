@@ -11,6 +11,11 @@ import { FaSave, FaArrowLeft, FaUpload, FaTrash } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+ 
+
+
 const AddEditService = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -329,6 +334,9 @@ const AddEditService = () => {
 
   const isLoading_ = isLoading || createLoading || updateLoading || uploadingImage || uploadingInnerImage;
 
+    const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -409,7 +417,7 @@ const AddEditService = () => {
                       {imagePreview ? (
                         <div className="mb-3">
                           <Image
-                            src={imagePreview}
+                            src={getImageUrl(imagePreview)}
                             alt="Outer Image Preview"
                             fluid
                             rounded
@@ -469,7 +477,7 @@ const AddEditService = () => {
                       {innerImagePreview ? (
                         <div className="mb-3">
                           <Image
-                            src={innerImagePreview}
+                            src={getImageUrl(innerImagePreview)}
                             alt="Inner Image Preview"
                             fluid
                             rounded

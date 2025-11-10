@@ -14,6 +14,11 @@ import {
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
+
 const AddEditEvent = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -196,9 +201,10 @@ const AddEditEvent = () => {
     if (files.length === 0) return;
 
     // Validate file types and sizes
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name} is not a valid image file`);
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`${file.name} is not a supported image type`);
         return false;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -363,6 +369,9 @@ const AddEditEvent = () => {
       </MotionDiv>
     );
   }
+
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
 
   // Add error boundary check - more comprehensive validation
   if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
@@ -572,7 +581,7 @@ const AddEditEvent = () => {
                           <Col xs={6} key={index} className="mb-3">
                             <div className="position-relative">
                               <Image
-                                src={img}
+                                src={getImageUrl(img)}
                                 alt={`Preview ${index + 1}`}
                                 fluid
                                 rounded

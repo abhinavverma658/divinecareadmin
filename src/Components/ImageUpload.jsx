@@ -1,3 +1,9 @@
+// Get BASE_URL from env
+const BASE_URL = import.meta.env?.VITE_BASE_URL || 'https://divine-care.ap-south-1.storage.onantryk.com';
+
+// Utility to get absolute image URL
+const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
 import React, { useState, useRef } from 'react';
 import { Card, Button, Alert, Spinner, Row, Col } from 'react-bootstrap';
 import { FaUpload, FaTrash, FaImage, FaEye } from 'react-icons/fa';
@@ -225,40 +231,43 @@ const ImageUpload = ({
     window.open(imageUrl, '_blank');
   };
 
-  const renderImagePreview = (imageUrl, index = null) => (
-    <div className="position-relative d-inline-block me-2 mb-2" key={index || 'single'}>
-      <Card style={{ width: '150px' }}>
-        <Card.Img 
-          variant="top" 
-          src={imageUrl} 
-          style={{ height: previewHeight, objectFit: 'cover' }}
-          alt="Preview"
-          onError={(e) => {
-            console.log('Image preview error for:', imageUrl);
-            e.target.src = 'https://via.placeholder.com/150x200/f8f9fa/6c757d?text=Image+Error';
-          }}
-        />
-        <Card.Body className="p-2">
-          <div className="d-flex justify-content-between">
-            <Button
-              variant="outline-info"
-              size="sm"
-              onClick={() => openPreview(imageUrl)}
-            >
-              <FaEye />
-            </Button>
-            <Button
-              variant="outline-danger"
-              size="sm"
-              onClick={() => removeImage(multiple ? index : imageUrl)}
-            >
-              <FaTrash />
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
-    </div>
-  );
+  const renderImagePreview = (imageUrl, index = null) => {
+    const absUrl = getImageUrl(imageUrl);
+    return (
+      <div className="position-relative d-inline-block me-2 mb-2" key={index || 'single'}>
+        <Card style={{ width: '150px' }}>
+          <Card.Img 
+            variant="top" 
+            src={absUrl}
+            style={{ height: previewHeight, objectFit: 'cover' }}
+            alt="Preview"
+            onError={(e) => {
+              console.log('Image preview error for:', absUrl);
+              e.target.src = 'https://via.placeholder.com/150x200/f8f9fa/6c757d?text=Image+Error';
+            }}
+          />
+          <Card.Body className="p-2">
+            <div className="d-flex justify-content-between">
+              <Button
+                variant="outline-info"
+                size="sm"
+                onClick={() => openPreview(absUrl)}
+              >
+                <FaEye />
+              </Button>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                onClick={() => removeImage(multiple ? index : imageUrl)}
+              >
+                <FaTrash />
+              </Button>
+            </div>
+          </Card.Body>
+        </Card>
+      </div>
+    );
+  };
 
   const hasImages = multiple ? (Array.isArray(value) && value.length > 0) : !!value;
   const imageUrls = multiple ? (Array.isArray(value) ? value : []) : (value ? [value] : []);

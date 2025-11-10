@@ -10,6 +10,12 @@ import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import CreateMarkup from '../../Components/CreateMarkup';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+ 
+ 
+
 function Blogs() {
 
   const [showTestimonial,setShowTestimonial] = useState(false);
@@ -52,7 +58,15 @@ useEffect(()=>{
   fetchBlogs();
 },[])
 
-
+ const getImageUrl = (val) => {
+  if (!val) return '';
+  const str = String(val).trim();
+  if (/^https?:\/\//i.test(str)) return str;
+  const clean = str.replace(/^\/+/, '');
+  const encoded = encodeURI(clean);
+  return `${BASE_URL.replace(/\/$/, '')}/${encoded}`;
+ };
+ 
 
   return (
     <MotionDiv>
@@ -98,8 +112,8 @@ useEffect(()=>{
           <br/>
           <Row>
             <Col className='text-center'>
-            
-          <Image src={imgAddr+selectedData?.image_url} fluid className='my-2 ' rounded   style={{height:'100px',border:'1px solid var(--neutral-color)',padding:'2px'}}/>
+
+          <Image src={getImageUrl(selectedData?.image_url)} fluid className='my-2 ' rounded   style={{height:'100px',border:'1px solid var(--neutral-color)',padding:'2px'}}/>
             </Col>
 
           </Row>

@@ -10,6 +10,11 @@ import { FaArrowLeft, FaSave, FaImage, FaTrash, FaPlus, FaArrowUp, FaArrowDown, 
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
+
+
 const EditHomeHero = () => {
   const navigate = useNavigate();
   const { token } = useSelector(selectAuth);
@@ -269,6 +274,9 @@ const EditHomeHero = () => {
     }
   };
 
+  const getImageUrl = (val) =>
+   !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -406,7 +414,7 @@ const EditHomeHero = () => {
                           <label className="form-label">Preview</label>
                           <div className="border rounded" style={{ padding: '10px' }}>
                             <Image
-                              src={formData.heroImage}
+                              src={getImageUrl(formData.heroImage)}
                               alt="Hero Image"
                               fluid
                               rounded

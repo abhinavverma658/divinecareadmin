@@ -5,6 +5,10 @@ import { Link } from 'react-router-dom';
 import { useGetAboutMissionDataMutation, useUpdateAboutMissionDataMutation, useUploadImageMutation } from '../../features/apiSlice';
 import { toast } from 'react-toastify';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
 const EditOurMission = () => {
   const [formData, setFormData] = useState({
     missionHeading: '',
@@ -278,6 +282,9 @@ const EditOurMission = () => {
     );
   }
 
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <Container fluid className="px-4 py-3">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -400,7 +407,7 @@ const EditOurMission = () => {
                   <div className="text-center">
                     {formData.missionImage && (
                       <Image
-                        src={formData.missionImage}
+                        src={getImageUrl(formData.missionImage)}
                         alt="Mission Image"
                         className="img-fluid rounded mb-3"
                         style={{ maxHeight: '300px', objectFit: 'cover', width: '100%' }}
