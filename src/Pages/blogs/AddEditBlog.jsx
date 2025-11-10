@@ -11,6 +11,12 @@ import { getError } from '../../utils/error';
 import TextEditor from '../../Components/TextEditor';
 import Cropper from 'react-easy-crop';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+ 
+ 
+
 function AddEditBlog() {
   const [form, setForm] = useState({});
   const [picToUpload, setPicToUpload] = useState(null);
@@ -77,6 +83,10 @@ function AddEditBlog() {
         } else {
           formData.append('image', form?.image);
         }
+        // Include imageKey when available (frontend-uploaded key) so backend can store/delete correctly
+        if (form?.imageKey) {
+          formData.append('imageKey', form.imageKey);
+        }
 
         const data = id ? await updateBlogById({ id, data: formData }).unwrap() : await createBlog(formData).unwrap();
         toast.success(data?.message);
@@ -96,6 +106,7 @@ function AddEditBlog() {
         title: data?.blog?.title,
         description: data?.blog?.description,
         image: data?.blog?.image_url,
+        imageKey: data?.blog?.image_key || data?.blog?.imageKey || ''
       });
     } catch (error) {
       getError(error);
@@ -147,6 +158,17 @@ function AddEditBlog() {
     setForm({ ...form, [name]: value });
   };
 
+    const getImageUrl = (val) => {
+      if (!val) return '';
+      const str = String(val).trim();
+      // If already a full URL, return as-is
+      if (/^https?:\/\//i.test(str)) return str;
+      // Remove leading slashes and encode special characters (spaces, etc.)
+      const clean = str.replace(/^\/+/, '');
+      const encoded = encodeURI(clean);
+      return `${BASE_URL.replace(/\/$/, '')}/${encoded}`;
+    };
+
   return (
     <MotionDiv>
       <h3 style={{ color: 'var(--dark-color)' }}>{id ? 'Edit' : 'Add'} Blog</h3>
@@ -154,7 +176,18 @@ function AddEditBlog() {
         <Row className='my-3'>
           <Col md={6}>
             <Form.Label>Cover Image</Form.Label> <br />
-            <BootImage src={croppedPicPreview? URL.createObjectURL(croppedPicPreview) : (form?.image && imgAddr + form?.image)} className='border ' style={{ objectFit: 'contain' }} rounded height={'200px'} width={'350px'} />
+            <BootImage
+              src={
+                croppedPicPreview
+                  ? URL.createObjectURL(croppedPicPreview)
+                  : getImageUrl(form?.image)
+              }
+              className="border"
+              style={{ objectFit: 'contain' }}
+              rounded
+              height={'200px'}
+              width={'350px'}
+            />
             <Button variant='transparent' className='add-btn m-4' onClick={handleButtonClick}>Upload Image <FaUpload /></Button>
             <input
               id="img-upload"

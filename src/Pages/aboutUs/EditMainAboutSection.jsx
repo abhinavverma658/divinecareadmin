@@ -6,6 +6,10 @@ import { useGetAboutMainDataMutation, useUpdateAboutMainDataMutation, useUploadI
 import { toast } from 'react-toastify';
 import { store } from '../../store';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
 const EditMainAboutSection = () => {
   const [formData, setFormData] = useState({
     heading: '',
@@ -348,6 +352,9 @@ const EditMainAboutSection = () => {
     );
   }
 
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
   return (
     <Container fluid className="px-4 py-3">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -472,7 +479,7 @@ const EditMainAboutSection = () => {
                       <div className="text-center">
                         {formData.leftImage1 && (
                           <Image
-                            src={formData.leftImage1}
+                            src={getImageUrl(formData.leftImage1)}
                             alt="Left Image 1"
                             className="img-fluid rounded mb-2"
                             style={{ maxHeight: '150px', objectFit: 'cover' }}
@@ -500,7 +507,7 @@ const EditMainAboutSection = () => {
                       <div className="text-center">
                         {formData.leftImage2 && (
                           <Image
-                            src={formData.leftImage2}
+                            src={getImageUrl(formData.leftImage2)}
                             alt="Left Image 2"
                             className="img-fluid rounded mb-2"
                             style={{ maxHeight: '150px', objectFit: 'cover' }}
@@ -530,7 +537,7 @@ const EditMainAboutSection = () => {
                   <div className="text-center">
                     {formData.rightImage && (
                       <Image
-                        src={formData.rightImage}
+                        src={getImageUrl(formData.rightImage)}
                         alt="Right Main Image"
                         className="img-fluid rounded mb-2"
                         style={{ maxHeight: '200px', objectFit: 'cover' }}

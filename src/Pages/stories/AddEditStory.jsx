@@ -11,6 +11,10 @@ import { FaSave, FaArrowLeft, FaUpload, FaTrash } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
+
+// Get BASE_URL from env
+const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+
 const AddEditStory = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -100,7 +104,8 @@ const AddEditStory = () => {
           content: storyData.content || '',
           author: storyData.author || '',
           date: storyData.date ? new Date(storyData.date).toISOString().split('T')[0] : '',
-          image: storyData.image || ''
+          image: storyData.image || '',
+          imageKey: storyData.imageKey || ''
         });
         
         if (storyData.image) {
@@ -163,11 +168,13 @@ const AddEditStory = () => {
 
       const response = await uploadImage(formData).unwrap();
       // Expecting response.files[0].url
-      const imageUrl = response?.files?.[0]?.url;
+      const fileObj = response?.files?.[0] || {};
+      const imageUrl = fileObj.url;
+      const imageKey = fileObj.key || fileObj.objectKey || fileObj.antrykKey;
       if (imageUrl) {
         setImagePreview(imageUrl);
-        setFormData(prev => ({ ...prev, image: imageUrl }));
-        console.log('✅ Story image uploaded:', imageUrl);
+        setFormData(prev => ({ ...prev, image: imageUrl, imageKey: imageKey || '' }));
+        console.log('✅ Story image uploaded:', imageUrl, 'key:', imageKey);
         toast.success(`${file.name} uploaded successfully!`);
       } else {
         throw new Error('No image URL returned from server');
@@ -183,7 +190,7 @@ const AddEditStory = () => {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview('');
-    setFormData(prev => ({ ...prev, image: '' }));
+    setFormData(prev => ({ ...prev, image: '', imageKey: '' }));
   };
 
   const uploadImageFile = async () => {
@@ -198,9 +205,13 @@ const AddEditStory = () => {
       const response = await uploadImage(formDataUpload).unwrap();
       console.log('📤 Image upload response:', response);
       // Expecting response.files[0].url
-      const imageUrl = response?.files?.[0]?.url;
-      if (!imageUrl) throw new Error('No image URL returned from server');
-      return imageUrl;
+  const fileObj = response?.files?.[0] || {};
+  const imageUrl = fileObj.url;
+  const imageKey = fileObj.key || fileObj.objectKey || fileObj.antrykKey;
+  if (!imageUrl) throw new Error('No image URL returned from server');
+  // Persist imageKey into formData so submit includes it
+  setFormData(prev => ({ ...prev, image: imageUrl, imageKey: imageKey || '' }));
+  return { url: imageUrl, key: imageKey };
     } catch (error) {
       console.error('❌ Image upload error:', error);
       toast.error('Failed to upload image');
@@ -245,13 +256,14 @@ const AddEditStory = () => {
       let finalImageUrl = formData.image;
       if (imageFile) {
         const uploadResponse = await uploadImageFile();
-        finalImageUrl = uploadResponse;
+        finalImageUrl = uploadResponse?.url || uploadResponse || finalImageUrl;
       }
 
       // Prepare data for story API (match required structure)
       const submitData = {
         title: formData.title.trim(),
         image: finalImageUrl,
+        imageKey: formData.imageKey || undefined,
         author: formData.author.trim(),
         content: formData.content.trim(),
         date: new Date(formData.date).toISOString(),
@@ -294,6 +306,10 @@ const AddEditStory = () => {
   };
 
   const isLoading_ = isLoading || createLoading || updateLoading || uploadingImage;
+
+  const getImageUrl = (val) =>
+  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+
 
   return (
     <MotionDiv>
@@ -382,7 +398,7 @@ const AddEditStory = () => {
                   {imagePreview ? (
                     <div className="mb-3">
                       <Image
-                        src={imagePreview}
+                        src={getImageUrl(imagePreview)}
                         alt="Preview"
                         fluid
                         rounded
