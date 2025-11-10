@@ -255,11 +255,13 @@ const Documents = () => {
     }
   };
 
-  const handleSaveDocument = async (key) => {
+  const handleSaveDocument = async (key, showToast = true) => {
     const doc = uploadedDocs[key];
     if (!doc || !doc.url) {
-      toast.error('Cannot save document: missing document data');
-      return;
+      if (showToast) {
+        toast.error('Cannot save document: missing document data');
+      }
+      return { success: false, key, error: 'Missing document data' };
     }
 
     try {
@@ -287,12 +289,21 @@ const Documents = () => {
               id: response.document.id
             }
           }));
-          toast.success('Document saved successfully!');
+          if (showToast) {
+            toast.success('Document saved successfully!');
+          }
+          return { success: true, key, label: docLabel };
         } else {
-          toast.error(response.message || 'Failed to save document');
+          if (showToast) {
+            toast.error(response.message || 'Failed to save document');
+          }
+          return { success: false, key, label: docLabel, error: response.message || 'Failed to save document' };
         }
       } else {
         // Existing document - update it
+        const customDoc = customDocuments.find(d => d.key === key);
+        const docLabel = customDoc ? customDoc.label : (doc.title || key);
+        
         const response = await updateDocument({
           id: doc.id,
           data: {
@@ -307,25 +318,50 @@ const Documents = () => {
         }).unwrap();
 
         if (response.success) {
-          toast.success('Document saved successfully!');
+          if (showToast) {
+            toast.success('Document saved successfully!');
+          }
+          return { success: true, key, label: docLabel };
         } else {
-          toast.error(response.message || 'Failed to save document');
+          if (showToast) {
+            toast.error(response.message || 'Failed to save document');
+          }
+          return { success: false, key, label: docLabel, error: response.message || 'Failed to save document' };
         }
       }
     } catch (error) {
       console.error('Error saving document:', error);
-      toast.error('Error saving document. Please try again.');
+      const customDoc = customDocuments.find(d => d.key === key);
+      const docLabel = customDoc ? customDoc.label : (doc.title || key);
+      if (showToast) {
+        toast.error('Error saving document. Please try again.');
+      }
+      return { success: false, key, label: docLabel, error: error.message || 'Error saving document' };
     }
   };
 
   // Save all documents function now triggers individual saves
   const handleSaveDocuments = async () => {
-    const savePromises = Object.keys(uploadedDocs).map(key => handleSaveDocument(key));
-    try {
-      await Promise.all(savePromises);
+    const keys = Object.keys(uploadedDocs);
+    if (keys.length === 0) {
+      toast.info('No documents to save');
+      return;
+    }
+
+    const results = await Promise.all(
+      keys.map(key => handleSaveDocument(key, false))
+    );
+
+    const failed = results.filter(r => !r.success);
+    const succeeded = results.filter(r => r.success);
+
+    if (failed.length === 0) {
       toast.success('All documents saved successfully!');
-    } catch (error) {
-      toast.error('Error saving some documents. Please try again.');
+    } else if (succeeded.length === 0) {
+      toast.error('Failed to save all documents. Please try again.');
+    } else {
+      const failedDocs = failed.map(f => f.label).join(', ');
+      toast.warning(`${succeeded.length} document(s) saved successfully. Failed to save: ${failedDocs}`);
     }
   };
 
@@ -403,12 +439,12 @@ const Documents = () => {
   return (
     <MotionDiv>
       <Container fluid>
-        <div className="mb-4 d-flex justify-content-between align-items-center">
+        <div className="mb-4 d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
           <div>
             <h2 style={{ color: 'var(--dark-color)' }}>Document Management</h2>
-            <p className="text-muted">Upload company documents, policies, and employee records</p>
+            <p className="text-muted mb-0">Upload company documents, policies, and employee records</p>
           </div>
-          <div className="d-flex gap-2">
+          <div className="d-flex flex-wrap gap-2">
             <Button 
               variant="info" 
               onClick={() => {
@@ -467,18 +503,18 @@ const Documents = () => {
         <Row>
           {/* Render custom documents first */}
           {customDocuments.map(field => (
-            <Col md={6} lg={4} key={field.key} className="mb-4">
-              <Card className="shadow-sm">
+            <Col xs={12} sm={6} lg={4} key={field.key} className="mb-4">
+              <Card className="shadow-sm h-100">
                 <Card.Header>
                   <div className="d-flex align-items-center justify-content-between">
-                    <div className="d-flex align-items-center">
-                      {React.createElement(field.icon, { className: 'me-2 text-primary', size: 20 })}
-                      <strong>{field.label}</strong>
+                    <div className="d-flex align-items-center flex-grow-1 me-2">
+                      {React.createElement(field.icon, { className: 'me-2 text-primary flex-shrink-0', size: 20 })}
+                      <strong className="text-truncate">{field.label}</strong>
                     </div>
                     <Button
                       variant="link"
                       size="sm"
-                      className="text-danger p-0"
+                      className="text-danger p-0 flex-shrink-0"
                       onClick={() => handleDeleteCustomDocument(field.key)}
                       title="Remove this document type"
                     >
@@ -508,14 +544,14 @@ const Documents = () => {
                   />
                   {uploadedDocs[field.key] && uploadedDocs[field.key].url && (
                     <div className="uploaded-file-info mt-3">
-                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                        <div className="d-flex align-items-center grow">
-                          <FaFile className="me-2 text-primary" size={24} />
-                          <span className="text-truncate" style={{ maxWidth: '200px' }}>
+                      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-3 bg-light rounded gap-2">
+                        <div className="d-flex align-items-center w-100 w-sm-auto overflow-hidden">
+                          <FaFile className="me-2 text-primary flex-shrink-0" size={24} />
+                          <span className="text-truncate" style={{ maxWidth: '100%' }}>
                             {getFileName(uploadedDocs[field.key] && uploadedDocs[field.key].url)}
                           </span>
                         </div>
-                        <div className="d-flex gap-2">
+                        <div className="d-flex gap-2 w-100 w-sm-auto justify-content-end">
                           <Button
                             variant="outline-primary"
                             size="sm"
@@ -555,12 +591,12 @@ const Documents = () => {
 
           {/* Render default document fields */}
           {documentFields.map(field => (
-            <Col md={6} lg={4} key={field.key} className="mb-4">
-              <Card className="shadow-sm">
+            <Col xs={12} sm={6} lg={4} key={field.key} className="mb-4">
+              <Card className="shadow-sm h-100">
                 <Card.Header>
-                  <div className="d-flex align-items-center">
-                    {React.createElement(field.icon, { className: 'me-2 text-primary', size: 20 })}
-                    <strong>{field.label}</strong>
+                  <div className="d-flex align-items-center flex-wrap">
+                    {React.createElement(field.icon, { className: 'me-2 text-primary flex-shrink-0', size: 20 })}
+                    <strong className="text-truncate flex-grow-1">{field.label}</strong>
                   </div>
                 </Card.Header>
                 <Card.Body>
@@ -585,14 +621,14 @@ const Documents = () => {
                   />
                   {uploadedDocs[field.key] && uploadedDocs[field.key].url && (
                     <div className="uploaded-file-info mt-3">
-                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                        <div className="d-flex align-items-center grow">
-                          <FaFile className="me-2 text-primary" size={24} />
-                          <span className="text-truncate" style={{ maxWidth: '200px' }}>
+                      <div className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-3 bg-light rounded gap-2">
+                        <div className="d-flex align-items-center w-100 w-sm-auto overflow-hidden">
+                          <FaFile className="me-2 text-primary flex-shrink-0" size={24} />
+                          <span className="text-truncate" style={{ maxWidth: '100%' }}>
                             {getFileName(uploadedDocs[field.key] && uploadedDocs[field.key].url)}
                           </span>
                         </div>
-                        <div className="d-flex gap-2">
+                        <div className="d-flex gap-2 w-100 w-sm-auto justify-content-end">
                           <Button
                             variant="outline-primary"
                             size="sm"
@@ -664,10 +700,10 @@ const Documents = () => {
                 <Form.Label>
                   Upload File <span style={{ color: 'red' }}>*</span>
                 </Form.Label>
-                <ImageUpload
+                <ImageUpload 
                   value={newDocFile ? 'file-selected' : ''}
                   onChange={(file) => setNewDocFile(file)}
-                  label="Upload File"
+                  label=''
                   buttonText={newDocFile ? 'Change File' : 'Select File'}
                   successMessage="File selected successfully"
                   helpText="Upload a document file"
@@ -786,6 +822,7 @@ const Documents = () => {
           centered
           backdrop={true}
           enforceFocus={false}
+          fullscreen="md-down"
         >
           <div style={{ 
             opacity: showUserModal && editingUser ? 0.5 : 1,
@@ -797,24 +834,25 @@ const Documents = () => {
               All Users
             </Modal.Title>
           </Modal.Header>
-          <Modal.Body>
+          <Modal.Body style={{ overflowX: 'auto' }}>
             {isUsersLoading ? (
               <Alert variant="info">Loading users...</Alert>
             ) : users.length === 0 ? (
               <Alert variant="info">No users found.</Alert>
             ) : (
-              <Table striped bordered hover responsive>
+              <div className="table-responsive">
+              <Table striped bordered hover>
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Active</th>
-                    <th>Created</th>
-                    <th>Updated</th>
-                    <th>Last Login</th>
+                    <th className="text-nowrap">#</th>
+                    <th className="text-nowrap">First Name</th>
+                    <th className="text-nowrap">Last Name</th>
+                    <th className="text-nowrap">Email</th>
+                    <th className="text-nowrap">Role</th>
+                    <th className="text-nowrap">Active</th>
+                    <th className="text-nowrap">Created</th>
+                    <th className="text-nowrap">Updated</th>
+                    <th className="text-nowrap">Last Login</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -833,6 +871,7 @@ const Documents = () => {
                   ))}
                 </tbody>
               </Table>
+              </div>
             )}
           </Modal.Body>
           </div>
