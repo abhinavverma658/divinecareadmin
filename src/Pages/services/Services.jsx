@@ -396,7 +396,7 @@ const Services = () => {
                     <div className="mb-3">
                       <p className="text-muted mb-2"><strong>Outer Image:</strong></p>
                       <Image
-                        src={selectedService.image1}
+                        src={getImageUrl(selectedService.image1)}
                         alt={selectedService.title}
                         fluid
                         rounded
@@ -411,7 +411,7 @@ const Services = () => {
                     <div className="mb-3">
                       <p className="text-muted mb-2"><strong>Inner Image:</strong></p>
                       <Image
-                        src={selectedService.image2}
+                        src={getImageUrl(selectedService.image2)}
                         alt={selectedService.title}
                         fluid
                         rounded

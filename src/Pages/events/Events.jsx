@@ -530,7 +530,7 @@ const Events = () => {
               <Row>
                 <Col md={5}>
                   <Image
-                    src={selectedEvent.featuredImage || selectedEvent.image || selectedEvent.images?.[0] || 'https://via.placeholder.com/400x200?text=No+Image'}
+                    src={getImageUrl(selectedEvent.featuredImage || selectedEvent.image || selectedEvent.images?.[0])}
                     alt={selectedEvent.title}
                     fluid
                     rounded
@@ -569,10 +569,40 @@ const Events = () => {
                   <p className="text-muted mb-2">
                     <strong>Location:</strong> {selectedEvent.location}
                   </p>
+                  {selectedEvent.venueDetails && (
+                    <p className="text-muted mb-2">
+                      <strong>Venue:</strong> {selectedEvent.venueDetails}
+                    </p>
+                  )}
                   <p className="text-muted mb-3">
                     <strong>Date:</strong> {formatEventDate(selectedEvent.startDate, selectedEvent.endDate)}
                   </p>
-                  <p>{selectedEvent.shortDescription}</p>
+                  
+                  {selectedEvent.shortDescription && (
+                    <div className="mb-3">
+                      <h6>Short Description:</h6>
+                      <p>{selectedEvent.shortDescription}</p>
+                    </div>
+                  )}
+                  
+                  {selectedEvent.description && (
+                    <div className="mb-3">
+                      <h6>Detailed Description:</h6>
+                      <div 
+                        className="event-description"
+                        dangerouslySetInnerHTML={{ __html: selectedEvent.description }}
+                        style={{ 
+                          maxHeight: '300px', 
+                          overflowY: 'auto',
+                          padding: '10px',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '4px',
+                          backgroundColor: '#f9f9f9'
+                        }}
+                      />
+                    </div>
+                  )}
+                  
                   {selectedEvent.tags && selectedEvent.tags.length > 0 && (
                     <div>
                       <h6>Tags:</h6>

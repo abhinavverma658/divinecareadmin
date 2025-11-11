@@ -117,6 +117,20 @@ const AddEditService = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    const applyRedAsterisks = () => {
+      const labels = document.querySelectorAll('label, .form-label, h5, .text-danger');
+      labels.forEach(label => {
+        if (label.innerHTML && label.innerHTML.includes('*')) {
+          label.innerHTML = label.innerHTML.replace(/\*/g, '<span style="color: red; font-weight: bold;">*</span>');
+        }
+      });
+    };
+    applyRedAsterisks();
+    const timeoutId = setTimeout(applyRedAsterisks, 100);
+    return () => clearTimeout(timeoutId);
+  }, [formData]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -369,7 +383,7 @@ const AddEditService = () => {
                   <FormField
                     type="text"
                     name="title"
-                    label="Service Title"
+                    label="Service Title *"
                     value={formData.title}
                     onChange={handleChange}
                     required
@@ -383,7 +397,7 @@ const AddEditService = () => {
                   <FormField
                     type="text"
                     name="shortDescription"
-                    label="Short Description"
+                    label="Short Description *"
                     value={formData.shortDescription}
                     onChange={handleChange}
                     required

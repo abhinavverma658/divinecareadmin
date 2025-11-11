@@ -133,6 +133,20 @@ const AddEditStory = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    const applyRedAsterisks = () => {
+      const labels = document.querySelectorAll('label, .form-label, h5, .text-danger');
+      labels.forEach(label => {
+        if (label.innerHTML && label.innerHTML.includes('*')) {
+          label.innerHTML = label.innerHTML.replace(/\*/g, '<span style="color: red; font-weight: bold;">*</span>');
+        }
+      });
+    };
+    applyRedAsterisks();
+    const timeoutId = setTimeout(applyRedAsterisks, 100);
+    return () => clearTimeout(timeoutId);
+  }, [formData]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -345,7 +359,7 @@ const AddEditStory = () => {
                       <FormField
                         type="text"
                         name="title"
-                        label="Story Title"
+                        label="Story Title *"
                         value={formData.title}
                         onChange={handleChange}
                         required
@@ -356,7 +370,7 @@ const AddEditStory = () => {
                       <FormField
                         type="text"
                         name="author"
-                        label="Author"
+                        label="Author *"
                         value={formData.author}
                         onChange={handleChange}
                         required
@@ -370,7 +384,7 @@ const AddEditStory = () => {
                       <FormField
                         type="date"
                         name="date"
-                        label="Publication Date"
+                        label="Publication Date *"
                         value={formData.date}
                         onChange={handleChange}
                         required

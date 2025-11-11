@@ -132,7 +132,7 @@ function App() {
       <div className="sidebar-overlay" onClick={sidebarHandler}></div>
     )}
     <div className="sidebar-wrapper">
-      <SideNavbar isExpanded={isExpanded} />
+      <SideNavbar isExpanded={isExpanded} sidebarHandler={sidebarHandler} />
     </div>
     <div
       className={`body-wrapper ${isExpanded ? "mini-body" : "full-body"} 

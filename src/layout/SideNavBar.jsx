@@ -133,33 +133,11 @@ const active_text = {
  
 };
 
-export default function SideNavbar({ isExpanded }) {
+export default function SideNavbar({ isExpanded, sidebarHandler }) {
   const pathname = window.location.pathname;
   const [activeLink, setActiveLink] = useState("Dashboard");
   const [homePageDropdown, setHomePageDropdown] = useState(false);
   const [aboutUsDropdown, setAboutUsDropdown] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
-
-  // Ensure sidebar resets to initial state when window resizes or route changes
-  React.useEffect(() => {
-    setShowSidebar(true);
-  }, [pathname, isExpanded]);
-
-  // Listen for window resize and reset sidebar state appropriately
-  React.useEffect(() => {
-    const handleResize = () => {
-      // Always show sidebar on desktop, reset to closed on mobile
-      if (window.innerWidth > 768) {
-        setShowSidebar(true);
-      } else {
-        setShowSidebar(false);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    // Initial check
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
   const { token } = useSelector(selectAuth);
   const userInfo = {
     fullname:'Abhinav_Verma',
@@ -194,7 +172,7 @@ export default function SideNavbar({ isExpanded }) {
   console.log({ userInfo });
   return (
     <>
-      {token && showSidebar ? (
+      {token && isExpanded ? (
         <div
           className={
             isExpanded
@@ -202,7 +180,7 @@ export default function SideNavbar({ isExpanded }) {
               : "side-nav-container side-nav-container-NX"
           }
         >
-          {/* Mobile close icon */}
+          {/* Mobile close icon - only show on mobile */}
           {window.innerWidth <= 768 && (
             <div style={{ position: 'absolute', top: 12, right: 18, zIndex: 9999 }}>
               <button
@@ -216,7 +194,7 @@ export default function SideNavbar({ isExpanded }) {
                   padding: 0,
                   zIndex: 99999
                 }}
-                onClick={() => setShowSidebar(false)}
+                onClick={sidebarHandler}
               >
                 &times;
               </button>

@@ -66,6 +66,7 @@ const AddEditEvent = () => {
       const response = await getEventById(id).unwrap();
       console.log('📥 Event Data Response:', response);
       console.log('📊 Response keys:', Object.keys(response || {}));
+      console.log('🖼️ RAW IMAGES FROM API:', response?.event?.images || response?.events?.[0]?.images || response?.data?.images || 'No images found in response');
       
       // Check multiple possible response structures
       let eventData = null;
@@ -137,9 +138,19 @@ const AddEditEvent = () => {
         console.log('✅ Processed form data:', processedFormData);
         setFormData(processedFormData);
         
-        if (eventData.images && Array.isArray(eventData.images)) {
-          setImagePreviews(eventData.images);
-        }
+        // Set image previews from the event data - KEEP IN SYNC WITH formData.images
+        const imageArray = Array.isArray(eventData.images) && eventData.images.length > 0
+          ? eventData.images
+          : (eventData.image ? [eventData.image] : []);
+        
+        console.log('🖼️ Setting image previews:', imageArray);
+        setImagePreviews(imageArray);
+        
+        // IMPORTANT: Ensure formData.images matches imagePreviews exactly
+        setFormData(prev => ({
+          ...prev,
+          images: imageArray
+        }));
         
         console.log('🎯 Event data populated successfully');
         toast.success('Event data loaded successfully');
@@ -181,6 +192,20 @@ const AddEditEvent = () => {
       fetchEvent();
     }
   }, [id]);
+
+  useEffect(() => {
+    const applyRedAsterisks = () => {
+      const labels = document.querySelectorAll('label, .form-label, h5, .text-danger');
+      labels.forEach(label => {
+        if (label.innerHTML && label.innerHTML.includes('*')) {
+          label.innerHTML = label.innerHTML.replace(/\*/g, '<span style="color: red; font-weight: bold;">*</span>');
+        }
+      });
+    };
+    applyRedAsterisks();
+    const timeoutId = setTimeout(applyRedAsterisks, 100);
+    return () => clearTimeout(timeoutId);
+  }, [formData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -248,10 +273,12 @@ const AddEditEvent = () => {
         if (imageUrl) {
           setImagePreviews(prev => [...prev, imageUrl]);
           
-          // Set as featured image if no featured image is set
-          if (!formData.featuredImage) {
-            setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
-          }
+          // Also add to formData.images array
+          setFormData(prev => ({
+            ...prev,
+            images: [...prev.images, imageUrl],
+            featuredImage: prev.featuredImage || imageUrl // Set as featured if no featured image exists
+          }));
           
           console.log('✅ Event image uploaded successfully:', imageUrl);
           toast.success(`${file.name} uploaded successfully!`);
@@ -272,13 +299,32 @@ const AddEditEvent = () => {
   };
 
   const removeImage = (index) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    console.log('🗑️ Removing image at index:', index);
+    console.log('📸 Current imagePreviews:', imagePreviews);
+    console.log('📸 Current formData.images:', formData.images);
     
-    // Update featured image if it was removed
-    if (formData.featuredImage === imagePreviews[index]) {
-      setFormData(prev => ({ ...prev, featuredImage: '' }));
-    }
+    const imageToRemove = imagePreviews[index];
+    console.log('🎯 Image to remove:', imageToRemove);
+    
+    // Get the new arrays after removal
+    const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
+    const newFormDataImages = formData.images.filter((_, i) => i !== index);
+    
+    console.log('✅ New imagePreviews:', newImagePreviews);
+    console.log('✅ New formData.images:', newFormDataImages);
+    
+    // Update both states
+    setImagePreviews(newImagePreviews);
+    setFormData(prev => ({
+      ...prev,
+      images: newFormDataImages,
+      // Update featured image if it was removed
+      featuredImage: prev.featuredImage === imageToRemove 
+        ? (newFormDataImages.length > 0 ? newFormDataImages[0] : '') 
+        : prev.featuredImage
+    }));
+    
+    toast.info('Image removed. Don\'t forget to save your changes.');
   };
 
   const setFeaturedImage = (imageUrl) => {
@@ -320,7 +366,7 @@ const AddEditEvent = () => {
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
         registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : null,
-        images: imagePreviews,
+        images: formData.images, // Use formData.images instead of imagePreviews
         maxAttendees: parseInt(formData.maxAttendees) || 0,
         // Map frontend field names to API field names
         venueDetails: formData.venue, // API expects venueDetails
@@ -331,22 +377,43 @@ const AddEditEvent = () => {
         submitData.featuredImage = submitData.images[0];
       }
       
-      // For API compatibility, also set 'image' field if single image
+      // CRITICAL: Handle the 'image' field (singular) for backend compatibility
       if (submitData.images.length > 0) {
+        // If there are images, set the image field to the featured one or first one
         submitData.image = submitData.featuredImage || submitData.images[0];
+      } else {
+        // If NO images, explicitly set image to empty string to clear it in the database
+        submitData.image = '';
+        submitData.featuredImage = '';
       }
 
       // Remove venue field since API expects venueDetails
       delete submitData.venue;
 
       console.log('📤 Submitting event data:', submitData);
+      console.log('📸 Images being sent:', submitData.images);
+      console.log('🖼️ Current imagePreviews state:', imagePreviews);
+      console.log('📦 Current formData.images state:', formData.images);
+      console.log('🔍 Full submitData as JSON:', JSON.stringify(submitData, null, 2));
 
       // API call
+      console.log('🌐 Calling API - Method:', id ? 'PUT (update)' : 'POST (create)');
+      console.log('🌐 API Endpoint:', id ? `/events/${id}` : '/events');
+      console.log('🌐 Request body:', submitData);
+      
       const response = id 
         ? await updateEvent({ id, data: submitData }).unwrap()
         : await createEvent(submitData).unwrap();
       
-      console.log('✅ Submit Response:', response);
+      console.log('✅ API Response received:', response);
+      console.log('✅ Response as JSON:', JSON.stringify(response, null, 2));
+      
+      // Check if response contains the updated event data
+      if (response?.event) {
+        console.log('📊 Returned event images:', response.event.images);
+      } else if (response?.data?.images) {
+        console.log('📊 Returned event images:', response.data.images);
+      }
       
       toast.success(response?.message || `Event ${id ? 'updated' : 'created'} successfully`);
       navigate('/dash/events');
@@ -357,6 +424,22 @@ const AddEditEvent = () => {
   };
 
   const isLoading_ = isLoading || createLoading || updateLoading;
+
+  // Image URL helper function
+  const getImageUrl = (val) => {
+    if (!val) return '';
+    
+    // If already a full URL, return as is
+    if (/^https?:\/\//i.test(val)) {
+      console.log('🌐 Image already has full URL:', val);
+      return val;
+    }
+    
+    // Otherwise, prepend the base URL
+    const fullUrl = `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+    console.log('🔗 Converting relative path to full URL:', val, '→', fullUrl);
+    return fullUrl;
+  };
 
   // Show loading spinner while fetching event data for edit mode
   if (id && isLoading) {
@@ -369,9 +452,6 @@ const AddEditEvent = () => {
       </MotionDiv>
     );
   }
-
-  const getImageUrl = (val) =>
-  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
 
   // Add error boundary check - more comprehensive validation
   if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
@@ -427,7 +507,7 @@ const AddEditEvent = () => {
                   <FormField
                     type="text"
                     name="title"
-                    label="Event Title"
+                    label="Event Title *"
                     value={formData.title}
                     onChange={handleChange}
                     required
@@ -441,7 +521,7 @@ const AddEditEvent = () => {
                   <FormField
                     type="text"
                     name="shortDescription"
-                    label="Short Description"
+                    label="Short Description *"
                     value={formData.shortDescription}
                     onChange={handleChange}
                     required
@@ -477,7 +557,7 @@ const AddEditEvent = () => {
                       <FormField
                         type="date"
                         name="startDate"
-                        label="Start Date"
+                        label="Start Date *"
                         value={formData.startDate}
                         onChange={handleChange}
                         min={new Date().toISOString().split('T')[0]}
@@ -488,7 +568,7 @@ const AddEditEvent = () => {
                       <FormField
                         type="date"
                         name="endDate"
-                        label="End Date"
+                        label="End Date *"
                         value={formData.endDate}
                         onChange={handleChange}
                         min={new Date().toISOString().split('T')[0]}
@@ -513,7 +593,7 @@ const AddEditEvent = () => {
                       <FormField
                         type="text"
                         name="location"
-                        label="Location"
+                        label="Location *"
                         value={formData.location}
                         onChange={handleChange}
                         required
@@ -528,7 +608,7 @@ const AddEditEvent = () => {
                       <FormField
                         type="text"
                         name="venue"
-                        label="Venue Details"
+                        label="Venue Details *"
                         value={formData.venue}
                         onChange={handleChange}
                         placeholder="e.g., Conference Hall A or Zoom Meeting Room"
@@ -598,21 +678,6 @@ const AddEditEvent = () => {
                                   <FaTrash size={10} />
                                 </Button>
                               </div>
-                              {img === formData.featuredImage && (
-                                <Badge bg="warning" className="position-absolute bottom-0 start-0 m-1">
-                                  Featured
-                                </Badge>
-                              )}
-                              {img !== formData.featuredImage && (
-                                <Button
-                                  variant="outline-warning"
-                                  size="sm"
-                                  className="position-absolute bottom-0 start-0 m-1"
-                                  onClick={() => setFeaturedImage(img)}
-                                >
-                                  Set Featured
-                                </Button>
-                              )}
                             </div>
                           </Col>
                         ))}
