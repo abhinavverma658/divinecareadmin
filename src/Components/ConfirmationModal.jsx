@@ -28,7 +28,7 @@ function ModalTemplate({
                 className="add-btn w-100 m-1"
                 onClick={onDiscard}
               >
-                {buttonCancelTxt ? "Keep Open" : "Discard"}
+                {buttonCancelTxt ? "Close" : "Discard"}
               </Button>
             )}
           </Col>

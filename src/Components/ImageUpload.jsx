@@ -23,7 +23,21 @@ const ImageUpload = ({
   required = false,
   multiple = false,
   maxSize = 5, // MB
-  acceptedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+  // Accept common image types plus PDF and common document types so this component can be reused for documents
+  acceptedTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    '.pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc',
+    '.docx',
+    'text/plain'
+  ],
   previewHeight = '200px',
   showPreview = true
 }) => {
@@ -338,7 +352,7 @@ const ImageUpload = ({
       
       {/* Help Text */}
       <div className="text-muted small mt-1">
-        {helpText || (multiple ? 'You can upload multiple images' : 'Upload a single image')}. 
+        {helpText || (multiple ? 'You can upload multiple files (images or documents)' : 'Upload a single image or document')}. 
         Drag and drop supported.
       </div>
 

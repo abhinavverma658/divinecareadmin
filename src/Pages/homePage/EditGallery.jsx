@@ -51,6 +51,26 @@ const EditGallery = () => {
     fetchGalleryData();
   }, []);
 
+  // Apply red color to all asterisks after component renders
+  useEffect(() => {
+    const applyRedAsterisks = () => {
+      // Find all labels and form-labels
+      const labels = document.querySelectorAll('label, .form-label, h5, .text-danger');
+      labels.forEach(label => {
+        if (label.innerHTML && label.innerHTML.includes('*')) {
+          // Replace asterisks with red-colored span
+          label.innerHTML = label.innerHTML.replace(/\*/g, '<span style="color: red; font-weight: bold;">*</span>');
+        }
+      });
+    };
+
+    // Apply immediately and after a small delay to catch dynamically rendered content
+    applyRedAsterisks();
+    const timeoutId = setTimeout(applyRedAsterisks, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData]); // Re-run when formData changes
+
   const fetchGalleryData = async () => {
     setIsLoading(true);
     try {
