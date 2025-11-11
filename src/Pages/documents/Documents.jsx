@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Form, Alert, Modal, Table } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Form, Alert, Modal, Table, Spinner } from 'react-bootstrap';
 import MotionDiv from '../../Components/MotionDiv';
-import { useGetDocumentsMutation, useCreateDocumentMutation, useUpdateDocumentMutation, useUploadDocumentMutation, useGetTeamUsersMutation } from '../../features/apiSlice';
+import { useGetDocumentsMutation, useCreateDocumentMutation, useCreateDocumentSingleMutation, useUpdateDocumentMutation, useUploadDocumentMutation, useDeleteDocumentMutation, useGetTeamUsersMutation, useCreateDocumentUserMutation } from '../../features/apiSlice';
+import { useSelector } from 'react-redux';
+import { selectAuth } from '../../features/authSlice';
 import { FaUpload, FaFileContract, FaUserTie, FaCalendarAlt, FaChartLine, FaBook, FaBriefcase, FaExclamationTriangle, FaClock, FaGraduationCap, FaUniversity, FaIdCard, FaCalculator, FaHandshake, FaEye, FaEdit, FaTrash, FaFile, FaPlus, FaUserPlus, FaUsers, FaSave } from 'react-icons/fa';
 import ImageUpload from '../../Components/ImageUpload';
 import { toast } from 'react-toastify';
@@ -35,10 +37,14 @@ const Documents = () => {
   const [users, setUsers] = useState([]);
   const [getTeamUsers, { isLoading: isUsersLoading }] = useGetTeamUsersMutation();
   const [editingUser, setEditingUser] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [getDocuments] = useGetDocumentsMutation();
   const [createDocument] = useCreateDocumentMutation();
+  const [createDocumentSingle] = useCreateDocumentSingleMutation();
   const [updateDocument] = useUpdateDocumentMutation();
+  const [createDocumentUser, { isLoading: isCreatingUser }] = useCreateDocumentUserMutation();
+  const auth = useSelector(selectAuth);
 
   useEffect(() => {
     // Map API categories to our internal documentFields keys
@@ -66,6 +72,7 @@ const Documents = () => {
         const response = await getDocuments().unwrap();
         if (response && response.success && Array.isArray(response.documents)) {
           const docsMap = {};
+          const newCustomDocs = [];
           response.documents.forEach(doc => {
             let key = null;
 
@@ -88,24 +95,56 @@ const Documents = () => {
               else if (documentFields.some(f => f.key === normalizedTitle + 's')) key = normalizedTitle + 's';
             }
 
-            if (key) {
-              // store complete document metadata for updating later
-              docsMap[key] = { 
-                url: doc.fileUrl, 
-                mimeType: doc.mimeType, 
-                title: doc.title || '',
-                id: doc._id,
-                docId: doc.docId,
-                category: doc.category,
-                filePublicId: doc.filePublicId
-              };
+              if (key) {
+                // store complete document metadata for updating later
+                // Save all possible id shapes returned by the API so the UI can
+                // reliably detect existing documents (some endpoints return _id or id or docId)
+                const resolvedId = doc._id || doc.id || doc.docId || null;
+                const entry = {
+                  url: doc.fileUrl,
+                  mimeType: doc.mimeType,
+                  title: doc.title || '',
+                  id: resolvedId,
+                  _id: doc._id || null,
+                  docId: doc.docId || null,
+                  category: doc.category,
+                  filePublicId: doc.filePublicId,
+                };
+
+                if (docsMap[key]) {
+                  // convert to array if needed and append
+                  if (Array.isArray(docsMap[key])) {
+                    docsMap[key].push(entry);
+                  } else {
+                    docsMap[key] = [docsMap[key], entry];
+                  }
+                } else {
+                  docsMap[key] = entry;
+                }
             } else {
-              // keep a console warning so unmapped categories can be added to the map later
-              // eslint-disable-next-line no-console
-              console.warn('Unmapped document category:', doc.category, 'title:', doc.title);
+              // If we couldn't map category/title to a known key, expose it as a custom document so it appears in UI
+              // create a unique key and add to docsMap and newCustomDocs
+              const customKey = `custom-${doc._id || Date.now()}`;
+              const entry = {
+                key: customKey,
+                label: doc.title || customKey,
+                icon: FaFile,
+                url: doc.fileUrl,
+                filePublicId: doc.filePublicId,
+                mimeType: doc.mimeType,
+                size: doc.size || 0,
+                title: doc.title || '',
+                category: doc.category || customKey,
+                id: doc._id || doc.id || doc.docId || null,
+              };
+              newCustomDocs.push(entry);
+
+              // add to docsMap as its own key
+              docsMap[customKey] = entry;
             }
           });
           setUploadedDocs(docsMap);
+          if (newCustomDocs.length > 0) setCustomDocuments(prev => [...prev, ...newCustomDocs]);
         } else {
           toast.error('Failed to fetch documents');
         }
@@ -120,6 +159,36 @@ const Documents = () => {
 
   const [uploadDocument] = useUploadDocumentMutation();
 
+  // When adding a custom document we want to upload the file immediately on selection
+  // so we have the storage key/url available before the user clicks "Add Document".
+  const handleAddDocFileSelect = async (file) => {
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
+      formData.append('folder', 'documents');
+
+      const uploadResponse = await uploadDocument(formData).unwrap();
+      if (uploadResponse && uploadResponse.success && uploadResponse.files && uploadResponse.files[0]) {
+        const fileData = uploadResponse.files[0];
+        // store metadata (not the raw File) so Add Document can post the payload
+        setNewDocFile({
+          url: fileData.url,
+          filePublicId: fileData.public_id,
+          mimeType: file.type,
+          size: file.size,
+          name: file.name
+        });
+        toast.success('File uploaded and ready to add');
+      } else {
+        toast.error('Upload failed: ' + (uploadResponse.message || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Immediate upload failed:', err);
+      toast.error('Upload failed: ' + (err?.message || 'Unknown error'));
+    }
+  };
+
   const handleUpload = async (key, uploadData) => {
     if (!uploadData) return;
 
@@ -131,23 +200,39 @@ const Documents = () => {
         formData.append('folder', 'documents'); // Store in documents folder
 
         const uploadResponse = await uploadDocument(formData).unwrap();
-        
+
         if (uploadResponse.success && uploadResponse.files && uploadResponse.files[0]) {
           const fileData = uploadResponse.files[0];
-          
-          // Store the complete document metadata
-          setUploadedDocs(prev => ({
-            ...prev,
-            [key]: {
+
+          // Preserve any existing id fields when updating an existing entry.
+          // Support multiple documents per category: if existing entry is an array, merge into the first element.
+          setUploadedDocs(prev => {
+            const prevEntry = prev[key];
+            const newEntry = {
               url: fileData.url,
               filePublicId: fileData.public_id,
               mimeType: uploadData.type,
               size: uploadData.size,
               title: uploadData.name,
               category: key
+            };
+
+            // If previous is an array, update the first item while preserving ids
+            if (Array.isArray(prevEntry)) {
+              const updatedArr = [...prevEntry];
+              updatedArr[0] = { ...updatedArr[0], ...newEntry };
+              return { ...prev, [key]: updatedArr };
             }
-          }));
-          
+
+            // If previous is an object, merge into it
+            if (prevEntry && typeof prevEntry === 'object') {
+              return { ...prev, [key]: { ...prevEntry, ...newEntry } };
+            }
+
+            // No previous entry: set as single object
+            return { ...prev, [key]: newEntry };
+          });
+
           toast.success('Document uploaded successfully');
         } else {
           toast.error('Upload failed: ' + (uploadResponse.message || 'Unknown error'));
@@ -170,11 +255,99 @@ const Documents = () => {
   };
 
   const handleDelete = (key) => {
+    // delete whole key or if index passed (handled by wrapper below)
     setUploadedDocs(prev => {
       const updated = { ...prev };
       delete updated[key];
       return updated;
     });
+  };
+
+  // Helper to normalize entries to arrays for multiple docs per category
+  const getDocsForKey = (key) => {
+    const entry = uploadedDocs[key];
+    if (!entry) return [];
+    return Array.isArray(entry) ? entry : [entry];
+  };
+
+  const [deleteDocument] = useDeleteDocumentMutation();
+
+  // Delete a specific document entry (by index) or entire key when index === null
+  const handleDeleteAt = async (key, index = null) => {
+    const prevEntry = uploadedDocs[key];
+    if (!prevEntry) return;
+
+    // Helper to remove locally
+    const removeLocal = (k, idx = null) => {
+      setUploadedDocs(prev => {
+        const entry = prev[k];
+        if (!entry) return prev;
+        if (idx === null) {
+          const updated = { ...prev };
+          delete updated[k];
+          return updated;
+        }
+        if (Array.isArray(entry)) {
+          const updatedArr = entry.filter((_, i) => i !== idx);
+          return { ...prev, [k]: updatedArr };
+        }
+        if (idx === 0) {
+          const updated = { ...prev };
+          delete updated[k];
+          return updated;
+        }
+        return prev;
+      });
+    };
+
+    // If no index provided, delete all entries under this key
+    if (index === null) {
+      const docs = getDocsForKey(key);
+      for (const d of docs) {
+        const idToDelete = d && (d._id || d.id || d.docId);
+        if (idToDelete) {
+          try {
+            await deleteDocument(idToDelete).unwrap();
+          } catch (err) {
+            console.error('Failed to delete document remote:', err);
+            toast.error('Failed to delete some documents from server');
+            // stop further remote deletes but still remove local entries
+            break;
+          }
+        }
+      }
+      // remove locally
+      removeLocal(key, null);
+      toast.success('Document(s) removed');
+      return;
+    }
+
+    // Delete a single entry at index
+    const docs = getDocsForKey(key);
+    const doc = docs[index];
+    if (!doc) return;
+
+    const idToDelete = doc && (doc._id || doc.id || doc.docId);
+    if (idToDelete) {
+      try {
+        const res = await deleteDocument(idToDelete).unwrap();
+        if (res && res.success) {
+          // remove locally
+          removeLocal(key, index);
+          toast.success(res.message || 'Document deleted');
+        } else {
+          toast.error(res.message || 'Failed to delete document');
+        }
+      } catch (err) {
+        console.error('Error deleting document:', err);
+        const errMsg = err?.data?.message || err?.message || 'Error deleting document';
+        toast.error(errMsg);
+      }
+    } else {
+      // No server id: just remove locally
+      removeLocal(key, index);
+      toast.success('Document removed (local)');
+    }
   };
 
   const getFileName = (url) => {
@@ -192,45 +365,90 @@ const Documents = () => {
   const handleView = (url, mimeType) => {
     if (!url) return;
 
-    // PDF: use Google Docs viewer (works well for inline preview)
-    if (mimeType === 'application/pdf' || url.toLowerCase().endsWith('.pdf')) {
-      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-      window.open(viewerUrl, '_blank');
-      return;
-    }
+    // Support object { url } or raw string
+    const realUrl = typeof url === 'object' && url.url ? url.url : url;
 
-    // Images: open directly
-    if (mimeType && mimeType.startsWith('image/') ) {
-      window.open(url, '_blank');
-      return;
-    }
+    // Use Vite env base if provided for relative keys/paths
+    const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BASE_URL) ? import.meta.env.VITE_BASE_URL : '';
 
-    // Office docs (doc/docx/xls/xlsx/ppt/pptx) - use Microsoft Office viewer
-    const officeTypes = ['word', 'msword', 'vnd.openxmlformats-officedocument.wordprocessingml.document', 'excel', 'presentation', 'powerpoint', 'vnd.ms-excel', 'vnd.ms-powerpoint'];
-    if (mimeType && officeTypes.some(t => mimeType.includes(t)) || /\.(docx?|xlsx?|pptx?)$/i.test(url)) {
-      const officeViewer = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
-      window.open(officeViewer, '_blank');
-      return;
-    }
+    const makeAbsolute = (u) => {
+      if (!u) return u;
+      // already absolute
+      if (/^https?:\/\//i.test(u) || /^\/\//.test(u)) return u;
+      if (!base) return u;
+      // ensure no double slashes
+      const b = base.replace(/\/$/, '');
+      if (u.startsWith('/')) return b + u;
+      return b + '/' + u;
+    };
 
-    // Fallback: open directly (server may force download if Content-Disposition: attachment)
-    window.open(url, '_blank');
+    const finalUrl = makeAbsolute(realUrl);
+
+    // Open the file directly in a new tab. The backend storage URL (prefixed by VITE_BASE_URL)
+    // should serve the file with correct Content-Type so the browser can render PDFs/images inline.
+    try {
+      const encoded = encodeURI(finalUrl);
+      window.open(encoded, '_blank');
+    } catch (e) {
+      // Fallback to non-encoded open
+      window.open(finalUrl, '_blank');
+    }
   };
 
-  // Local create user handler (backend create user API was removed/unused here)
-  const handleCreateUser = () => {
+  // Create user via backend API `/api/users/create` (falls back to local behaviour on error)
+  const handleCreateUser = async () => {
     if (!newUser.name || !newUser.email) {
       toast.error('Name and email are required');
       return;
     }
 
-    // Create a simple local user entry (the app previously used an API; keep local behavior)
-    const id = Date.now();
-    const userEntry = { id, name: newUser.name, email: newUser.email };
-    setUsers(prev => [...prev, userEntry]);
-    setNewUser({ name: '', email: '' });
-    setShowUserModal(false);
-    toast.success('User added (local)');
+    try {
+      // Call backend create user endpoint. API expects { name, email, contact, designation }
+      const payload = {
+        name: newUser.name,
+        email: newUser.email,
+        contact: newUser.contactNumber || newUser.contact || '',
+        designation: newUser.designation || ''
+      };
+
+      const res = await createDocumentUser(payload).unwrap();
+
+      // Normalise created user object from possible response shapes
+      const created = res?.user || res?.data?.user || res?.createdUser || res?.userCreated || res;
+
+      // If the response indicates success, add to local users list
+      if (res && (res.success === true || res.success === undefined)) {
+        // Build a local user entry. Prefer server-provided fields when present.
+        const userEntry = {
+          _id: created && (created._id || created.id) ? (created._id || created.id) : undefined,
+          id: created && (created.id || created._id) ? (created.id || created._id) : Date.now(),
+          name: created?.name || newUser.name,
+          email: created?.email || newUser.email,
+          contact: created?.contact || payload.contact,
+          designation: created?.designation || payload.designation,
+          role: created?.role || 'user',
+        };
+
+        setUsers(prev => [userEntry, ...prev]);
+        setNewUser({ name: '', email: '', contactNumber: '', designation: '' });
+        setShowUserModal(false);
+        toast.success('User added');
+        return;
+      }
+
+      // If response indicates failure, show message
+      const errMsg = res?.message || 'Failed to create user';
+      toast.error(errMsg);
+    } catch (err) {
+      console.error('Create user error:', err);
+      // Fallback: local-only add so UI remains usable if API fails
+      const id = Date.now();
+      const userEntry = { id, name: newUser.name, email: newUser.email, contact: newUser.contactNumber || '', designation: newUser.designation || '' };
+      setUsers(prev => [...prev, userEntry]);
+      setNewUser({ name: '', email: '', contactNumber: '', designation: '' });
+      setShowUserModal(false);
+      toast.warn('User added locally (server unavailable)');
+    }
   };
 
 
@@ -255,20 +473,24 @@ const Documents = () => {
     }
   };
 
-  const handleSaveDocument = async (key) => {
-    const doc = uploadedDocs[key];
+  const handleSaveDocument = async (key, index = 0, notify = true) => {
+    const docs = getDocsForKey(key);
+    const doc = docs[index];
     if (!doc || !doc.url) {
-      toast.error('Cannot save document: missing document data');
-      return;
+      if (notify) toast.error('Cannot save document: missing document data');
+      return false;
     }
 
     try {
+      // Determine any existing id shape the doc may have
+      const existingId = doc.id || doc._id || doc.docId || null;
+
       // Check if this is a custom document (no id) - need to create it
-      if (!doc.id) {
+      if (!existingId) {
         // Get the label for custom documents
         const customDoc = customDocuments.find(d => d.key === key);
         const docLabel = customDoc ? customDoc.label : key;
-        
+
         const response = await createDocument({
           title: docLabel,
           category: key,
@@ -278,24 +500,35 @@ const Documents = () => {
           description: `Custom document: ${docLabel}`
         }).unwrap();
 
-        if (response.success) {
-          // Update the uploadedDocs with the new document ID
-          setUploadedDocs(prev => ({
-            ...prev,
-            [key]: {
-              ...prev[key],
-              id: response.document.id
+        if (response && response.success) {
+          // Update the uploadedDocs with the new document ID (accept _id, id or docId)
+          const newId = (response.document && (response.document._id || response.document.id || response.document.docId)) || null;
+          setUploadedDocs(prev => {
+            const prevEntry = prev[key];
+            const idFields = {
+              id: newId,
+              _id: response.document && response.document._id ? response.document._id : null,
+              docId: response.document && response.document.docId ? response.document.docId : null,
+            };
+
+            if (Array.isArray(prevEntry)) {
+              const updated = [...prevEntry];
+              updated[index] = { ...updated[index], ...idFields };
+              return { ...prev, [key]: updated };
             }
-          }));
-          toast.success('Document saved successfully!');
+
+            return { ...prev, [key]: { ...(prevEntry || {}), ...idFields } };
+          });
+          if (notify) toast.success('Document saved successfully!');
+          return true;
         } else {
-          toast.error(response.message || 'Failed to save document');
+          if (notify) toast.error(response.message || 'Failed to save document');
+          return false;
         }
       } else {
-        // Existing document - update it
-        const response = await updateDocument({
-          id: doc.id,
-          data: {
+        // Existing document - update it via RTK Query mutation (centralized, uses PUT in apiSlice)
+        try {
+          const payload = {
             title: doc.title,
             category: doc.category,
             fileUrl: doc.url,
@@ -303,95 +536,222 @@ const Documents = () => {
             mimeType: doc.mimeType,
             docId: doc.docId,
             size: doc.size || 0
-          }
-        }).unwrap();
+          };
 
-        if (response.success) {
-          toast.success('Document saved successfully!');
-        } else {
-          toast.error(response.message || 'Failed to save document');
+          const idToUse = existingId;
+
+          const response = await updateDocument({ id: idToUse, data: payload }).unwrap();
+
+          // The apiSlice returns an object with at least success/document or message
+          if (response && (response.success === true || response.document)) {
+            // update local entry if API returned document
+            const returnedDoc = response.document;
+            if (returnedDoc) {
+              setUploadedDocs(prev => {
+                const prevEntry = prev[key];
+                const updatedDoc = {
+                  url: returnedDoc.fileUrl || doc.url,
+                  mimeType: returnedDoc.mimeType || doc.mimeType,
+                  title: returnedDoc.title || doc.title,
+                  id: returnedDoc._id || returnedDoc.id || returnedDoc.docId || doc.id,
+                  _id: returnedDoc._id || doc._id,
+                  docId: returnedDoc.docId || doc.docId,
+                  category: returnedDoc.category || doc.category,
+                  filePublicId: returnedDoc.filePublicId || doc.filePublicId,
+                };
+
+                if (Array.isArray(prevEntry)) {
+                  const updated = [...prevEntry];
+                  updated[index] = { ...updated[index], ...updatedDoc };
+                  return { ...prev, [key]: updated };
+                }
+
+                return { ...prev, [key]: { ...(prevEntry || {}), ...updatedDoc } };
+              });
+            }
+
+            if (notify) toast.success('Document saved successfully!');
+            return true;
+          } else if (response && response.success === false) {
+            if (notify) toast.error(response.message || 'Failed to save document');
+            return false;
+          } else {
+            // Fallback success handling
+            if (notify) toast.success('Document saved (response received)');
+            return true;
+          }
+        } catch (err) {
+          console.error('Error updating document via updateDocument mutation:', err);
+          // Better error extraction
+          const errMsg = err?.data?.message || err?.message || JSON.stringify(err);
+          if (notify) toast.error(errMsg || 'Error saving document. Please try again.');
+          return false;
         }
       }
     } catch (error) {
       console.error('Error saving document:', error);
-      toast.error('Error saving document. Please try again.');
+      if (notify) toast.error('Error saving document. Please try again.');
+      return false;
     }
+    return true;
   };
 
-  // Save all documents function now triggers individual saves
+  // Save all documents function now triggers individual saves for every document entry
   const handleSaveDocuments = async () => {
-    const savePromises = Object.keys(uploadedDocs).map(key => handleSaveDocument(key));
+    const promises = [];
+    Object.keys(uploadedDocs).forEach(key => {
+      const docs = getDocsForKey(key);
+      // pass notify = false to suppress per-document toasts during bulk save
+      docs.forEach((_, index) => promises.push(handleSaveDocument(key, index, false)));
+    });
+
+    setIsSaving(true);
     try {
-      await Promise.all(savePromises);
-      toast.success('All documents saved successfully!');
+      const results = await Promise.all(promises);
+      const allOk = results.every(r => r === true);
+      if (allOk) {
+        toast.success('All documents saved successfully!');
+      } else {
+        toast.error('Some documents failed to save. Please check individual items.');
+      }
     } catch (error) {
+      // If a promise threw (shouldn't if handleSaveDocument returns booleans), show generic error
       toast.error('Error saving some documents. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Handle custom document upload
+  // Handle custom document add (file should already be uploaded via handleAddDocFileSelect)
   const handleAddCustomDocument = async () => {
     if (!newDocName.trim()) {
       toast.error('Document name is required');
       return;
     }
-    if (!newDocFile) {
-      toast.error('Please upload a file');
+    if (!newDocFile || !newDocFile.url) {
+      toast.error('Please upload a file before adding the document');
       return;
     }
 
     try {
-      const formData = new FormData();
-      formData.append('files', newDocFile);
-      formData.append('folder', 'documents');
+      // Create a unique key for this custom document
+      const customKey = `custom-${Date.now()}`;
 
-      const uploadResponse = await uploadDocument(formData).unwrap();
-      
-      if (uploadResponse.success && uploadResponse.files && uploadResponse.files[0]) {
-        const fileData = uploadResponse.files[0];
-        
-        // Create a unique key for this custom document
-        const customKey = `custom-${Date.now()}`;
-        
-        // Add to custom documents list
+      // Try single-document endpoint first
+      try {
+        const response = await createDocumentSingle({
+          title: newDocName,
+          category: customKey,
+          fileName: newDocFile.name || getFileName(newDocFile.url),
+          fileUrl: newDocFile.url,
+          fileSize: newDocFile.size || 0,
+          description: `Custom document: ${newDocName}`
+        }).unwrap();
+
+        if (response && response.success) {
+          const created = response.document || null;
+          const newDoc = {
+            key: customKey,
+            label: newDocName,
+            icon: FaFile,
+            url: newDocFile.url,
+            filePublicId: newDocFile.filePublicId,
+            mimeType: newDocFile.mimeType,
+            size: newDocFile.size,
+            title: newDocFile.name || getFileName(newDocFile.url),
+            category: customKey,
+            id: created ? (created._id || created.id || created.docId) : null,
+            _id: created ? created._id : null,
+            docId: created ? created.docId : null,
+          };
+
+          setCustomDocuments(prev => [...prev, newDoc]);
+          setUploadedDocs(prev => ({
+            ...prev,
+            [customKey]: {
+              url: newDoc.url,
+              filePublicId: newDoc.filePublicId,
+              mimeType: newDoc.mimeType,
+              size: newDoc.size,
+              title: newDoc.title,
+              category: customKey,
+              id: newDoc.id,
+              _id: newDoc._id,
+              docId: newDoc.docId
+            }
+          }));
+
+          setNewDocName('');
+          setNewDocFile(null);
+          setShowAddDocModal(false);
+          toast.success('Document added successfully');
+          return;
+        }
+        // fallthrough to fallback
+      } catch (err) {
+        // If backend expects a multipart file and returns 400 File is required, fall back to createDocument
+        const isFileRequired = err?.data?.message === 'File is required' || err?.status === 400;
+        if (!isFileRequired) {
+          // unknown error - rethrow to outer catch
+          throw err;
+        }
+        // else continue to fallback below
+      }
+
+      // Fallback: persist via the generic createDocument endpoint which accepts fileUrl
+      const fallback = await createDocument({
+        title: newDocName,
+        category: customKey,
+        fileName: newDocFile.name || getFileName(newDocFile.url),
+        fileUrl: newDocFile.url,
+        fileSize: newDocFile.size || 0,
+        description: `Custom document (fallback): ${newDocName}`
+      }).unwrap();
+
+      if (fallback && fallback.success) {
+        const created = fallback.document || null;
         const newDoc = {
           key: customKey,
           label: newDocName,
           icon: FaFile,
-          url: fileData.url,
-          filePublicId: fileData.public_id,
-          mimeType: newDocFile.type,
+          url: newDocFile.url,
+          filePublicId: newDocFile.filePublicId,
+          mimeType: newDocFile.mimeType,
           size: newDocFile.size,
-          title: newDocFile.name,
-          category: customKey
+          title: newDocFile.name || getFileName(newDocFile.url),
+          category: customKey,
+          id: created ? (created._id || created.id || created.docId) : null,
+          _id: created ? created._id : null,
+          docId: created ? created.docId : null,
         };
-        
+
         setCustomDocuments(prev => [...prev, newDoc]);
-        
-        // Also add to uploadedDocs for consistency
         setUploadedDocs(prev => ({
           ...prev,
           [customKey]: {
-            url: fileData.url,
-            filePublicId: fileData.public_id,
-            mimeType: newDocFile.type,
-            size: newDocFile.size,
-            title: newDocFile.name,
-            category: customKey
+            url: newDoc.url,
+            filePublicId: newDoc.filePublicId,
+            mimeType: newDoc.mimeType,
+            size: newDoc.size,
+            title: newDoc.title,
+            category: customKey,
+            id: newDoc.id,
+            _id: newDoc._id,
+            docId: newDoc.docId
           }
         }));
-        
-        // Reset form and close modal
+
         setNewDocName('');
         setNewDocFile(null);
         setShowAddDocModal(false);
-        toast.success('Document added successfully');
+        toast.success('Document added successfully (fallback)');
       } else {
-        toast.error('Upload failed: ' + (uploadResponse.message || 'Unknown error'));
+        toast.error('Failed to add document: ' + (fallback?.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Upload failed: ' + (error.message || 'Unknown error'));
+      console.error('Add document failed:', error);
+      const errMsg = error?.data?.message || error?.message || JSON.stringify(error);
+      toast.error('Failed to add document: ' + errMsg);
     }
   };
 
@@ -457,10 +817,19 @@ const Documents = () => {
               variant="success" 
               onClick={handleSaveDocuments}
               className="d-flex align-items-center gap-2"
-              disabled={Object.keys(uploadedDocs).length === 0}
+              disabled={Object.keys(uploadedDocs).length === 0 || isSaving}
             >
-              <FaSave />
-              Save Documents
+              {isSaving ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                  <span className="ms-2">Saving...</span>
+                </>
+              ) : (
+                <>
+                  <FaSave />
+                  Save Documents
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -487,11 +856,15 @@ const Documents = () => {
                   </div>
                 </Card.Header>
                 <Card.Body>
-                  <ImageUpload
-                    value={(uploadedDocs[field.key] && uploadedDocs[field.key].url) || ''}
-                    onChange={val => handleUpload(field.key, val)}
-                    label={uploadedDocs[field.key] ? 'Edit File' : `Upload ${field.label}`}
-                    buttonText={uploadedDocs[field.key] ? 'Edit File' : 'Select File'}
+                  {(() => {
+                    const docs = getDocsForKey(field.key);
+                    return (
+                      <>
+                        <ImageUpload
+                          value={(docs[0] && docs[0].url) || ''}
+                          onChange={val => handleUpload(field.key, val)}
+                          label={docs[0] ? 'Edit File' : `Upload ${field.label}`}
+                          buttonText={docs[0] ? 'Edit File' : 'Select File'}
                     successMessage="Document uploaded successfully"
                     helpText="Upload a single document"
                     showPreview={false}
@@ -505,49 +878,52 @@ const Documents = () => {
                       'application/vnd.openxmlformats-officedocument.presentationml.presentation'
                     ]}
                     maxSize={10}
-                  />
-                  {uploadedDocs[field.key] && uploadedDocs[field.key].url && (
-                    <div className="uploaded-file-info mt-3">
-                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                        <div className="d-flex align-items-center grow">
-                          <FaFile className="me-2 text-primary" size={24} />
-                          <span className="text-truncate" style={{ maxWidth: '200px' }}>
-                            {getFileName(uploadedDocs[field.key] && uploadedDocs[field.key].url)}
-                          </span>
-                        </div>
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => handleView(
-                              uploadedDocs[field.key].url,
-                              uploadedDocs[field.key].mimeType
-                            )}
-                            title="View Document"
-                          >
-                            <FaEye />
-                          </Button>
-                          <Button
-                            variant="outline-success"
-                            size="sm"
-                            onClick={() => handleSaveDocument(field.key)}
-                            title="Save Document"
-                            className="me-2"
-                          >
-                            <FaSave />
-                          </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleDelete(field.key)}
-                            title="Delete Document"
-                          >
-                            <FaTrash />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                        />
+
+                        {docs.length > 0 && (
+                          <div className="uploaded-file-info mt-3">
+                            {docs.map((d, idx) => (
+                              <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded mb-2" key={idx}>
+                                <div className="d-flex align-items-center grow">
+                                  <FaFile className="me-2 text-primary" size={24} />
+                                  <span className="text-truncate" style={{ maxWidth: '200px' }}>
+                                    {getFileName(d && d.url)}
+                                  </span>
+                                </div>
+                                <div className="d-flex gap-2">
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => handleView(d.url, d.mimeType)}
+                                    title="View Document"
+                                  >
+                                    <FaEye />
+                                  </Button>
+                                  <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    onClick={() => handleSaveDocument(field.key, idx)}
+                                    title="Save Document"
+                                    className="me-2"
+                                  >
+                                    <FaSave />
+                                  </Button>
+                                  <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    onClick={() => handleDeleteAt(field.key, idx)}
+                                    title="Delete Document"
+                                  >
+                                    <FaTrash />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </Card.Body>
               </Card>
             </Col>
@@ -564,11 +940,15 @@ const Documents = () => {
                   </div>
                 </Card.Header>
                 <Card.Body>
-                  <ImageUpload
-                    value={(uploadedDocs[field.key] && uploadedDocs[field.key].url) || ''}
-                    onChange={val => handleUpload(field.key, val)}
-                    label={uploadedDocs[field.key] ? 'Edit File' : `Upload ${field.label}`}
-                    buttonText={uploadedDocs[field.key] ? 'Edit File' : 'Select File'}
+                  {(() => {
+                    const docs = getDocsForKey(field.key);
+                    return (
+                      <>
+                        <ImageUpload
+                          value={(docs[0] && docs[0].url) || ''}
+                          onChange={val => handleUpload(field.key, val)}
+                          label={docs[0] ? 'Edit File' : `Upload ${field.label}`}
+                          buttonText={docs[0] ? 'Edit File' : 'Select File'}
                     successMessage="Document uploaded successfully"
                     helpText="Upload a single document"
                     showPreview={false}
@@ -582,49 +962,52 @@ const Documents = () => {
                       'application/vnd.openxmlformats-officedocument.presentationml.presentation'
                     ]}
                     maxSize={10}
-                  />
-                  {uploadedDocs[field.key] && uploadedDocs[field.key].url && (
-                    <div className="uploaded-file-info mt-3">
-                      <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                        <div className="d-flex align-items-center grow">
-                          <FaFile className="me-2 text-primary" size={24} />
-                          <span className="text-truncate" style={{ maxWidth: '200px' }}>
-                            {getFileName(uploadedDocs[field.key] && uploadedDocs[field.key].url)}
-                          </span>
-                        </div>
-                        <div className="d-flex gap-2">
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => handleView(
-                              uploadedDocs[field.key].url,
-                              uploadedDocs[field.key].mimeType
-                            )}
-                            title="View Document"
-                          >
-                            <FaEye />
-                          </Button>
-                          <Button
-                            variant="outline-success"
-                            size="sm"
-                            onClick={() => handleSaveDocument(field.key)}
-                            title="Save Document"
-                            className="me-2"
-                          >
-                            <FaSave />
-                          </Button>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleDelete(field.key)}
-                            title="Delete Document"
-                          >
-                            <FaTrash />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                        />
+
+                        {docs.length > 0 && (
+                          <div className="uploaded-file-info mt-3">
+                            {docs.map((d, idx) => (
+                              <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded mb-2" key={idx}>
+                                <div className="d-flex align-items-center grow">
+                                  <FaFile className="me-2 text-primary" size={24} />
+                                  <span className="text-truncate" style={{ maxWidth: '200px' }}>
+                                    {getFileName(d && d.url)}
+                                  </span>
+                                </div>
+                                <div className="d-flex gap-2">
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    onClick={() => handleView(d.url, d.mimeType)}
+                                    title="View Document"
+                                  >
+                                    <FaEye />
+                                  </Button>
+                                  <Button
+                                    variant="outline-success"
+                                    size="sm"
+                                    onClick={() => handleSaveDocument(field.key, idx)}
+                                    title="Save Document"
+                                    className="me-2"
+                                  >
+                                    <FaSave />
+                                  </Button>
+                                  <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    onClick={() => handleDeleteAt(field.key, idx)}
+                                    title="Delete Document"
+                                  >
+                                    <FaTrash />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </Card.Body>
               </Card>
             </Col>
@@ -666,7 +1049,7 @@ const Documents = () => {
                 </Form.Label>
                 <ImageUpload
                   value={newDocFile ? 'file-selected' : ''}
-                  onChange={(file) => setNewDocFile(file)}
+                  onChange={handleAddDocFileSelect}
                   label="Upload File"
                   buttonText={newDocFile ? 'Change File' : 'Select File'}
                   successMessage="File selected successfully"
@@ -685,7 +1068,7 @@ const Documents = () => {
                 />
                 {newDocFile && (
                   <small className="text-muted d-block mt-2">
-                    Selected: {newDocFile.name}
+                    Selected: {newDocFile.name || getFileName(newDocFile.url)}
                   </small>
                 )}
               </Form.Group>
@@ -819,7 +1202,7 @@ const Documents = () => {
                 </thead>
                 <tbody>
                   {users.map((user, index) => (
-                    <tr key={user._id}>
+                    <tr key={user._id || index}>
                       <td>{index + 1}</td>
                       <td>{user.firstName}</td>
                       <td>{user.lastName}</td>
