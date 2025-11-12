@@ -1,16 +1,25 @@
 
 import { createSlice } from '@reduxjs/toolkit';
 
+// Safe localStorage reader: try JSON.parse, but return raw string when parsing fails
+const safeLocalGet = (key) => {
+  try {
+    const v = localStorage.getItem(key);
+    if (v === null || typeof v === 'undefined') return null;
+    try { return JSON.parse(v); } catch { return v; }
+  } catch (err) {
+    return null;
+  }
+};
 
 const initialState = {
-    user: localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null,
-    token: localStorage.getItem("token") ? JSON.parse(localStorage.getItem("token")) : null,
-    
-  };
+  user: safeLocalGet('user'),
+  token: safeLocalGet('token'),
+};
 
 const authSlice = createSlice({
   name: 'auth',
-   initialState,
+  initialState,
   reducers: {
     setUser: (state, action) => {
       state.user = action.payload;
