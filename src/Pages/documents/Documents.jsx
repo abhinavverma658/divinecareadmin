@@ -9,7 +9,8 @@ import {
   useUploadDocumentMutation,
   useDeleteDocumentMutation,
   useGetTeamUsersMutation,
-  useCreateDocumentUserMutation
+  useCreateDocumentUserMutation,
+  useDeleteUserMutation
 } from '../../features/apiSlice';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
@@ -57,8 +58,25 @@ const Documents = () => {
     const [deleteDocument] = useDeleteDocumentMutation();
     const [getTeamUsers, { isLoading: isUsersLoading }] = useGetTeamUsersMutation();
     const [createDocumentUser] = useCreateDocumentUserMutation();
+    const [deleteUser] = useDeleteUserMutation();
 
-    const auth = useSelector(selectAuth);
+    const handleDeleteUser = async (userId) => {
+      if (!userId) return;
+      const ok = window.confirm('Delete this user? This action cannot be undone.');
+      if (!ok) return;
+      try {
+        const res = await deleteUser(userId).unwrap();
+        // Remove from local list on success
+        setUsers(prev => prev.filter(u => String(u._id || u.id || u.userId || '') !== String(userId)));
+        toast.success(res?.message || 'User deleted');
+      } catch (err) {
+        console.error('Delete user error', err);
+        // Fallback: remove locally so UI stays consistent
+        setUsers(prev => prev.filter(u => String(u._id || u.id || u.userId || '') !== String(userId)));
+        const msg = err?.data?.message || err?.message || 'Error deleting user; removed locally';
+        toast.error(msg);
+      }
+    };
 
     useEffect(() => {
       const categoryMap = {
@@ -533,7 +551,36 @@ const Documents = () => {
             <Modal.Header closeButton><Modal.Title><FaUsers className="me-2" /> All Users</Modal.Title></Modal.Header>
             <Modal.Body>
               {isUsersLoading ? <Alert variant="info">Loading users...</Alert> : users.length === 0 ? <Alert variant="info">No users found.</Alert> : (
-                <div className="table-responsive"><Table striped bordered hover><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Active</th></tr></thead><tbody>{users.map((u, i) => (<tr key={u._id || u.id || i}><td>{i+1}</td><td>{u.name || `${u.firstName || ''} ${u.lastName || ''}`}</td><td>{u.email}</td><td>{u.role || '-'}</td><td>{u.isActive ? 'Yes' : 'No'}</td></tr>))}</tbody></Table></div>
+                <div className="table-responsive">
+                  <Table striped bordered hover>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((u, i) => (
+                        <tr key={u._id || u.id || i}>
+                          <td>{i+1}</td>
+                          <td>{u.name || `${u.firstName || ''} ${u.lastName || ''}`}</td>
+                          <td>{u.email}</td>
+                          <td>{u.role || '-'}</td>
+                          <td>{u.isActive ? 'Yes' : 'No'}</td>
+                          <td>
+                            <div className="d-flex gap-2">
+                              <Button variant="outline-danger" size="sm" onClick={() => handleDeleteUser(u._id || u.id || u.userId)}><FaTrash /></Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               )}
             </Modal.Body>
           </Modal>
