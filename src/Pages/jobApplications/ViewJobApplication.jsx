@@ -162,17 +162,50 @@ John Smith`,
     }
   };
 
-  const handleDownloadResume = () => {
-    if (!application?.resumeUrl) return;
+  const handleDownloadResume = async () => {
+    if (!application?.resumeUrl && !application?.resumeKey) {
+      toast.error('No resume available');
+      return;
+    }
     
-    const link = document.createElement('a');
-    link.href = application.resumeUrl;
-    link.download = application.resumeFileName;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Resume download started');
+    try {
+      const resumeUrl = application.resumeUrl || application.resumeKey;
+      const fileName = application.resumeFileName || 'resume.pdf';
+      
+      console.log('Downloading resume from:', resumeUrl);
+      
+      // Fetch the file as a blob
+      const response = await fetch(resumeUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch resume file');
+      }
+      
+      const blob = await response.blob();
+      
+      // Create a blob URL
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link to download the file
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast.success('Resume downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      toast.error('Failed to download resume. Opening in new tab...');
+      
+      // Fallback: open in new tab
+      const resumeUrl = application.resumeUrl || application.resumeKey;
+      window.open(resumeUrl, '_blank');
+    }
   };
 
   const handleDelete = async () => {

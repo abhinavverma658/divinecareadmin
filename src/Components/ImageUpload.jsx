@@ -147,6 +147,8 @@ const ImageUpload = ({
       const formData = new FormData();
       formData.append('files', file); // Use 'files' key for backend
       formData.append('folder', 'website-pages'); // Organize uploads
+      formData.append('quality', '100'); // Request maximum quality
+      formData.append('preserveQuality', 'true'); // Preserve original quality
 
       setUploadProgress(10);
 
@@ -354,6 +356,8 @@ const ImageUpload = ({
       <div className="text-muted small mt-1">
         {helpText || (multiple ? 'You can upload multiple files (images or documents)' : 'Upload a single image or document')}. 
         Drag and drop supported.
+        <br />
+        <strong>Tip:</strong> For best quality, upload high-resolution images (recommended: at least 1200x800px for large images, 600x400px for smaller images).
       </div>
 
       {/* Current Images Preview */}

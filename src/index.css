@@ -35,6 +35,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Image quality optimization */
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: bicubic;
+}
+
 body{
   font-family: 'League Spartan',sans-serif;
   background: var(--bg-color);

@@ -257,14 +257,18 @@ const JobApplications = () => {
           // Map applicants to include job position
           return applicants.map(applicant => ({
             _id: applicant._id,
+            name: applicant.name || '',
             firstName: applicant.name?.split(' ')[0] || applicant.name || '',
             lastName: applicant.name?.split(' ').slice(1).join(' ') || '',
             email: applicant.email || '',
             phone: applicant.contactNumber || '',
+            contactNumber: applicant.contactNumber || '',
             position: job.title || '',
             department: job.department || '',
             location: applicant.address || '',
-            resumeUrl: applicant.resume || '',
+            address: applicant.address || '',
+            resumeKey: applicant.resumeKey || applicant.resume || '',
+            resumeUrl: applicant.resume || applicant.resumeKey || '',
             resumeFileName: `${applicant.name?.replace(/\s+/g, '-') || 'resume'}.pdf`,
             coverLetter: applicant.coverLetter || '',
             status: 'pending', // Default status
@@ -511,16 +515,41 @@ const JobApplications = () => {
     }
   };
 
-  const handleDownloadResume = (resumeUrl, fileName) => {
-    // Create a temporary link to download the file
-    const link = document.createElement('a');
-    link.href = resumeUrl;
-    link.download = fileName;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Resume download started');
+  const handleDownloadResume = async (resumeUrl, fileName) => {
+    try {
+      console.log('Downloading resume from:', resumeUrl);
+      
+      // Fetch the file as a blob
+      const response = await fetch(resumeUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch resume file');
+      }
+      
+      const blob = await response.blob();
+      
+      // Create a blob URL
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link to download the file
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || 'resume.pdf';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast.success('Resume downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      toast.error('Failed to download resume. Opening in new tab...');
+      
+      // Fallback: open in new tab
+      window.open(resumeUrl, '_blank');
+    }
   };
 
   const handleDelete = async () => {
@@ -845,23 +874,24 @@ const JobApplications = () => {
                       <strong>{index + 1}</strong>
                     </td>
                     <td>
-                      <h6 className="mb-0">{app.firstName} {app.lastName}</h6>
+                      <h6 className="mb-0">{app.name || `${app.firstName || ''} ${app.lastName || ''}`.trim()}</h6>
                     </td>
                     <td>
                       <span className="text-muted">{app.email}</span>
                     </td>
                     <td>
-                      <span className="text-muted">{app.phone}</span>
+                      <span className="text-muted">{app.contactNumber || app.phone}</span>
                     </td>
                     <td>
-                      <span>{app.position}</span>
+                      <span>{app.position || 'N/A'}</span>
                     </td>
                     <td className="text-center">
                       <Button
                         size="sm"
                         variant="outline-primary"
-                        onClick={() => handleDownloadResume(app.resumeUrl, app.resumeFileName)}
+                        onClick={() => handleDownloadResume(app.resumeKey || app.resumeUrl, app.name ? `${app.name}-resume.pdf` : app.resumeFileName || 'resume.pdf')}
                         title="Download Resume"
+                        disabled={!app.resumeKey && !app.resumeUrl}
                       >
                         <FaDownload className="me-1" />
                         Download
