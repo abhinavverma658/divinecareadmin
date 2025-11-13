@@ -5,8 +5,7 @@ export const imgAddr = "https://creative-story.s3.amazonaws.com";
 
 // Determine API base URL based on environment
 const getBaseUrl = () => {
-  // Force use of remote backend since it's working (as shown in Postman)
-  return "https://divinecare-backend.onrender.com/api"; // Always use remote backend for all API calls
+  return `${import.meta.env.VITE_API_URL}/api`;
 };
 
 const baseQueryOriginal = fetchBaseQuery({
@@ -2023,7 +2022,7 @@ const baseQuery = async (args, api, extraOptions) => {
       queryFn: async (inputFormData, { getState }) => {
         try {
           const token = getState().auth.token;
-          const uploadBaseUrl = 'https://divinecare-backend.onrender.com/api';
+          const uploadBaseUrl = `${import.meta.env.VITE_API_URL}/api`;
           console.log('🖼️ Starting image upload to:', `${uploadBaseUrl}/upload`);
           const cleanToken = token ? token.replace(/"/g, '') : null;
 

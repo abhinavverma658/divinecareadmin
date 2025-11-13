@@ -85,13 +85,14 @@ const EditMainAboutSection = () => {
       const state = store.getState();
       const token = state?.auth?.token;
       const cleanToken = token ? token.replace(/"/g, '') : null;
+      const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
       
       console.log('🔑 Using token (first 20 chars):', cleanToken?.substring(0, 20) + '...');
-      console.log('🌐 Backend URL:', 'https://divinecare-backend.onrender.com/api/about/main');
+      console.log('🌐 Backend URL:', `${API_BASE_URL}/about/main`);
       
       // Test direct fetch first
       try {
-        const directResponse = await fetch('https://divinecare-backend.onrender.com/api/about/main', {
+        const directResponse = await fetch(`${API_BASE_URL}/about/main`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -236,7 +237,8 @@ const EditMainAboutSection = () => {
       console.log(`🖼️ Uploading ${field}:`, file.name);
 
       // Force correct backend URL for upload
-      const uploadUrl = 'https://divinecare-backend.onrender.com/api/upload';
+      const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+      const uploadUrl = `${API_BASE_URL}/upload`;
       const state = store.getState();
       const token = state?.auth?.token;
       const cleanToken = token ? token.replace(/"/g, '') : null;

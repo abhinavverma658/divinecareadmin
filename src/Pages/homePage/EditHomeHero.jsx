@@ -176,7 +176,8 @@ const EditHomeHero = () => {
       const uploadFormData = new FormData();
       uploadFormData.append('files', file); // Backend expects 'files' field
 
-      const response = await fetch('https://divinecare-backend.onrender.com/api/upload', {
+      const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+      const response = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
         body: uploadFormData,
         headers: {

@@ -395,40 +395,40 @@ const Documents = () => {
     return (
       <MotionDiv>
         <Container fluid>
-          <div className="mb-4 d-flex justify-content-between align-items-center">
+          <div className="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
             <div>
               <h2>Document Management</h2>
               <p className="text-muted">Upload company documents, policies, and employee records</p>
             </div>
-            <div className="d-flex gap-2">
-              <Button variant="info" onClick={() => { setNewDocName(''); setNewDocFile(null); setShowAddDocModal(true); }}><FaPlus /> Add Document</Button>
-              <Button variant="primary" onClick={() => { setNewUser({ name: '', email: '' }); setShowUserModal(true); }}><FaUserPlus /> Add User</Button>
-              <Button variant="outline-primary" onClick={async () => { setShowViewUsersModal(true); try { const res = await getTeamUsers().unwrap(); if (res && res.success && Array.isArray(res.users)) setUsers(res.users); } catch (e) { setUsers([]); } }}><FaUsers /> View Users</Button>
-              <Button variant="success" onClick={handleSaveDocuments} disabled={Object.keys(uploadedDocs).length === 0 || isSaving}>{isSaving ? (<><Spinner as="span" animation="border" size="sm" /> Saving...</>) : (<><FaSave /> Save Documents</>)}</Button>
+            <div className="d-flex flex-wrap gap-2">
+              <Button variant="info" size="sm" onClick={() => { setNewDocName(''); setNewDocFile(null); setShowAddDocModal(true); }}><FaPlus /> Add Document</Button>
+              <Button variant="primary" size="sm" onClick={() => { setNewUser({ name: '', email: '' }); setShowUserModal(true); }}><FaUserPlus /> Add User</Button>
+              <Button variant="outline-primary" size="sm" onClick={async () => { setShowViewUsersModal(true); try { const res = await getTeamUsers().unwrap(); if (res && res.success && Array.isArray(res.users)) setUsers(res.users); } catch (e) { setUsers([]); } }}><FaUsers /> View Users</Button>
+              <Button variant="success" size="sm" onClick={handleSaveDocuments} disabled={Object.keys(uploadedDocs).length === 0 || isSaving}>{isSaving ? (<><Spinner as="span" animation="border" size="sm" /> Saving...</>) : (<><FaSave /> Save Documents</>)}</Button>
             </div>
           </div>
 
           
 
-          <Row>
+          <Row className="g-3">
             {customDocuments.map(field => (
-              <Col xs={12} md={6} lg={4} key={field.key} className="mb-4">
+              <Col xs={12} sm={6} lg={4} xl={3} key={field.key}>
                 <Card className="h-100 shadow-sm">
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <strong>{field.label}</strong>
-                    <Button variant="link" size="sm" className="text-danger p-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
+                  <Card.Header className="d-flex justify-content-between align-items-center overflow-hidden">
+                    <strong className="text-truncate me-2" style={{ minWidth: 0, flex: 1 }}>{field.label}</strong>
+                    <Button variant="link" size="sm" className="text-danger p-0 flex-shrink-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
                   </Card.Header>
-                  <Card.Body>
+                  <Card.Body className="p-3">
                     <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
                     {getDocsForKey(field.key).length > 0 && (
                       <div className="uploaded-file-info mt-3">
                         {getDocsForKey(field.key).map((d, idx) => (
-                          <div key={idx} className="d-flex align-items-center justify-content-between p-3 bg-light rounded mb-2">
-                            <div className="d-flex align-items-center"><FaFile className="me-2 text-primary" size={24} /><span className="text-truncate" style={{ maxWidth: '200px' }}>{getFileName(d && d.url)}</span></div>
-                            <div className="d-flex gap-2">
-                              <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye /></Button>
-                              <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave /></Button>
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash /></Button>
+                          <div key={idx} className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-2 bg-light rounded mb-2 gap-2">
+                            <div className="d-flex align-items-center" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}><FaFile className="me-2 text-primary flex-shrink-0" size={20} /><span className="small" style={{ minWidth: 0, flex: 1, wordBreak: 'break-all', overflowWrap: 'break-word' }}>{getFileName(d && d.url)}</span></div>
+                            <div className="d-flex gap-1 flex-shrink-0">
+                              <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye size={14} /></Button>
+                              <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave size={14} /></Button>
+                              <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash size={14} /></Button>
                             </div>
                           </div>
                         ))}
@@ -440,20 +440,20 @@ const Documents = () => {
             ))}
 
             {documentFields.map(field => (
-              <Col xs={12} md={6} lg={4} key={field.key} className="mb-4">
+              <Col xs={12} sm={6} lg={4} xl={3} key={field.key}>
                 <Card className="h-100 shadow-sm">
-                  <Card.Header><strong>{field.label}</strong></Card.Header>
-                  <Card.Body>
+                  <Card.Header className="overflow-hidden"><strong className="text-truncate d-block">{field.label}</strong></Card.Header>
+                  <Card.Body className="p-3">
                     <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
                     {getDocsForKey(field.key).length > 0 && (
                       <div className="uploaded-file-info mt-3">
                         {getDocsForKey(field.key).map((d, idx) => (
-                          <div key={idx} className="d-flex align-items-center justify-content-between p-3 bg-light rounded mb-2">
-                            <div className="d-flex align-items-center"><FaFile className="me-2 text-primary" size={24} /><span className="text-truncate" style={{ maxWidth: '200px' }}>{getFileName(d && d.url)}</span></div>
-                            <div className="d-flex gap-2">
-                              <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye /></Button>
-                              <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave /></Button>
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash /></Button>
+                          <div key={idx} className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-2 bg-light rounded mb-2 gap-2">
+                            <div className="d-flex align-items-center" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}><FaFile className="me-2 text-primary flex-shrink-0" size={20} /><span className="small" style={{ minWidth: 0, flex: 1, wordBreak: 'break-all', overflowWrap: 'break-word' }}>{getFileName(d && d.url)}</span></div>
+                            <div className="d-flex gap-1 flex-shrink-0">
+                              <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye size={14} /></Button>
+                              <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave size={14} /></Button>
+                              <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash size={14} /></Button>
                             </div>
                           </div>
                         ))}

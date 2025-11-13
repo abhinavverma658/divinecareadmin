@@ -39,7 +39,8 @@ const ResetPassword = () => {
     try {
       setLoading(true);
       // Call backend API to reset password
-      const res = await fetch(`https://divinecare-backend.onrender.com/api/auth/reset-password/${token}`, {
+      const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+      const res = await fetch(`${API_BASE_URL}/auth/reset-password/${token}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -41,10 +41,7 @@ const EditGallery = () => {
 
   // API base URL
   const getApiBaseUrl = () => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:5001/api';
-    }
-    return 'https://divinecare-backend.onrender.com/api';
+    return `${import.meta.env.VITE_API_URL}/api`;
   };
 
   useEffect(() => {

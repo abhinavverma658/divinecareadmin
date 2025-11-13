@@ -51,7 +51,8 @@ function Auth() {
                     console.log('RTK Query failed, trying direct fetch:', rtkError);
                     
                     // Step 1b: Fallback to direct fetch if RTK Query fails
-                    const response = await fetch('https://divinecare-backend.onrender.com/api/auth/signin', {
+                    const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+                    const response = await fetch(`${API_BASE_URL}/auth/signin`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
