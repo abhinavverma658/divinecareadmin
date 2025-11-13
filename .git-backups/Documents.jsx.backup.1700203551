@@ -9,8 +9,7 @@ import {
   useUploadDocumentMutation,
   useDeleteDocumentMutation,
   useGetTeamUsersMutation,
-  useCreateDocumentUserMutation,
-  useDeleteUserMutation
+  useCreateDocumentUserMutation
 } from '../../features/apiSlice';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
@@ -47,8 +46,7 @@ const Documents = () => {
     const [newUser, setNewUser] = useState({ name: '', email: '', contactNumber: '', designation: '' });
     const [users, setUsers] = useState([]);
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [creatingUser, setCreatingUser] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [getDocuments] = useGetDocumentsMutation();
     const [createDocument] = useCreateDocumentMutation();
@@ -58,25 +56,8 @@ const Documents = () => {
     const [deleteDocument] = useDeleteDocumentMutation();
     const [getTeamUsers, { isLoading: isUsersLoading }] = useGetTeamUsersMutation();
     const [createDocumentUser] = useCreateDocumentUserMutation();
-    const [deleteUser] = useDeleteUserMutation();
 
-    const handleDeleteUser = async (userId) => {
-      if (!userId) return;
-      const ok = window.confirm('Delete this user? This action cannot be undone.');
-      if (!ok) return;
-      try {
-        const res = await deleteUser(userId).unwrap();
-        // Remove from local list on success
-        setUsers(prev => prev.filter(u => String(u._id || u.id || u.userId || '') !== String(userId)));
-        toast.success(res?.message || 'User deleted');
-      } catch (err) {
-        console.error('Delete user error', err);
-        // Fallback: remove locally so UI stays consistent
-        setUsers(prev => prev.filter(u => String(u._id || u.id || u.userId || '') !== String(userId)));
-        const msg = err?.data?.message || err?.message || 'Error deleting user; removed locally';
-        toast.error(msg);
-      }
-    };
+    const auth = useSelector(selectAuth);
 
     useEffect(() => {
       const categoryMap = {
@@ -121,47 +102,20 @@ const Documents = () => {
               };
 
               if (key) {
-                const existing = docsMap[key];
-                const sameAs = (e) => e && (e.url === entry.url || e.filePublicId === entry.filePublicId || (e.id && entry.id && String(e.id) === String(entry.id)));
-                if (existing) {
-                  if (Array.isArray(existing)) {
-                    // only push if an entry with same url/filePublicId/id isn't already present
-                    if (!existing.some(sameAs)) existing.push(entry);
-                  } else {
-                    // if single entry and it's different, convert to array
-                    if (!sameAs(existing)) docsMap[key] = [existing, entry];
-                    else docsMap[key] = existing;
-                  }
+                if (docsMap[key]) {
+                  if (Array.isArray(docsMap[key])) docsMap[key].push(entry);
+                  else docsMap[key] = [docsMap[key], entry];
                 } else docsMap[key] = entry;
               } else {
-                // Prefer using the server-provided category as the custom key when available
-                // This keeps client-side keys stable across refreshes (client used custom-<timestamp> when creating)
-                const customKey = doc.category || `custom-${doc._id || Date.now()}`;
+                const customKey = `custom-${doc._id || Date.now()}`;
                 const c = { key: customKey, label: doc.title || customKey, icon: FaFile, ...entry };
-                // Add to docsMap under the custom key. We'll derive `customDocuments` from docsMap after processing all docs
+                newCustom.push(c);
                 docsMap[customKey] = c;
               }
             });
 
-            // Derive custom documents from docsMap keys (ensure no custom backend docs are missed)
-            const derivedCustom = Object.keys(docsMap)
-              .filter(k => k && k.startsWith('custom-'))
-              .map(k => {
-                const e = docsMap[k];
-                return { key: k, label: e.title || e.label || k, icon: FaFile, ...e };
-              });
-
-            // Debug: log fetched documents and mapping to help trace missing items
-            try {
-              // eslint-disable-next-line no-console
-              console.debug('fetchDocuments: fetched', res.documents.length, 'docs, derivedCustom:', derivedCustom.map(nc => nc.key));
-              // eslint-disable-next-line no-console
-              console.debug('fetchDocuments: docsMap keys', Object.keys(docsMap));
-            } catch (e) {}
-
             setUploadedDocs(docsMap);
-            // Replace custom documents list with the freshly derived list to avoid duplicates or omissions
-            setCustomDocuments(derivedCustom);
+            if (newCustom.length) setCustomDocuments(prev => [...prev, ...newCustom]);
           }
         } catch (err) {
           console.error('Error fetching documents:', err);
@@ -238,21 +192,6 @@ const Documents = () => {
           try {
             const res = await createDocumentSingle({ title: payload.title, category: payload.category, fileName: doc.title || getFileName(doc.url), fileUrl: payload.fileUrl, fileSize: payload.size }).unwrap();
             if (res && res.success) {
-              // Save returned id into local state so subsequent saves don't create duplicates
-              const created = res.document || res;
-              const createdId = created._id || created.id || null;
-              if (createdId) {
-                setUploadedDocs(prev => {
-                  const prevEntry = prev[key];
-                  if (Array.isArray(prevEntry)) {
-                    const updated = [...prevEntry];
-                    updated[index] = { ...updated[index], id: createdId, _id: createdId };
-                    return { ...prev, [key]: updated };
-                  }
-                  const merged = { ...prevEntry, id: createdId, _id: createdId };
-                  return { ...prev, [key]: merged };
-                });
-              }
               if (showToast) toast.success('Document created');
               return { success: true, key, label: payload.title };
             }
@@ -262,48 +201,13 @@ const Documents = () => {
           }
 
           const fallback = await createDocument(payload).unwrap();
-          if (fallback && fallback.success) {
-            const created = fallback.document || fallback;
-            const createdId = created._id || created.id || null;
-            if (createdId) {
-              setUploadedDocs(prev => {
-                const prevEntry = prev[key];
-                if (Array.isArray(prevEntry)) {
-                  const updated = [...prevEntry];
-                  updated[index] = { ...updated[index], id: createdId, _id: createdId };
-                  return { ...prev, [key]: updated };
-                }
-                const merged = { ...prevEntry, id: createdId, _id: createdId };
-                return { ...prev, [key]: merged };
-              });
-            }
-            if (showToast) toast.success('Document created');
-            return { success: true, key, label: payload.title };
-          }
+          if (fallback && fallback.success) { if (showToast) toast.success('Document created'); return { success: true, key, label: payload.title }; }
           if (showToast) toast.error(fallback?.message || 'Failed to create document');
           return { success: false, key, label: payload.title };
         }
 
         const res = await updateDocument({ id: existingId, data: payload }).unwrap();
-        if (res && (res.success === true || res.document)) {
-          // ensure local state has the id
-          const returned = res.document || res;
-          const returnedId = returned._id || returned.id || existingId;
-          if (returnedId) {
-            setUploadedDocs(prev => {
-              const prevEntry = prev[key];
-              if (Array.isArray(prevEntry)) {
-                const updated = [...prevEntry];
-                updated[index] = { ...updated[index], id: returnedId, _id: returnedId };
-                return { ...prev, [key]: updated };
-              }
-              const merged = { ...prevEntry, id: returnedId, _id: returnedId };
-              return { ...prev, [key]: merged };
-            });
-          }
-          if (showToast) toast.success('Document updated');
-          return { success: true, key, label: payload.title };
-        }
+        if (res && (res.success === true || res.document)) { if (showToast) toast.success('Document updated'); return { success: true, key, label: payload.title }; }
         if (showToast) toast.error(res?.message || 'Failed to update');
         return { success: false, key, label: payload.title };
       } catch (err) {
@@ -354,35 +258,28 @@ const Documents = () => {
     const handleView = (url) => {
       if (!url) return; const realUrl = typeof url === 'object' && url.url ? url.url : url;
       const base = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BASE_URL) ? import.meta.env.VITE_BASE_URL : '';
-      const makeAbsolute = (u) => { if (!u) return u; if (/^https?:\/\//i.test(u) || /^\/\//.test(u)) return u; if (!base) return u; const b = base.replace(/\/$/, ''); if (u.startsWith('/')) return b + u; return b + '/' + u; };
+      const makeAbsolute = (u) => { if (!u) return u; if (/^https?:\/\/i.test(u) || /^\/\//.test(u)) return u; if (!base) return u; const b = base.replace(/\/$/, ''); if (u.startsWith('/')) return b + u; return b + '/' + u; };
       const finalUrl = makeAbsolute(realUrl);
       try { window.open(encodeURI(finalUrl), '_blank'); } catch { window.open(finalUrl, '_blank'); }
     };
 
     const handleCreateUser = async () => {
       if (!newUser.name || !newUser.email) { toast.error('Name and email required'); return; }
-      setCreatingUser(true);
       try {
         const payload = { name: newUser.name, email: newUser.email, contact: newUser.contactNumber || '', designation: newUser.designation || '' };
         const res = await createDocumentUser(payload).unwrap();
         if (res && (res.success === true || res.user)) {
           const created = res.user || res;
           setUsers(prev => [{ _id: created._id || created.id, name: created.name || payload.name, email: created.email || payload.email, contact: created.contact || payload.contact, designation: created.designation || payload.designation }, ...prev]);
-          setNewUser({ name: '', email: '', contactNumber: '', designation: '' });
-          setShowUserModal(false);
-          toast.success('User added');
+          setNewUser({ name: '', email: '', contactNumber: '', designation: '' }); setShowUserModal(false); toast.success('User added');
         } else {
           toast.error(res?.message || 'Failed to create user');
         }
       } catch (err) {
         console.error('Create user error', err);
-        // Fallback: add locally (kept existing behavior)
-        setUsers(prev => [{ id: Date.now(), name: newUser.name, email: newUser.email, contact: newUser.contactNumber || '', designation: newUser.designation || '' }, ...prev]);
-        setNewUser({ name: '', email: '', contactNumber: '', designation: '' });
-        setShowUserModal(false);
-        toast.warn('Invalid Email address, Try again');
-      } finally {
-        setCreatingUser(false);
+        // Fallback: add locally
+        setUsers(prev => [{ id: Date.now(), name: newUser.name, email: newUser.email, contact: new_user.contactNumber || '', designation: newUser.designation || '' }, ...prev]);
+        setNewUser({ name: '', email: '', contactNumber: '', designation: '' }); setShowUserModal(false); toast.warn('User added locally (server unavailable)');
       }
     };
 
@@ -421,30 +318,28 @@ const Documents = () => {
     return (
       <MotionDiv>
         <Container fluid>
-          <div className="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+          <div className="mb-4 d-flex justify-content-between align-items-center">
             <div>
               <h2>Document Management</h2>
               <p className="text-muted">Upload company documents, policies, and employee records</p>
             </div>
-            <div className="d-flex flex-wrap gap-2">
-              <Button variant="info" size="sm" onClick={() => { setNewDocName(''); setNewDocFile(null); setShowAddDocModal(true); }}><FaPlus /> Add Document</Button>
-              <Button variant="primary" size="sm" onClick={() => { setNewUser({ name: '', email: '' }); setShowUserModal(true); }}><FaUserPlus /> Add User</Button>
-              <Button variant="outline-primary" size="sm" onClick={async () => { setShowViewUsersModal(true); try { const res = await getTeamUsers().unwrap(); if (res && res.success && Array.isArray(res.users)) setUsers(res.users); } catch (e) { setUsers([]); } }}><FaUsers /> View Users</Button>
-              <Button variant="success" size="sm" onClick={handleSaveDocuments} disabled={Object.keys(uploadedDocs).length === 0 || isSaving}>{isSaving ? (<><Spinner as="span" animation="border" size="sm" /> Saving...</>) : (<><FaSave /> Save Documents</>)}</Button>
+            <div className="d-flex gap-2">
+              <Button variant="info" onClick={() => { setNewDocName(''); setNewDocFile(null); setShowAddDocModal(true); }}><FaPlus /> Add Document</Button>
+              <Button variant="primary" onClick={() => { setNewUser({ name: '', email: '' }); setShowUserModal(true); }}><FaUserPlus /> Add User</Button>
+              <Button variant="outline-primary" onClick={async () => { setShowViewUsersModal(true); try { const res = await getTeamUsers().unwrap(); if (res && res.success && Array.isArray(res.users)) setUsers(res.users); } catch (e) { setUsers([]); } }}><FaUsers /> View Users</Button>
+              <Button variant="success" onClick={handleSaveDocuments} disabled={Object.keys(uploadedDocs).length === 0 || isSaving}>{isSaving ? (<><Spinner as="span" animation="border" size="sm" /> Saving...</>) : (<><FaSave /> Save Documents</>)}</Button>
             </div>
           </div>
 
-          
-
-          <Row className="g-3">
+          <Row>
             {customDocuments.map(field => (
-              <Col xs={12} sm={6} lg={4} xl={3} key={field.key}>
+              <Col xs={12} md={6} lg={4} key={field.key} className="mb-4">
                 <Card className="h-100 shadow-sm">
-                  <Card.Header className="d-flex justify-content-between align-items-center overflow-hidden">
-                    <strong className="text-truncate me-2" style={{ minWidth: 0, flex: 1 }}>{field.label}</strong>
-                    <Button variant="link" size="sm" className="text-danger p-0 flex-shrink-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
+                  <Card.Header className="d-flex justify-content-between align-items-center">
+                    <strong>{field.label}</strong>
+                    <Button variant="link" size="sm" className="text-danger p-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
                   </Card.Header>
-                  <Card.Body className="p-3">
+                  <Card.Body>
                     <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
                     {getDocsForKey(field.key).length > 0 && (
                       <div className="uploaded-file-info mt-3">
@@ -466,10 +361,10 @@ const Documents = () => {
             ))}
 
             {documentFields.map(field => (
-              <Col xs={12} sm={6} lg={4} xl={3} key={field.key}>
+              <Col xs={12} md={6} lg={4} key={field.key} className="mb-4">
                 <Card className="h-100 shadow-sm">
-                  <Card.Header className="overflow-hidden"><strong className="text-truncate d-block">{field.label}</strong></Card.Header>
-                  <Card.Body className="p-3">
+                  <Card.Header><strong>{field.label}</strong></Card.Header>
+                  <Card.Body>
                     <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
                     {getDocsForKey(field.key).length > 0 && (
                       <div className="uploaded-file-info mt-3">
@@ -501,7 +396,7 @@ const Documents = () => {
                   <Form.Control type="text" value={newDocName} onChange={e => setNewDocName(e.target.value)} />
                 </Form.Group>
                 <Form.Group className="mb-3">
-                  
+                  <Form.Label>Upload File <span style={{ color: 'red' }}>*</span></Form.Label>
                   <ImageUpload value={newDocFile ? 'file-selected' : ''} onChange={handleAddDocFileSelect} label="Upload File" buttonText={newDocFile ? 'Change File' : 'Select File'} showPreview={false} maxSize={10} />
                   {newDocFile && (<small className="text-muted d-block mt-2">Selected: {newDocFile.name || getFileName(newDocFile.url)}</small>)}
                 </Form.Group>
@@ -515,33 +410,11 @@ const Documents = () => {
             <Modal.Header closeButton><Modal.Title><FaUserPlus className="me-2" /> Add New User</Modal.Title></Modal.Header>
             <Modal.Body>
               <Form>
-                  <Form.Group className="mb-3">
-                    <Form.Label>
-                      Name <span style={{ color: 'red' }}>*</span>
-                    </Form.Label>
-                    <Form.Control value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>
-                      Email <span style={{ color: 'red' }}>*</span>
-                    </Form.Label>
-                    <Form.Control value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>
-                      Contact <span className="text-muted">(optional)</span>
-                    </Form.Label>
-                    <Form.Control value={newUser.contactNumber} onChange={e => setNewUser({ ...newUser, contactNumber: e.target.value })} />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>
-                      Designation <span className="text-muted">(optional)</span>
-                    </Form.Label>
-                    <Form.Control value={newUser.designation} onChange={e => setNewUser({ ...newUser, designation: e.target.value })} />
-                  </Form.Group>
-                 <Button variant="primary" onClick={handleCreateUser} disabled={!newUser.name || !newUser.email || creatingUser} className="w-100">
-                  {creatingUser ? (<><Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2"/> Creating...</>) : 'Create User'}
-                 </Button>  
+                <Form.Group className="mb-3"><Form.Label>Name</Form.Label><Form.Control value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} /></Form.Group>
+                <Form.Group className="mb-3"><Form.Label>Email</Form.Label><Form.Control value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></Form.Group>
+                <Form.Group className="mb-3"><Form.Label>Contact</Form.Label><Form.Control value={newUser.contactNumber} onChange={e => setNewUser({ ...newUser, contactNumber: e.target.value })} /></Form.Group>
+                <Form.Group className="mb-3"><Form.Label>Designation</Form.Label><Form.Control value={newUser.designation} onChange={e => setNewUser({ ...newUser, designation: e.target.value })} /></Form.Group>
+                <Button variant="primary" onClick={handleCreateUser} disabled={!newUser.name || !newUser.email} className="w-100">Create User</Button>
               </Form>
             </Modal.Body>
           </Modal>
@@ -551,36 +424,7 @@ const Documents = () => {
             <Modal.Header closeButton><Modal.Title><FaUsers className="me-2" /> All Users</Modal.Title></Modal.Header>
             <Modal.Body>
               {isUsersLoading ? <Alert variant="info">Loading users...</Alert> : users.length === 0 ? <Alert variant="info">No users found.</Alert> : (
-                <div className="table-responsive">
-                  <Table striped bordered hover>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Active</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((u, i) => (
-                        <tr key={u._id || u.id || i}>
-                          <td>{i+1}</td>
-                          <td>{u.name || `${u.firstName || ''} ${u.lastName || ''}`}</td>
-                          <td>{u.email}</td>
-                          <td>{u.role || '-'}</td>
-                          <td>{u.isActive ? 'Yes' : 'No'}</td>
-                          <td>
-                            <div className="d-flex gap-2">
-                              <Button variant="outline-danger" size="sm" onClick={() => handleDeleteUser(u._id || u.id || u.userId)}><FaTrash /></Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
+                <div className="table-responsive"><Table striped bordered hover><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Active</th></tr></thead><tbody>{users.map((u, i) => (<tr key={u._id || u.id || i}><td>{i+1}</td><td>{u.name || `${u.firstName || ''} ${u.lastName || ''}`}</td><td>{u.email}</td><td>{u.role || '-'}</td><td>{u.isActive ? 'Yes' : 'No'}</td></tr>))}</tbody></Table></div>
               )}
             </Modal.Body>
           </Modal>
