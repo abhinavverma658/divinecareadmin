@@ -2446,6 +2446,13 @@ const baseQuery = async (args, api, extraOptions) => {
        body: data
       }),
     }),
+    // Delete a user by id
+    deleteUser: builder.mutation({
+      query: (id) => ({
+        url: `/users/${id}`,
+        method: 'DELETE',
+      }),
+    }),
     // Get all team users (for admin)
     getTeamUsers: builder.mutation({
       queryFn: async (arg, { getState }) => {
@@ -2512,6 +2519,7 @@ const baseQuery = async (args, api, extraOptions) => {
 export const {
   useLoginUserMutation,
   useCreateDocumentUserMutation,
+  useDeleteUserMutation,
   useGenerateAccessTokenMutation,
   useResetPasswordMutation,
   useGetDashboardDataMutation,
