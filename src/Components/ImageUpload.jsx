@@ -354,10 +354,8 @@ const ImageUpload = ({
       
       {/* Help Text */}
       <div className="text-muted small mt-1">
-        {helpText || (multiple ? 'You can upload multiple files (images or documents)' : 'Upload a single image or document')}. 
+        {helpText || (multiple ? 'You can upload multiple documents' : 'Upload documents')}. 
         Drag and drop supported.
-        <br />
-        <strong>Tip:</strong> For best quality, upload high-resolution images (recommended: at least 1200x800px for large images, 600x400px for smaller images).
       </div>
 
       {/* Current Images Preview */}
