@@ -12,6 +12,7 @@ import { getError } from '../utils/error';
 import { toast } from 'react-toastify';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../features/authSlice';
+import { resizeImage, formatFileSize } from '../utils/imageResize';
 
 const ImageUpload = ({ 
   value, 
@@ -71,17 +72,44 @@ const ImageUpload = ({
     if (validFiles.length === 0) return;
     
     try {
+      // Resize images silently in background before upload (70% quality)
+      const processedFiles = await Promise.all(
+        validFiles.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            try {
+              const originalSize = file.size;
+              const resizedFile = await resizeImage(file, 0.7);
+              const newSize = resizedFile.size;
+              const reduction = Math.round(((originalSize - newSize) / originalSize) * 100);
+              
+              console.log(`✅ Resized: ${file.name}`);
+              console.log(`   Original: ${formatFileSize(originalSize)}`);
+              console.log(`   Resized: ${formatFileSize(newSize)}`);
+              console.log(`   Reduction: ${reduction}%`);
+              
+              return resizedFile;
+            } catch (err) {
+              // Silent fallback to original file
+              console.error('❌ Error resizing image:', err);
+              return file;
+            }
+          }
+          // For non-image files, return as-is
+          return file;
+        })
+      );
+
       // For documents (non-image types), pass the File object directly to parent
-      if (validFiles[0] && !validFiles[0].type.startsWith('image/')) {
-        onChange(validFiles[0]);
+      if (processedFiles[0] && !processedFiles[0].type.startsWith('image/')) {
+        onChange(processedFiles[0]);
         return;
       }
 
       // For images, continue with normal upload flow
       if (token && token.startsWith("demo-token")) {
-        await handleDemoUpload(validFiles);
+        await handleDemoUpload(processedFiles);
       } else {
-        await handleRealUpload(validFiles);
+        await handleRealUpload(processedFiles);
       }
     } catch (error) {
       getError(error);
@@ -144,11 +172,11 @@ const ImageUpload = ({
   // Real upload to server
   const handleRealUpload = async (files) => {
     for (let file of files) {
+      console.log(`📤 Uploading: ${file.name}, Size: ${formatFileSize(file.size)}`);
+      
       const formData = new FormData();
       formData.append('files', file); // Use 'files' key for backend
       formData.append('folder', 'website-pages'); // Organize uploads
-      formData.append('quality', '100'); // Request maximum quality
-      formData.append('preserveQuality', 'true'); // Preserve original quality
 
       setUploadProgress(10);
 

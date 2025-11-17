@@ -8,7 +8,8 @@ import { getError } from '../../utils/error';
 import { toast } from 'react-toastify';
 import MotionDiv from '../../Components/MotionDiv';
 import FormField from '../../Components/FormField';
-import { FaSave, FaArrowLeft, FaPlus, FaTrash, FaUsers, FaHandsHelping, FaHeart, FaShieldAlt, FaHome, FaBullseye, FaStar, FaLeaf, FaHandHoldingHeart, FaGlobeAmericas, FaLightbulb, FaRocket } from 'react-icons/fa';
+import ImageUpload from '../../Components/ImageUpload';
+import { FaSave, FaArrowLeft, FaPlus, FaTrash, FaUsers, FaHandsHelping, FaHeart, FaShieldAlt, FaHome, FaBullseye, FaStar, FaLeaf, FaHandHoldingHeart, FaGlobeAmericas, FaLightbulb, FaRocket, FaImage } from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { selectAuth } from '../../features/authSlice';
 
@@ -570,33 +571,40 @@ const EditAboutUs = () => {
                         <Card.Body>
                           <Row>
                             <Col md={6}>
-                              <Form.Group controlId="centerImageUpload">
-                                <Form.Label>Upload Center Image *</Form.Label>
-                                <Form.Control
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => handleImageChange('centerImage', e)}
-                                  disabled={uploadingImage}
-                                />
-                                {uploadingImage && <span className="text-info ms-2">Uploading...</span>}
-                              </Form.Group>
+                              <ImageUpload
+                                value={formData.centerImage}
+                                onChange={(imageUrl) => {
+                                  setFormData(prev => ({ ...prev, centerImage: imageUrl }));
+                                  setHasChanges(true);
+                                }}
+                                label="Upload Center Image"
+                                buttonText="Select Center Image"
+                                successMessage="Center image uploaded successfully"
+                                required={true}
+                                maxSize={10}
+                                acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']}
+                                showPreview={false}
+                                previewHeight="200px"
+                              />
                             </Col>
                             <Col md={6}>
                               {formData.centerImage ? (
                                 <div>
                                   <label className="form-label">Preview</label>
-                                  <div className="border rounded" style={{ padding: '10px' }}>
+                                  <div className="border rounded" style={{ padding: '10px', backgroundColor: '#f8f9fa' }}>
                                     <img
                                       src={getImageUrl(formData.centerImage)}
-                                      alt="Center Image"
+                                      alt="Center Image Preview"
                                       style={{ 
                                         width: '100%', 
-                                        maxHeight: '200px', 
-                                        objectFit: 'cover',
+                                        height: 'auto',
+                                        maxHeight: '300px', 
+                                        objectFit: 'contain',
                                         borderRadius: '4px'
                                       }}
                                       onError={(e) => {
                                         e.target.style.display = 'none';
+                                        e.target.parentElement.innerHTML = '<div class="text-center text-muted p-5">Image failed to load</div>';
                                       }}
                                     />
                                   </div>
@@ -604,8 +612,11 @@ const EditAboutUs = () => {
                               ) : (
                                 <div>
                                   <label className="form-label">Preview</label>
-                                  <div className="border rounded d-flex align-items-center justify-content-center" style={{ padding: '20px', minHeight: '200px', backgroundColor: '#f8f9fa' }}>
-                                    <span className="text-muted">No image uploaded yet</span>
+                                  <div className="border rounded d-flex align-items-center justify-content-center" style={{ padding: '20px', minHeight: '300px', backgroundColor: '#f8f9fa' }}>
+                                    <div className="text-center text-muted">
+                                      <FaImage size={48} className="mb-2" style={{ opacity: 0.3 }} />
+                                      <div>No image uploaded yet</div>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -622,30 +633,40 @@ const EditAboutUs = () => {
                         <Card.Body>
                           <Row>
                             <Col md={6}>
-                              <Form.Group controlId="rightImageUpload">
-                                <Form.Label>Upload Right Image *</Form.Label>
-                                <Form.Control
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => handleImageChange('rightImage', e)}
-                                  disabled={uploadingImage}
-                                />
-                                {uploadingImage && <span className="text-info ms-2">Uploading...</span>}
-                              </Form.Group>
+                              <ImageUpload
+                                value={formData.rightImage}
+                                onChange={(imageUrl) => {
+                                  setFormData(prev => ({ ...prev, rightImage: imageUrl }));
+                                  setHasChanges(true);
+                                }}
+                                label="Upload Right Image"
+                                buttonText="Select Right Image"
+                                successMessage="Right image uploaded successfully"
+                                required={true}
+                                maxSize={10}
+                                acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']}
+                                showPreview={false}
+                                previewHeight="200px"
+                              />
                             </Col>
                             <Col md={6}>
                               {formData.rightImage ? (
                                 <div>
                                   <label className="form-label">Preview</label>
-                                  <div className="border rounded" style={{ padding: '10px' }}>
+                                  <div className="border rounded" style={{ padding: '10px', backgroundColor: '#f8f9fa' }}>
                                     <img
                                       src={getImageUrl(formData.rightImage)}
-                                      alt="Right Image"
+                                      alt="Right Image Preview"
                                       style={{ 
                                         width: '100%', 
-                                        maxHeight: '200px', 
-                                        objectFit: 'cover',
+                                        height: 'auto',
+                                        maxHeight: '300px', 
+                                        objectFit: 'contain',
                                         borderRadius: '4px'
+                                      }}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.innerHTML = '<div class="text-center text-muted p-5">Image failed to load</div>';
                                       }}
                                     />
                                   </div>
@@ -653,8 +674,11 @@ const EditAboutUs = () => {
                               ) : (
                                 <div>
                                   <label className="form-label">Preview</label>
-                                  <div className="border rounded d-flex align-items-center justify-content-center" style={{ padding: '20px', minHeight: '200px', backgroundColor: '#f8f9fa' }}>
-                                    <span className="text-muted">No image uploaded yet</span>
+                                  <div className="border rounded d-flex align-items-center justify-content-center" style={{ padding: '20px', minHeight: '300px', backgroundColor: '#f8f9fa' }}>
+                                    <div className="text-center text-muted">
+                                      <FaImage size={48} className="mb-2" style={{ opacity: 0.3 }} />
+                                      <div>No image uploaded yet</div>
+                                    </div>
                                   </div>
                                 </div>
                               )}
