@@ -580,6 +580,7 @@ const EditAboutUs = () => {
                                 label="Upload Center Image"
                                 buttonText="Select Center Image"
                                 successMessage="Center image uploaded successfully"
+                                helpText="Upload images"
                                 required={true}
                                 maxSize={10}
                                 acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']}
@@ -642,6 +643,7 @@ const EditAboutUs = () => {
                                 label="Upload Right Image"
                                 buttonText="Select Right Image"
                                 successMessage="Right image uploaded successfully"
+                                helpText="Upload images"
                                 required={true}
                                 maxSize={10}
                                 acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']}
