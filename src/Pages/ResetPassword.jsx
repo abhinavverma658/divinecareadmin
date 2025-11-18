@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Container, Card, Row, Col, Button, Spinner } from 'react-bootstrap';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import FormField from '../Components/FormField';
@@ -11,6 +11,31 @@ const ResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token'); // Get token from URL query params
+  const invalid = searchParams.get('invalid');
+  const [valid, setValid] = useState(null); // null=checking, true/false known
+
+  useEffect(() => {
+    if (invalid) {
+      setValid(false);
+      return;
+    }
+    if (!token) {
+      setValid(false);
+      return;
+    }
+
+    // optional: verify token with backend before showing form
+    (async () => {
+      try {
+        const api = `${import.meta.env.VITE_API_URL}/api/auth`;
+        const res = await fetch(`${api}/validate-token/${encodeURIComponent(token)}`);
+        const json = await res.json();
+        setValid(res.ok && json && json.success);
+      } catch (err) {
+        setValid(false);
+      }
+    })();
+  }, [token, invalid]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,6 +97,15 @@ const ResetPassword = () => {
       setLoading(false);
     }
   };
+
+  if (valid === null) return <div>Checking token...</div>;
+  if (!valid) return (
+    <div>
+      <h3>Reset link invalid or expired</h3>
+      <p>Please request a new password reset link.</p>
+      <button onClick={() => navigate('/forgot-password')}>Request new link</button>
+    </div>
+  );
 
   return (
     <section style={{ background: 'var(--dark-color)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
