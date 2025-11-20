@@ -275,6 +275,58 @@ const EditTestimonials = () => {
     setHasChanges(true);
   };
 
+  const handleSaveTestimonial = async (testimonial) => {
+    try {
+      // Validate required testimonial fields
+      if (!testimonial.content || !testimonial.content.trim()) return toast.error('Testimonial content is required');
+      if (!testimonial.name || !testimonial.name.trim()) return toast.error('Name is required');
+      if (!testimonial.designation || !testimonial.designation.trim()) return toast.error('Designation is required');
+
+      // Build request body expected by backend
+      const body = {
+        rating: testimonial.rating,
+        content: testimonial.content,
+        name: testimonial.name,
+        designation: testimonial.designation,
+        image: testimonial.profilePhoto || ''
+      };
+
+      const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+      // Determine if this is an existing testimonial (likely a Mongo _id of length 24)
+      const isExisting = typeof testimonial.id === 'string' && /^([a-fA-F0-9]{24})$/.test(testimonial.id);
+
+      const url = isExisting
+        ? `${API_BASE}/api/testimonials/testimonial/${testimonial.id}`
+        : `${API_BASE}/api/testimonials/testimonial`;
+
+      const res = await fetch(url, {
+        method: isExisting ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Save testimonial failed:', res.status, text);
+        return toast.error('Failed to save testimonial');
+      }
+
+      const data = await res.json();
+      console.log('✅ Saved testimonial response:', data);
+      toast.success(isExisting ? 'Testimonial updated' : 'Testimonial added');
+      setHasChanges(false);
+      // Refresh list from backend
+      fetchTestimonialsData();
+    } catch (err) {
+      console.error('❌ handleSaveTestimonial error:', err);
+      toast.error('Error saving testimonial');
+    }
+  };
+
   const renderStars = (rating, testimonialId) => {
     return (
       <div className="d-flex align-items-center mb-2">
@@ -619,6 +671,17 @@ const EditTestimonials = () => {
                           </h6>
                         </div>
                         <div className="d-flex align-items-center">
+                          {/* Save button for this testimonial */}
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => handleSaveTestimonial(testimonial)}
+                            title="Save testimonial"
+                            className="me-2"
+                          >
+                            <FaSave />
+                          </Button>
+
                           {formData.testimonials.length > 1 && (
                             <Button
                               variant="outline-danger"
