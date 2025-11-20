@@ -442,7 +442,7 @@ const Documents = () => {
                 <Card className="h-100 shadow-sm">
                   <Card.Header className="d-flex justify-content-between align-items-center overflow-hidden">
                     <strong className="text-truncate me-2" style={{ minWidth: 0, flex: 1 }}>{field.label}</strong>
-                    <Button variant="link" size="sm" className="text-danger p-0 flex-shrink-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
+                    <Button variant="link" size="sm" className="text-danger p-0 shrink-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
                   </Card.Header>
                   <Card.Body className="p-3">
                     <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
@@ -451,10 +451,10 @@ const Documents = () => {
                         {getDocsForKey(field.key).map((d, idx) => (
                           <div key={idx} className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-2 bg-light rounded mb-2 gap-2">
                             <div className="d-flex align-items-center" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                              <FaFile className="me-2 text-primary flex-shrink-0" size={20} />
+                              <FaFile className="me-2 text-primary shrink-0" size={20} />
                               <span className="small" style={{ minWidth: 0, flex: 1, wordBreak: 'break-all', overflowWrap: 'break-word' }}>{getFileName(d && d.url)}</span>
                             </div>
-                            <div className="d-flex gap-1 flex-shrink-0">
+                            <div className="d-flex gap-1shrink-0">
                               <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye size={14} /></Button>
                               <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave size={14} /></Button>
                               <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash size={14} /></Button>
@@ -479,10 +479,10 @@ const Documents = () => {
                         {getDocsForKey(field.key).map((d, idx) => (
                           <div key={idx} className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between p-2 bg-light rounded mb-2 gap-2">
                             <div className="d-flex align-items-center" style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                              <FaFile className="me-2 text-primary flex-shrink-0" size={20} />
+                              <FaFile className="me-2 text-primary shrink-0" size={20} />
                               <span className="small" style={{ minWidth: 0, flex: 1, wordBreak: 'break-all', overflowWrap: 'break-word' }}>{getFileName(d && d.url)}</span>
                             </div>
-                            <div className="d-flex gap-1 flex-shrink-0">
+                            <div className="d-flex gap-1 shrink-0">
                               <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye size={14} /></Button>
                               <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave size={14} /></Button>
                               <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash size={14} /></Button>
