@@ -2023,7 +2023,13 @@ const baseQuery = async (args, api, extraOptions) => {
         try {
           const token = getState().auth.token;
           const uploadBaseUrl = `${import.meta.env.VITE_API_URL}/api`;
-          console.log('🖼️ Starting image upload to:', `${uploadBaseUrl}/upload`);
+          const uploadUrl = `${uploadBaseUrl}/upload`;
+          console.log('🖼️ Starting image upload to:', uploadUrl);
+          console.log('🌍 Environment check:', {
+            VITE_API_URL: import.meta.env.VITE_API_URL,
+            uploadBaseUrl,
+            uploadUrl
+          });
           const cleanToken = token ? token.replace(/"/g, '') : null;
 
           // Ensure file is sent as 'files' key (plural)
@@ -2034,10 +2040,12 @@ const baseQuery = async (args, api, extraOptions) => {
             let file = inputFormData.get('file') || inputFormData.get('files');
             if (file) {
               formData.append('files', file);
+              console.log('📎 File appended:', file.name, file.size, 'bytes');
             } else {
               // If no file found, copy all entries as fallback
               for (let [key, value] of inputFormData.entries()) {
                 formData.append(key, value);
+                console.log('📎 FormData entry:', key, value instanceof File ? `${value.name} (${value.size} bytes)` : value);
               }
             }
           } else if (inputFormData?.file) {
@@ -2049,18 +2057,37 @@ const baseQuery = async (args, api, extraOptions) => {
             }
           }
 
-          const response = await fetch(`${uploadBaseUrl}/upload`, {
+          console.log('📤 Sending upload request with token:', cleanToken ? 'Yes' : 'No');
+          console.log('📤 Upload URL:', uploadUrl);
+          console.log('📤 Request details:', {
             method: 'POST',
+            hasAuth: !!cleanToken,
+            formDataEntries: Array.from(formData.entries()).map(([key, value]) => 
+              value instanceof File ? `${key}: ${value.name}` : `${key}: ${value}`
+            )
+          });
+          
+          const response = await fetch(uploadUrl, {
+            method: 'POST',
+            mode: 'cors', // Explicitly set CORS mode
+            credentials: 'omit', // Don't send cookies
             headers: {
               ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
             },
             body: formData,
           });
+          
+          console.log('📥 Upload response status:', response.status, response.statusText);
+          
           const responseText = await response.text();
+          console.log('📥 Upload response text (first 200 chars):', responseText.substring(0, 200));
+          
           let data, errorMessage;
           try {
             data = JSON.parse(responseText);
+            console.log('✅ Parsed response data:', data);
           } catch (jsonError) {
+            console.error('❌ Failed to parse response as JSON:', jsonError);
             if (responseText.includes('<!DOCTYPE')) {
               errorMessage = 'Server error - please try again later';
             } else {
@@ -2079,31 +2106,13 @@ const baseQuery = async (args, api, extraOptions) => {
           }
         } catch (error) {
           console.error('❌ Upload error:', error);
-          // Demo fallback logic can remain if needed
-          let file = null;
-          if (inputFormData instanceof FormData) {
-            file = inputFormData.get('file') || inputFormData.get('files');
-          } else if (inputFormData?.file) {
-            file = inputFormData.file;
-          }
-          if (file && file.name) {
-            const timestamp = Date.now();
-            const demoUrl = `https://picsum.photos/800/600?random=${timestamp}`;
-            return {
-              data: {
-                success: true,
-                message: 'Demo mode: File upload simulated (backend not available)',
-                imageUrl: demoUrl,
-                url: demoUrl,
-                file: {
-                  filename: file.name,
-                  originalName: file.name,
-                  note: 'Demo placeholder image'
-                }
-              }
-            };
-          }
-          throw error;
+          console.error('❌ Error details:', {
+            message: error.message,
+            stack: error.stack,
+            uploadUrl: `${import.meta.env.VITE_API_URL}/api/upload`,
+            errorType: error.constructor.name
+          });
+          return { error: { status: 'FETCH_ERROR', error: error.message } };
         }
       },
     }),
@@ -2513,6 +2522,154 @@ const baseQuery = async (args, api, extraOptions) => {
         }
       },
     }),
+
+    // Privacy Policy endpoints
+    getPrivacyPolicy: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Fetching privacy policy:', {
+            endpoint: `${baseUrl}/pages/privacy-policy`,
+            hasToken: !!cleanToken
+          });
+          
+          const response = await fetch(`${baseUrl}/pages/privacy-policy`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Privacy policy fetched:', data);
+            return { data };
+          } else {
+            const errorText = await response.text();
+            console.log('❌ Get privacy policy failed:', response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error('Get privacy policy error:', error);
+          throw error;
+        }
+      },
+    }),
+    updatePrivacyPolicy: builder.mutation({
+      queryFn: async (data, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Updating privacy policy:', {
+            endpoint: `${baseUrl}/pages/privacy-policy`,
+            hasToken: !!cleanToken,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/pages/privacy-policy`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Privacy policy updated:', result);
+            return { data: result };
+          } else {
+            const errorText = await response.text();
+            console.log('❌ Update privacy policy failed:', response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error('Update privacy policy error:', error);
+          throw error;
+        }
+      },
+    }),
+
+    // Terms & Conditions endpoints
+    getTermsConditions: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Fetching terms & conditions:', {
+            endpoint: `${baseUrl}/pages/terms-of-use`,
+            hasToken: !!cleanToken
+          });
+          
+          const response = await fetch(`${baseUrl}/pages/terms-of-use`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Terms & conditions fetched:', data);
+            return { data };
+          } else {
+            const errorText = await response.text();
+            console.log('❌ Get terms & conditions failed:', response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error('Get terms & conditions error:', error);
+          throw error;
+        }
+      },
+    }),
+    updateTermsConditions: builder.mutation({
+      queryFn: async (data, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          
+          console.log('🔄 Updating terms & conditions:', {
+            endpoint: `${baseUrl}/pages/terms-of-use`,
+            hasToken: !!cleanToken,
+            data
+          });
+          
+          const response = await fetch(`${baseUrl}/pages/terms-of-use`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+            body: JSON.stringify(data),
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Terms & conditions updated:', result);
+            return { data: result };
+          } else {
+            const errorText = await response.text();
+            console.log('❌ Update terms & conditions failed:', response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+        } catch (error) {
+          console.error('Update terms & conditions error:', error);
+          throw error;
+        }
+      },
+    }),
   }),
 });
 
@@ -2659,4 +2816,8 @@ export const {
   useUploadDocumentMutation,
   useGetHomeEventsDataMutation,
   useUpdateHomeEventsDataMutation,
+  useGetPrivacyPolicyMutation,
+  useUpdatePrivacyPolicyMutation,
+  useGetTermsConditionsMutation,
+  useUpdateTermsConditionsMutation,
 } = apiSlice;

@@ -4,7 +4,7 @@
  * @param {number} quality - Quality percentage (default 0.7 for 70%)
  * @returns {Promise<File>} - Resized image file
  */
-export const resizeImage = async (file, quality = 0.7) => {
+export const resizeImage = async (file, quality = 0.5) => {
   // Only process image files
   if (!file.type.startsWith('image/')) {
     return file;
@@ -76,7 +76,7 @@ export const resizeImage = async (file, quality = 0.7) => {
  * @param {number} quality - Quality percentage (default 0.7 for 70%)
  * @returns {Promise<File[]>} - Array of resized image files
  */
-export const resizeImages = async (files, quality = 0.7) => {
+export const resizeImages = async (files, quality = 0.5) => {
   const resizePromises = files.map(file => resizeImage(file, quality));
   return Promise.all(resizePromises);
 };

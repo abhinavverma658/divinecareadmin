@@ -1,23 +1,29 @@
 // Get BASE_URL from env
-const BASE_URL = import.meta.env?.VITE_BASE_URL || 'https://divine-care.ap-south-1.storage.onantryk.com';
+const BASE_URL =
+  import.meta.env?.VITE_BASE_URL ||
+  "https://divine-care.ap-south-1.storage.onantryk.com";
 
 // Utility to get absolute image URL
 const getImageUrl = (val) =>
-  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
-import React, { useState, useRef } from 'react';
-import { Card, Button, Alert, Spinner, Row, Col } from 'react-bootstrap';
-import { FaUpload, FaTrash, FaImage, FaEye } from 'react-icons/fa';
-import { useUploadImageMutation } from '../features/apiSlice';
-import { getError } from '../utils/error';
-import { toast } from 'react-toastify';
-import { useSelector } from 'react-redux';
-import { selectAuth } from '../features/authSlice';
-import { resizeImage, formatFileSize } from '../utils/imageResize';
+  !val
+    ? ""
+    : /^https?:\/\//i.test(val)
+    ? val
+    : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
+import React, { useState, useRef } from "react";
+import { Card, Button, Alert, Spinner, Row, Col } from "react-bootstrap";
+import { FaUpload, FaTrash, FaImage, FaEye } from "react-icons/fa";
+import { useUploadImageMutation } from "../features/apiSlice";
+import { getError } from "../utils/error";
+import { toast } from "react-toastify";
+import { useSelector } from "react-redux";
+import { selectAuth } from "../features/authSlice";
+import { resizeImage, formatFileSize } from "../utils/imageResize";
 
-const ImageUpload = ({ 
-  value, 
-  onChange, 
-  label = "Upload Image", 
+const ImageUpload = ({
+  value,
+  onChange,
+  label = "Upload Image",
   buttonText = null, // Custom button text (optional)
   successMessage = "Image uploaded successfully", // Custom success message
   helpText = null, // Custom help text (optional)
@@ -26,71 +32,77 @@ const ImageUpload = ({
   maxSize = 5, // MB
   // Accept common image types plus PDF and common document types so this component can be reused for documents
   acceptedTypes = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/pdf',
-    '.pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.doc',
-    '.docx',
-    'text/plain'
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+    ".pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc",
+    ".docx",
+    "text/plain",
   ],
-  previewHeight = '200px',
-  showPreview = true
+  previewHeight = "200px",
+  showPreview = true,
 }) => {
   const [uploadImage, { isLoading }] = useUploadImageMutation();
   const { token } = useSelector(selectAuth);
   const fileInputRef = useRef();
-  
+
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Handle file selection
   const handleFileSelect = async (files) => {
     const validFiles = [];
-    
+
     for (let file of files) {
       // Validate file type
       if (!acceptedTypes.includes(file.type)) {
-        toast.error(`Invalid file type: ${file.name}. Please upload: ${acceptedTypes.join(', ')}`);
+        toast.error(
+          `Invalid file type: ${file.name}. Please upload: ${acceptedTypes.join(
+            ", "
+          )}`
+        );
         continue;
       }
-      
+
       // Validate file size
       if (file.size > maxSize * 1024 * 1024) {
         toast.error(`File too large: ${file.name}. Maximum size: ${maxSize}MB`);
         continue;
       }
-      
+
       validFiles.push(file);
     }
-    
+
     if (validFiles.length === 0) return;
-    
+
     try {
-      // Resize images silently in background before upload (70% quality)
+      // Resize images silently in background before upload (50% quality for smaller files)
       const processedFiles = await Promise.all(
         validFiles.map(async (file) => {
-          if (file.type.startsWith('image/')) {
+          if (file.type.startsWith("image/")) {
             try {
               const originalSize = file.size;
-              const resizedFile = await resizeImage(file, 0.7);
+              const resizedFile = await resizeImage(file, 0.5);
               const newSize = resizedFile.size;
-              const reduction = Math.round(((originalSize - newSize) / originalSize) * 100);
-              
+              const reduction = Math.round(
+                ((originalSize - newSize) / originalSize) * 100
+              );
+
               console.log(`✅ Resized: ${file.name}`);
               console.log(`   Original: ${formatFileSize(originalSize)}`);
               console.log(`   Resized: ${formatFileSize(newSize)}`);
               console.log(`   Reduction: ${reduction}%`);
-              
+
               return resizedFile;
             } catch (err) {
               // Silent fallback to original file
-              console.error('❌ Error resizing image:', err);
+              console.error("❌ Error resizing image:", err);
               return file;
             }
           }
@@ -100,7 +112,7 @@ const ImageUpload = ({
       );
 
       // For documents (non-image types), pass the File object directly to parent
-      if (processedFiles[0] && !processedFiles[0].type.startsWith('image/')) {
+      if (processedFiles[0] && !processedFiles[0].type.startsWith("image/")) {
         onChange(processedFiles[0]);
         return;
       }
@@ -120,12 +132,12 @@ const ImageUpload = ({
   const handleDemoUpload = async (files) => {
     for (let file of files) {
       setUploadProgress(30);
-      
-      console.log('🎭 Demo upload started for:', file.name);
-      
+
+      console.log("🎭 Demo upload started for:", file.name);
+
       // Simulate upload progress
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
+        setUploadProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return 90;
@@ -133,38 +145,41 @@ const ImageUpload = ({
           return prev + 20;
         });
       }, 200);
-      
+
       // Create preview URL from actual file
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageUrl = e.target.result;
-        console.log('📸 Demo upload - file converted to base64, length:', imageUrl.length);
-        
+        console.log(
+          "📸 Demo upload - file converted to base64, length:",
+          imageUrl.length
+        );
+
         // Simulate server response
         setTimeout(() => {
           clearInterval(progressInterval);
           setUploadProgress(100);
-          
+
           if (multiple) {
             const currentUrls = Array.isArray(value) ? value : [];
             onChange([...currentUrls, imageUrl]);
           } else {
-            console.log('🔄 Demo upload - setting new image URL');
+            console.log("🔄 Demo upload - setting new image URL");
             onChange(imageUrl);
           }
-          
+
           toast.success(`${successMessage}: ${file.name}`);
           setUploadProgress(0);
         }, 500);
       };
-      
+
       reader.onerror = () => {
-        console.error('❌ Demo upload - FileReader error');
+        console.error("❌ Demo upload - FileReader error");
         clearInterval(progressInterval);
         setUploadProgress(0);
         toast.error(`Demo upload failed for: ${file.name}`);
       };
-      
+
       reader.readAsDataURL(file);
     }
   };
@@ -172,41 +187,58 @@ const ImageUpload = ({
   // Real upload to server
   const handleRealUpload = async (files) => {
     for (let file of files) {
-      console.log(`📤 Uploading: ${file.name}, Size: ${formatFileSize(file.size)}`);
-      
+      console.log(
+        `📤 Uploading: ${file.name}, Size: ${formatFileSize(file.size)}`
+      );
+
       const formData = new FormData();
-      formData.append('files', file); // Use 'files' key for backend
-      formData.append('folder', 'website-pages'); // Organize uploads
+      formData.append("files", file); // Use 'files' key for backend
+      formData.append("folder", "website-pages"); // Organize uploads
 
       setUploadProgress(10);
 
       try {
-        console.log('Starting upload for:', file.name);
+        console.log("Starting upload for:", file.name);
         const data = await uploadImage(formData).unwrap();
-        console.log('Upload response:', data);
+        console.log("Upload response:", data);
 
         let imageUrl = null;
 
         // DivineCare backend returns { success, files: [{ url, public_id }] }
         if (data?.success && Array.isArray(data.files) && data.files[0]?.url) {
           imageUrl = data.files[0].url;
-          console.log('📸 Upload success - using data.files[0].url:', imageUrl.substring(0, 50) + '...');
+          console.log(
+            "📸 Upload success - using data.files[0].url:",
+            imageUrl.substring(0, 50) + "..."
+          );
         } else if (data?.success && data?.imageUrl) {
           imageUrl = data.imageUrl;
-          console.log('📸 Upload success - using data.imageUrl:', imageUrl.substring(0, 50) + '...');
+          console.log(
+            "📸 Upload success - using data.imageUrl:",
+            imageUrl.substring(0, 50) + "..."
+          );
         } else if (data?.url) {
           imageUrl = data.url;
-          console.log('📸 Upload success - using data.url:', imageUrl.substring(0, 50) + '...');
+          console.log(
+            "📸 Upload success - using data.url:",
+            imageUrl.substring(0, 50) + "..."
+          );
         } else if (data?.data?.url) {
           imageUrl = data.data.url;
-          console.log('📸 Upload success - using data.data.url:', imageUrl.substring(0, 50) + '...');
+          console.log(
+            "📸 Upload success - using data.data.url:",
+            imageUrl.substring(0, 50) + "..."
+          );
         } else if (data?.filePath) {
           imageUrl = data.filePath;
-          console.log('📸 Upload success - using data.filePath:', imageUrl.substring(0, 50) + '...');
+          console.log(
+            "📸 Upload success - using data.filePath:",
+            imageUrl.substring(0, 50) + "..."
+          );
         }
 
         if (imageUrl) {
-          console.log('🔄 Setting new image URL in component state');
+          console.log("🔄 Setting new image URL in component state");
           if (multiple) {
             const currentUrls = Array.isArray(value) ? value : [];
             onChange([...currentUrls, imageUrl]);
@@ -220,13 +252,17 @@ const ImageUpload = ({
           // Reset progress after a short delay
           setTimeout(() => setUploadProgress(0), 1000);
         } else {
-          console.error('Upload response missing imageUrl:', data);
-          throw new Error('Upload completed but no image URL received. Please try again.');
+          console.error("Upload response missing imageUrl:", data);
+          throw new Error(
+            "Upload completed but no image URL received. Please try again."
+          );
         }
       } catch (error) {
-        console.error('Upload failed:', error);
+        console.error("Upload failed:", error);
         setUploadProgress(0);
-        toast.error(`Upload failed for ${file.name}: ${error.message || 'Unknown error'}`);
+        toast.error(
+          `Upload failed for ${file.name}: ${error.message || "Unknown error"}`
+        );
       }
     }
   };
@@ -246,7 +282,7 @@ const ImageUpload = ({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileSelect(Array.from(e.dataTransfer.files));
     }
@@ -266,28 +302,32 @@ const ImageUpload = ({
       const newUrls = currentUrls.filter((_, index) => index !== indexOrUrl);
       onChange(newUrls);
     } else {
-      onChange('');
+      onChange("");
     }
   };
 
   // Preview modal
   const openPreview = (imageUrl) => {
-    window.open(imageUrl, '_blank');
+    window.open(imageUrl, "_blank");
   };
 
   const renderImagePreview = (imageUrl, index = null) => {
     const absUrl = getImageUrl(imageUrl);
     return (
-      <div className="position-relative d-inline-block me-2 mb-2" key={index || 'single'}>
-        <Card style={{ width: '150px' }}>
-          <Card.Img 
-            variant="top" 
+      <div
+        className="position-relative d-inline-block me-2 mb-2"
+        key={index || "single"}
+      >
+        <Card style={{ width: "150px" }}>
+          <Card.Img
+            variant="top"
             src={absUrl}
-            style={{ height: previewHeight, objectFit: 'cover' }}
+            style={{ height: previewHeight, objectFit: "cover" }}
             alt="Preview"
             onError={(e) => {
-              console.log('Image preview error for:', absUrl);
-              e.target.src = 'https://via.placeholder.com/150x200/f8f9fa/6c757d?text=Image+Error';
+              console.log("Image preview error for:", absUrl);
+              e.target.src =
+                "https://via.placeholder.com/150x200/f8f9fa/6c757d?text=Image+Error";
             }}
           />
           <Card.Body className="p-2">
@@ -313,18 +353,28 @@ const ImageUpload = ({
     );
   };
 
-  const hasImages = multiple ? (Array.isArray(value) && value.length > 0) : !!value;
-  const imageUrls = multiple ? (Array.isArray(value) ? value : []) : (value ? [value] : []);
+  const hasImages = multiple
+    ? Array.isArray(value) && value.length > 0
+    : !!value;
+  const imageUrls = multiple
+    ? Array.isArray(value)
+      ? value
+      : []
+    : value
+    ? [value]
+    : [];
 
   return (
     <div className="mb-3">
       <label className="form-label">
         {label} {required && <span className="text-danger">*</span>}
       </label>
-      
+
       {/* Upload Area */}
-      <Card 
-        className={`border-2 border-dashed ${dragActive ? 'border-primary bg-light' : 'border-secondary'}`}
+      <Card
+        className={`border-2 border-dashed ${
+          dragActive ? "border-primary bg-light" : "border-secondary"
+        }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -337,8 +387,8 @@ const ImageUpload = ({
               <div>Uploading... {uploadProgress}%</div>
               {uploadProgress > 0 && uploadProgress < 100 && (
                 <div className="progress mt-2">
-                  <div 
-                    className="progress-bar" 
+                  <div
+                    className="progress-bar"
                     style={{ width: `${uploadProgress}%` }}
                   ></div>
                 </div>
@@ -350,40 +400,44 @@ const ImageUpload = ({
               <h6>Drop files here or click to browse</h6>
               <p className="text-muted small mb-3">
                 Maximum size: {maxSize}MB each
-                {multiple && <><br />Multiple files allowed</>}
+                {multiple && (
+                  <>
+                    <br />
+                    Multiple files allowed
+                  </>
+                )}
               </p>
-              <Button 
+              <Button
                 variant="outline-primary"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FaUpload className="me-1" />
-                {buttonText || `Select ${multiple ? 'Files' : 'File'}`}
+                {buttonText || `Select ${multiple ? "Files" : "File"}`}
               </Button>
             </>
           )}
-          
+
           <input
             ref={fileInputRef}
             type="file"
-            accept={acceptedTypes.join(',')}
+            accept={acceptedTypes.join(",")}
             multiple={multiple}
             onChange={handleInputChange}
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
           />
         </Card.Body>
       </Card>
-      
+
       {/* Validation Message */}
       {required && !hasImages && (
-        <div className="text-danger small mt-1">
-          {label} is required
-        </div>
+        <div className="text-danger small mt-1">{label} is required</div>
       )}
-      
+
       {/* Help Text */}
       <div className="text-muted small mt-1">
-        {helpText || (multiple ? 'You can upload multiple documents' : 'Upload documents')}. 
-        Drag and drop supported.
+        {helpText ||
+          (multiple ? "You can upload multiple documents" : "Upload documents")}
+        . Drag and drop supported.
       </div>
 
       {/* Current Images Preview */}
@@ -391,7 +445,7 @@ const ImageUpload = ({
         <div className="mt-3">
           <label className="form-label">Current Images:</label>
           <div className="d-flex flex-wrap">
-            {imageUrls.map((imageUrl, index) => 
+            {imageUrls.map((imageUrl, index) =>
               renderImagePreview(imageUrl, multiple ? index : null)
             )}
           </div>
