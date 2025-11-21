@@ -1,50 +1,72 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Form, Button, Badge, Image, InputGroup, Alert, Spinner } from 'react-bootstrap';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useGetEventByIdMutation, useCreateEventMutation, useUpdateEventMutation, useUploadImageMutation } from '../../features/apiSlice';
-import { getError } from '../../utils/error';
-import { toast } from 'react-toastify';
-import MotionDiv from '../../Components/MotionDiv';
-import FormField from '../../Components/FormField';
-import TextEditor from '../../Components/TextEditor';
-import { 
-  FaSave, FaArrowLeft, FaUpload, FaTrash, FaImage, FaCalendarAlt, 
-  FaClock, FaMapMarkerAlt
-} from 'react-icons/fa';
-import { useSelector } from 'react-redux';
-import { selectAuth } from '../../features/authSlice';
-
+import React, { useEffect, useState } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Form,
+  Button,
+  Badge,
+  Image,
+  Spinner,
+} from "react-bootstrap";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  useGetEventByIdMutation,
+  useCreateEventMutation,
+  useUpdateEventMutation,
+  useUploadImageMutation,
+} from "../../features/apiSlice";
+import { getError } from "../../utils/error";
+import { toast } from "react-toastify";
+import { resizeImage, formatFileSize } from "../../utils/imageResize";
+import MotionDiv from "../../Components/MotionDiv";
+import FormField from "../../Components/FormField";
+import TextEditor from "../../Components/TextEditor";
+import {
+  FaSave,
+  FaArrowLeft,
+  FaUpload,
+  FaTrash,
+  FaImage,
+  FaCalendarAlt,
+  FaClock,
+  FaMapMarkerAlt,
+} from "react-icons/fa";
+import { useSelector } from "react-redux";
+import { selectAuth } from "../../features/authSlice";
 
 // Get BASE_URL from env
-const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
-
+const BASE_URL =
+  import.meta.env.VITE_BASE_URL ||
+  "https://divine-care.ap-south-1.storage.onantryk.com";
 
 const AddEditEvent = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useSelector(selectAuth);
-  
+
   const [getEventById, { isLoading }] = useGetEventByIdMutation();
   const [createEvent, { isLoading: createLoading }] = useCreateEventMutation();
   const [updateEvent, { isLoading: updateLoading }] = useUpdateEventMutation();
   const [uploadImage] = useUploadImageMutation();
-  
+
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    shortDescription: '',
-    startDate: '',
-    endDate: '',
-    registrationDeadline: '',
-    location: '',
-    venue: '',
+    title: "",
+    description: "",
+    shortDescription: "",
+    startDate: "",
+    endDate: "",
+    registrationDeadline: "",
+    location: "",
+    venue: "",
     images: [],
-    featuredImage: '',
+    featuredImage: "",
     isActive: true,
     featured: false,
-    priority: 'medium',
-    maxAttendees: '',
-    currentAttendees: 0
+    priority: "medium",
+    maxAttendees: "",
+    currentAttendees: 0,
   });
 
   const [imageFiles, setImageFiles] = useState([]);
@@ -52,137 +74,169 @@ const AddEditEvent = () => {
   const [uploadingImages, setUploadingImages] = useState({});
 
   const priorities = [
-    { value: 'low', label: 'Low Priority' },
-    { value: 'medium', label: 'Medium Priority' },
-    { value: 'high', label: 'High Priority' }
+    { value: "low", label: "Low Priority" },
+    { value: "medium", label: "Medium Priority" },
+    { value: "high", label: "High Priority" },
   ];
 
   const fetchEvent = async () => {
     if (!id) return;
 
     try {
-      console.log('🔄 Starting Event Data fetch for ID:', id);
-      
+      console.log("🔄 Starting Event Data fetch for ID:", id);
+
       const response = await getEventById(id).unwrap();
-      console.log('📥 Event Data Response:', response);
-      console.log('📊 Response keys:', Object.keys(response || {}));
-      console.log('🖼️ RAW IMAGES FROM API:', response?.event?.images || response?.events?.[0]?.images || response?.data?.images || 'No images found in response');
-      
+      console.log("📥 Event Data Response:", response);
+      console.log("📊 Response keys:", Object.keys(response || {}));
+      console.log(
+        "🖼️ RAW IMAGES FROM API:",
+        response?.event?.images ||
+          response?.events?.[0]?.images ||
+          response?.data?.images ||
+          "No images found in response"
+      );
+
       // Check multiple possible response structures
       let eventData = null;
-      
-      console.log('🔍 Analyzing event response structure:');
-      console.log('📊 Response:', JSON.stringify(response, null, 2));
-      
+
+      console.log("🔍 Analyzing event response structure:");
+      console.log("📊 Response:", JSON.stringify(response, null, 2));
+
       if (response?.success && response?.event) {
         eventData = response.event;
-        console.log('✅ Using response.event structure (success + event)');
-      } else if (response?.success && response?.events && Array.isArray(response.events)) {
+        console.log("✅ Using response.event structure (success + event)");
+      } else if (
+        response?.success &&
+        response?.events &&
+        Array.isArray(response.events)
+      ) {
         // Handle case where API returns events array even for single event
-        eventData = response.events[0]; 
-        console.log('✅ Using response.events[0] structure (events array)');
+        eventData = response.events[0];
+        console.log("✅ Using response.events[0] structure (events array)");
       } else if (response?.event) {
         eventData = response.event;
-        console.log('✅ Using response.event structure (no success flag)');
+        console.log("✅ Using response.event structure (no success flag)");
       } else if (response?.success && response?.data) {
         eventData = response.data;
-        console.log('✅ Using response.data structure (with success flag)');
+        console.log("✅ Using response.data structure (with success flag)");
       } else if (response?.data && !response?.success) {
         eventData = response.data;
-        console.log('✅ Using response.data structure (no success flag)');
-      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        console.log("✅ Using response.data structure (no success flag)");
+      } else if (
+        response &&
+        typeof response === "object" &&
+        !response.error &&
+        !response.message &&
+        !response.success
+      ) {
         eventData = response;
-        console.log('✅ Using response directly as data');
+        console.log("✅ Using response directly as data");
       }
-      
-      console.log('📝 Extracted event data:', eventData);
-      
+
+      console.log("📝 Extracted event data:", eventData);
+
       if (eventData && Object.keys(eventData).length > 0) {
-        console.log('🔄 Processing event data for form...');
-        
+        console.log("🔄 Processing event data for form...");
+
         // Safe date conversion with error handling
         const formatDateForInput = (dateString) => {
           try {
-            if (!dateString) return '';
+            if (!dateString) return "";
             const date = new Date(dateString);
             if (isNaN(date.getTime())) {
-              console.warn('Invalid date:', dateString);
-              return '';
+              console.warn("Invalid date:", dateString);
+              return "";
             }
             // Return in YYYY-MM-DD format for date inputs
-            return date.toISOString().split('T')[0];
+            return date.toISOString().split("T")[0];
           } catch (error) {
-            console.error('Error formatting date:', dateString, error);
-            return '';
+            console.error("Error formatting date:", dateString, error);
+            return "";
           }
         };
 
         const processedFormData = {
-          title: eventData.title || '',
-          description: eventData.description || '',
-          shortDescription: eventData.shortDescription || '',
+          title: eventData.title || "",
+          description: eventData.description || "",
+          shortDescription: eventData.shortDescription || "",
           startDate: formatDateForInput(eventData.startDate),
           endDate: formatDateForInput(eventData.endDate),
-          registrationDeadline: formatDateForInput(eventData.registrationDeadline),
-          location: eventData.location || '',
-          venue: eventData.venueDetails || eventData.venue || '', // Handle both venueDetails and venue
-          images: Array.isArray(eventData.images) ? eventData.images : (eventData.image ? [eventData.image] : []),
-          featuredImage: eventData.featuredImage || eventData.image || '', // Handle both featuredImage and image
-          isActive: typeof eventData.isActive === 'boolean' ? eventData.isActive : true,
-          featured: typeof eventData.featured === 'boolean' ? eventData.featured : false,
-          priority: eventData.priority || 'medium',
-          maxAttendees: eventData.maxAttendees || '',
-          currentAttendees: eventData.currentAttendees || 0
+          registrationDeadline: formatDateForInput(
+            eventData.registrationDeadline
+          ),
+          location: eventData.location || "",
+          venue: eventData.venueDetails || eventData.venue || "", // Handle both venueDetails and venue
+          images: Array.isArray(eventData.images)
+            ? eventData.images
+            : eventData.image
+            ? [eventData.image]
+            : [],
+          featuredImage: eventData.featuredImage || eventData.image || "", // Handle both featuredImage and image
+          isActive:
+            typeof eventData.isActive === "boolean" ? eventData.isActive : true,
+          featured:
+            typeof eventData.featured === "boolean"
+              ? eventData.featured
+              : false,
+          priority: eventData.priority || "medium",
+          maxAttendees: eventData.maxAttendees || "",
+          currentAttendees: eventData.currentAttendees || 0,
         };
 
-        console.log('✅ Processed form data:', processedFormData);
+        console.log("✅ Processed form data:", processedFormData);
         setFormData(processedFormData);
-        
+
         // Set image previews from the event data - KEEP IN SYNC WITH formData.images
-        const imageArray = Array.isArray(eventData.images) && eventData.images.length > 0
-          ? eventData.images
-          : (eventData.image ? [eventData.image] : []);
-        
-        console.log('🖼️ Setting image previews:', imageArray);
+        const imageArray =
+          Array.isArray(eventData.images) && eventData.images.length > 0
+            ? eventData.images
+            : eventData.image
+            ? [eventData.image]
+            : [];
+
+        console.log("🖼️ Setting image previews:", imageArray);
         setImagePreviews(imageArray);
-        
+
         // IMPORTANT: Ensure formData.images matches imagePreviews exactly
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          images: imageArray
+          images: imageArray,
         }));
-        
-        console.log('🎯 Event data populated successfully');
-        toast.success('Event data loaded successfully');
+
+        console.log("🎯 Event data populated successfully");
+        toast.success("Event data loaded successfully");
       } else {
-        console.log('⚠️ No event data found');
-        toast.error('Event not found');
-        navigate('/dash/events');
+        console.log("⚠️ No event data found");
+        toast.error("Event not found");
+        navigate("/dash/events");
       }
     } catch (error) {
-      console.error('❌ Error fetching event data:', error);
-      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
-      
+      console.error("❌ Error fetching event data:", error);
+      console.error("❌ Full error object:", JSON.stringify(error, null, 2));
+
       // Don't navigate away immediately, show error but allow form to render
-      toast.error(error?.data?.message || 'Failed to load event. You can still create a new event.');
-      
+      toast.error(
+        error?.data?.message ||
+          "Failed to load event. You can still create a new event."
+      );
+
       // Set default form data to prevent blank page
       setFormData({
-        title: '',
-        description: '',
-        shortDescription: '',
-        startDate: '',
-        endDate: '',
-        registrationDeadline: '',
-        location: '',
-        venue: '',
+        title: "",
+        description: "",
+        shortDescription: "",
+        startDate: "",
+        endDate: "",
+        registrationDeadline: "",
+        location: "",
+        venue: "",
         images: [],
-        featuredImage: '',
+        featuredImage: "",
         isActive: true,
         featured: false,
-        priority: 'medium',
-        maxAttendees: '',
-        currentAttendees: 0
+        priority: "medium",
+        maxAttendees: "",
+        currentAttendees: 0,
       });
     }
   };
@@ -195,10 +249,15 @@ const AddEditEvent = () => {
 
   useEffect(() => {
     const applyRedAsterisks = () => {
-      const labels = document.querySelectorAll('label, .form-label, h5, .text-danger');
-      labels.forEach(label => {
-        if (label.innerHTML && label.innerHTML.includes('*')) {
-          label.innerHTML = label.innerHTML.replace(/\*/g, '<span style="color: red; font-weight: bold;">*</span>');
+      const labels = document.querySelectorAll(
+        "label, .form-label, h5, .text-danger"
+      );
+      labels.forEach((label) => {
+        if (label.innerHTML && label.innerHTML.includes("*")) {
+          label.innerHTML = label.innerHTML.replace(
+            /\*/g,
+            '<span style="color: red; font-weight: bold;">*</span>'
+          );
         }
       });
     };
@@ -209,25 +268,31 @@ const AddEditEvent = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
   const handleDescriptionChange = (content) => {
-    setFormData(prev => ({ ...prev, description: content }));
+    setFormData((prev) => ({ ...prev, description: content }));
   };
 
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
-    
+
     if (files.length === 0) return;
 
     // Validate file types and sizes
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    const validFiles = files.filter(file => {
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    const validFiles = files.filter((file) => {
       if (!allowedTypes.includes(file.type)) {
         toast.error(`${file.name} is not a supported image type`);
         return false;
@@ -244,52 +309,61 @@ const AddEditEvent = () => {
     // Upload images
     for (const file of validFiles) {
       const fileId = Date.now() + Math.random();
-      setUploadingImages(prev => ({ ...prev, [fileId]: true }));
+      setUploadingImages((prev) => ({ ...prev, [fileId]: true }));
 
       try {
-        console.log('🖼️ Uploading event image:', file.name);
-        
+        console.log("🖼️ Uploading event image:", file.name);
+        console.log("   Original size:", formatFileSize(file.size));
+
+        // Resize image to 50% quality before upload (more aggressive to avoid 413 errors)
+        const resizedFile = await resizeImage(file, 0.5);
+        console.log("   Resized to:", formatFileSize(resizedFile.size));
+        console.log(
+          "   Reduction:",
+          Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%"
+        );
+
         const uploadFormData = new FormData();
-        uploadFormData.append('files', file); // Use 'files' key for new API format
-        
+        uploadFormData.append("files", resizedFile); // Use 'files' key for new API format
+
         const response = await uploadImage(uploadFormData).unwrap();
-        console.log('📥 Image upload response:', response);
-        
+        console.log("📥 Image upload response:", response);
+
         // Handle new API response format with files array
-        let imageUrl = '';
+        let imageUrl = "";
         if (response.success && response.files && response.files.length > 0) {
           imageUrl = response.files[0].url; // Get URL from first file in array
-          console.log('✅ Using new API format - files[0].url:', imageUrl);
+          console.log("✅ Using new API format - files[0].url:", imageUrl);
         } else if (response?.imageUrl) {
           imageUrl = response.imageUrl; // Fallback to old format
-          console.log('✅ Using fallback format - imageUrl:', imageUrl);
+          console.log("✅ Using fallback format - imageUrl:", imageUrl);
         } else if (response?.url) {
           imageUrl = response.url; // Another fallback
-          console.log('✅ Using fallback format - url:', imageUrl);
+          console.log("✅ Using fallback format - url:", imageUrl);
         } else {
-          throw new Error('Invalid upload response format - no URL found');
+          throw new Error("Invalid upload response format - no URL found");
         }
-        
+
         if (imageUrl) {
-          setImagePreviews(prev => [...prev, imageUrl]);
-          
+          setImagePreviews((prev) => [...prev, imageUrl]);
+
           // Also add to formData.images array
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
             images: [...prev.images, imageUrl],
-            featuredImage: prev.featuredImage || imageUrl // Set as featured if no featured image exists
+            featuredImage: prev.featuredImage || imageUrl, // Set as featured if no featured image exists
           }));
-          
-          console.log('✅ Event image uploaded successfully:', imageUrl);
+
+          console.log("✅ Event image uploaded successfully:", imageUrl);
           toast.success(`${file.name} uploaded successfully!`);
         } else {
-          throw new Error('No valid image URL found in response');
+          throw new Error("No valid image URL found in response");
         }
       } catch (error) {
-        console.error('❌ Error uploading event image:', error);
+        console.error("❌ Error uploading event image:", error);
         toast.error(`Failed to upload ${file.name}. Please try again.`);
       } finally {
-        setUploadingImages(prev => {
+        setUploadingImages((prev) => {
           const newState = { ...prev };
           delete newState[fileId];
           return newState;
@@ -299,36 +373,39 @@ const AddEditEvent = () => {
   };
 
   const removeImage = (index) => {
-    console.log('🗑️ Removing image at index:', index);
-    console.log('📸 Current imagePreviews:', imagePreviews);
-    console.log('📸 Current formData.images:', formData.images);
-    
+    console.log("🗑️ Removing image at index:", index);
+    console.log("📸 Current imagePreviews:", imagePreviews);
+    console.log("📸 Current formData.images:", formData.images);
+
     const imageToRemove = imagePreviews[index];
-    console.log('🎯 Image to remove:', imageToRemove);
-    
+    console.log("🎯 Image to remove:", imageToRemove);
+
     // Get the new arrays after removal
     const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
     const newFormDataImages = formData.images.filter((_, i) => i !== index);
-    
-    console.log('✅ New imagePreviews:', newImagePreviews);
-    console.log('✅ New formData.images:', newFormDataImages);
-    
+
+    console.log("✅ New imagePreviews:", newImagePreviews);
+    console.log("✅ New formData.images:", newFormDataImages);
+
     // Update both states
     setImagePreviews(newImagePreviews);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       images: newFormDataImages,
       // Update featured image if it was removed
-      featuredImage: prev.featuredImage === imageToRemove 
-        ? (newFormDataImages.length > 0 ? newFormDataImages[0] : '') 
-        : prev.featuredImage
+      featuredImage:
+        prev.featuredImage === imageToRemove
+          ? newFormDataImages.length > 0
+            ? newFormDataImages[0]
+            : ""
+          : prev.featuredImage,
     }));
-    
-    toast.info('Image removed. Don\'t forget to save your changes.');
+
+    toast.info("Image removed. Don't forget to save your changes.");
   };
 
   const setFeaturedImage = (imageUrl) => {
-    setFormData(prev => ({ ...prev, featuredImage: imageUrl }));
+    setFormData((prev) => ({ ...prev, featuredImage: imageUrl }));
   };
 
   const handleSubmit = async (e) => {
@@ -336,36 +413,38 @@ const AddEditEvent = () => {
 
     // Validation
     if (!formData.title.trim()) {
-      toast.error('Event title is required');
+      toast.error("Event title is required");
       return;
     }
     if (!formData.description.trim()) {
-      toast.error('Event description is required');
+      toast.error("Event description is required");
       return;
     }
     if (!formData.startDate) {
-      toast.error('Start date and time is required');
+      toast.error("Start date and time is required");
       return;
     }
     if (!formData.endDate) {
-      toast.error('End date and time is required');
+      toast.error("End date and time is required");
       return;
     }
     if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      toast.error('End date must be after start date');
+      toast.error("End date must be after start date");
       return;
     }
     if (!formData.location.trim()) {
-      toast.error('Event location is required');
+      toast.error("Event location is required");
       return;
     }
 
     try {
-      let submitData = { 
+      let submitData = {
         ...formData,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
-        registrationDeadline: formData.registrationDeadline ? new Date(formData.registrationDeadline).toISOString() : null,
+        registrationDeadline: formData.registrationDeadline
+          ? new Date(formData.registrationDeadline).toISOString()
+          : null,
         images: formData.images, // Use formData.images instead of imagePreviews
         maxAttendees: parseInt(formData.maxAttendees) || 0,
         // Map frontend field names to API field names
@@ -376,50 +455,60 @@ const AddEditEvent = () => {
       if (!submitData.featuredImage && submitData.images.length > 0) {
         submitData.featuredImage = submitData.images[0];
       }
-      
+
       // CRITICAL: Handle the 'image' field (singular) for backend compatibility
       if (submitData.images.length > 0) {
         // If there are images, set the image field to the featured one or first one
         submitData.image = submitData.featuredImage || submitData.images[0];
       } else {
         // If NO images, explicitly set image to empty string to clear it in the database
-        submitData.image = '';
-        submitData.featuredImage = '';
+        submitData.image = "";
+        submitData.featuredImage = "";
       }
 
       // Remove venue field since API expects venueDetails
       delete submitData.venue;
 
-      console.log('📤 Submitting event data:', submitData);
-      console.log('📸 Images being sent:', submitData.images);
-      console.log('🖼️ Current imagePreviews state:', imagePreviews);
-      console.log('📦 Current formData.images state:', formData.images);
-      console.log('🔍 Full submitData as JSON:', JSON.stringify(submitData, null, 2));
+      console.log("📤 Submitting event data:", submitData);
+      console.log("📸 Images being sent:", submitData.images);
+      console.log("🖼️ Current imagePreviews state:", imagePreviews);
+      console.log("📦 Current formData.images state:", formData.images);
+      console.log(
+        "🔍 Full submitData as JSON:",
+        JSON.stringify(submitData, null, 2)
+      );
 
       // API call
-      console.log('🌐 Calling API - Method:', id ? 'PUT (update)' : 'POST (create)');
-      console.log('🌐 API Endpoint:', id ? `/events/${id}` : '/events');
-      console.log('🌐 Request body:', submitData);
-      
-      const response = id 
+      console.log(
+        "🌐 Calling API - Method:",
+        id ? "PUT (update)" : "POST (create)"
+      );
+      console.log("🌐 API Endpoint:", id ? `/events/${id}` : "/events");
+      console.log("🌐 Request body:", submitData);
+
+      const response = id
         ? await updateEvent({ id, data: submitData }).unwrap()
         : await createEvent(submitData).unwrap();
-      
-      console.log('✅ API Response received:', response);
-      console.log('✅ Response as JSON:', JSON.stringify(response, null, 2));
-      
+
+      console.log("✅ API Response received:", response);
+      console.log("✅ Response as JSON:", JSON.stringify(response, null, 2));
+
       // Check if response contains the updated event data
       if (response?.event) {
-        console.log('📊 Returned event images:', response.event.images);
+        console.log("📊 Returned event images:", response.event.images);
       } else if (response?.data?.images) {
-        console.log('📊 Returned event images:', response.data.images);
+        console.log("📊 Returned event images:", response.data.images);
       }
-      
-      toast.success(response?.message || `Event ${id ? 'updated' : 'created'} successfully`);
-      navigate('/dash/events');
+
+      toast.success(
+        response?.message || `Event ${id ? "updated" : "created"} successfully`
+      );
+      navigate("/dash/events");
     } catch (error) {
-      console.error('❌ Error submitting event:', error);
-      toast.error(error?.data?.message || `Failed to ${id ? 'update' : 'create'} event`);
+      console.error("❌ Error submitting event:", error);
+      toast.error(
+        error?.data?.message || `Failed to ${id ? "update" : "create"} event`
+      );
     }
   };
 
@@ -427,17 +516,17 @@ const AddEditEvent = () => {
 
   // Image URL helper function
   const getImageUrl = (val) => {
-    if (!val) return '';
-    
+    if (!val) return "";
+
     // If already a full URL, return as is
     if (/^https?:\/\//i.test(val)) {
-      console.log('🌐 Image already has full URL:', val);
+      console.log("🌐 Image already has full URL:", val);
       return val;
     }
-    
+
     // Otherwise, prepend the base URL
-    const fullUrl = `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
-    console.log('🔗 Converting relative path to full URL:', val, '→', fullUrl);
+    const fullUrl = `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
+    console.log("🔗 Converting relative path to full URL:", val, "→", fullUrl);
     return fullUrl;
   };
 
@@ -454,18 +543,32 @@ const AddEditEvent = () => {
   }
 
   // Add error boundary check - more comprehensive validation
-  if (!formData || typeof formData !== 'object' || Object.keys(formData).length === 0) {
+  if (
+    !formData ||
+    typeof formData !== "object" ||
+    Object.keys(formData).length === 0
+  ) {
     return (
       <MotionDiv>
         <Container fluid className="text-center py-5">
           <Alert variant="danger">
             <h4>Error Loading Event</h4>
-            <p>There was an issue loading the event data. Please try refreshing the page or go back to events list.</p>
+            <p>
+              There was an issue loading the event data. Please try refreshing
+              the page or go back to events list.
+            </p>
             <div className="mt-3">
-              <Button variant="outline-primary" onClick={() => window.location.reload()} className="me-2">
+              <Button
+                variant="outline-primary"
+                onClick={() => window.location.reload()}
+                className="me-2"
+              >
                 Refresh Page
               </Button>
-              <Button variant="outline-secondary" onClick={() => navigate('/dash/events')}>
+              <Button
+                variant="outline-secondary"
+                onClick={() => navigate("/dash/events")}
+              >
                 Back to Events
               </Button>
             </div>
@@ -482,15 +585,15 @@ const AddEditEvent = () => {
           <div>
             <Button
               variant="outline-secondary"
-              onClick={() => navigate('/dash/events')}
+              onClick={() => navigate("/dash/events")}
               className="me-3"
             >
               <FaArrowLeft className="me-1" />
               Back to Events
             </Button>
             <h2 className="d-inline">
-              <span style={{ color: 'nlack' }}>{id ? 'Edit' : 'Add'}</span>{' '}
-              <span style={{ color: 'black' }}>Event</span>
+              <span style={{ color: "nlack" }}>{id ? "Edit" : "Add"}</span>{" "}
+              <span style={{ color: "black" }}>Event</span>
             </h2>
           </div>
         </div>
@@ -515,7 +618,7 @@ const AddEditEvent = () => {
                     maxLength="100"
                   />
                   <Form.Text className="text-muted">
-                    {(formData.title || '').length}/100 characters
+                    {(formData.title || "").length}/100 characters
                   </Form.Text>
 
                   <FormField
@@ -529,11 +632,14 @@ const AddEditEvent = () => {
                     maxLength="200"
                   />
                   <Form.Text className="text-muted">
-                    {(formData.shortDescription || '').length}/200 characters
+                    {(formData.shortDescription || "").length}/200 characters
                   </Form.Text>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Detailed Description <span className="text-danger">*</span></Form.Label>
+                    <Form.Label>
+                      Detailed Description{" "}
+                      <span className="text-danger">*</span>
+                    </Form.Label>
                     <TextEditor
                       value={formData.description}
                       onChange={handleDescriptionChange}
@@ -560,7 +666,7 @@ const AddEditEvent = () => {
                         label="Start Date *"
                         value={formData.startDate}
                         onChange={handleChange}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={new Date().toISOString().split("T")[0]}
                         required
                       />
                     </Col>
@@ -571,7 +677,7 @@ const AddEditEvent = () => {
                         label="End Date *"
                         value={formData.endDate}
                         onChange={handleChange}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={new Date().toISOString().split("T")[0]}
                         required
                       />
                     </Col>
@@ -601,7 +707,7 @@ const AddEditEvent = () => {
                         maxLength="100"
                       />
                       <Form.Text className="text-muted">
-                        {(formData.location || '').length}/100 characters
+                        {(formData.location || "").length}/100 characters
                       </Form.Text>
                     </Col>
                     <Col md={6}>
@@ -615,7 +721,7 @@ const AddEditEvent = () => {
                         maxLength="150"
                       />
                       <Form.Text className="text-muted">
-                        {(formData.venue || '').length}/150 characters
+                        {(formData.venue || "").length}/150 characters
                       </Form.Text>
                     </Col>
                   </Row>
@@ -647,8 +753,14 @@ const AddEditEvent = () => {
                     </Form.Text>
                     {Object.keys(uploadingImages).length > 0 && (
                       <div className="mt-2">
-                        <Spinner animation="border" size="sm" className="me-2" />
-                        <small className="text-muted">Uploading images...</small>
+                        <Spinner
+                          animation="border"
+                          size="sm"
+                          className="me-2"
+                        />
+                        <small className="text-muted">
+                          Uploading images...
+                        </small>
                       </div>
                     )}
                   </Form.Group>
@@ -665,7 +777,11 @@ const AddEditEvent = () => {
                                 alt={`Preview ${index + 1}`}
                                 fluid
                                 rounded
-                                style={{ height: '100px', objectFit: 'cover', width: '100%' }}
+                                style={{
+                                  height: "100px",
+                                  objectFit: "cover",
+                                  width: "100%",
+                                }}
                               />
                               <div className="position-absolute top-0 end-0 p-1">
                                 <Button
@@ -673,7 +789,11 @@ const AddEditEvent = () => {
                                   size="sm"
                                   onClick={() => removeImage(index)}
                                   className="rounded-circle"
-                                  style={{ width: '25px', height: '25px', padding: '0' }}
+                                  style={{
+                                    width: "25px",
+                                    height: "25px",
+                                    padding: "0",
+                                  }}
                                 >
                                   <FaTrash size={10} />
                                 </Button>
@@ -746,12 +866,16 @@ const AddEditEvent = () => {
                       disabled={isLoading_}
                     >
                       <FaSave className="me-1" />
-                      {isLoading_ ? 'Saving...' : (id ? 'Update Event' : 'Create Event')}
+                      {isLoading_
+                        ? "Saving..."
+                        : id
+                        ? "Update Event"
+                        : "Create Event"}
                     </Button>
                     <Button
                       type="button"
                       variant="outline-secondary"
-                      onClick={() => navigate('/dash/events')}
+                      onClick={() => navigate("/dash/events")}
                     >
                       Cancel
                     </Button>

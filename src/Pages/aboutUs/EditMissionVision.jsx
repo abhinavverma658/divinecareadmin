@@ -1,38 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import TextEditor from '../../Components/TextEditor';
-import { Container, Row, Col, Card, Form, Button, Alert, Image, Spinner, Nav, Tab } from 'react-bootstrap';
-import { FaSave, FaArrowLeft } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
-import { useGetAboutVisionDataMutation, useUpdateAboutVisionDataMutation, useUploadImageMutation } from '../../features/apiSlice';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import TextEditor from "../../Components/TextEditor";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Form,
+  Button,
+  Alert,
+  Image,
+  Spinner,
+  Nav,
+  Tab,
+} from "react-bootstrap";
+import { FaSave, FaArrowLeft } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import {
+  useGetAboutVisionDataMutation,
+  useUpdateAboutVisionDataMutation,
+  useUploadImageMutation,
+} from "../../features/apiSlice";
+import { toast } from "react-toastify";
+import { resizeImage, formatFileSize } from "../../utils/imageResize";
 
 // Get BASE_URL from env
-const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+const BASE_URL =
+  import.meta.env.VITE_BASE_URL ||
+  "https://divine-care.ap-south-1.storage.onantryk.com";
 
 const EditMissionVision = () => {
   const [formData, setFormData] = useState({
-    mvHeading: '',
-    mvDescription: '',
-    mvImage: '',
+    mvHeading: "",
+    mvDescription: "",
+    mvImage: "",
     ourMissionTab: {
-      title: '',
-      content: ''
+      title: "",
+      content: "",
     },
     ourVisionTab: {
-      title: '',
-      content: ''
+      title: "",
+      content: "",
     },
     charityHistoryTab: {
-      title: '',
-      content: ''
-    }
+      title: "",
+      content: "",
+    },
   });
-  
-  const [activeTab, setActiveTab] = useState('mission');
+
+  const [activeTab, setActiveTab] = useState("mission");
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   // API mutations - using Vision endpoints
   const [getAboutVisionData] = useGetAboutVisionDataMutation();
   const [updateAboutVisionData] = useUpdateAboutVisionDataMutation();
@@ -40,94 +59,111 @@ const EditMissionVision = () => {
 
   // Demo data for testing
   const demoData = {
-    mvHeading: 'Our Purpose: Mission and Vision for a Better',
-    mvDescription: 'Our mission to bring hope, resources, & opportunities communities in need, empowering individuals to build brighter, sustainable futures we are committed to tackling critical challenges.',
-    mvImage: 'https://creative-story.s3.amazonaws.com/about/mission-vision-image.jpg',
+    mvHeading: "Our Purpose: Mission and Vision for a Better",
+    mvDescription:
+      "Our mission to bring hope, resources, & opportunities communities in need, empowering individuals to build brighter, sustainable futures we are committed to tackling critical challenges.",
+    mvImage:
+      "https://creative-story.s3.amazonaws.com/about/mission-vision-image.jpg",
     ourMissionTab: {
-      title: 'Our Mission',
-      content: 'Our vision is a world where everyone has the opportunity to thrive, with access the resources and support necessary for lasting change guided by compassion, integrity.'
+      title: "Our Mission",
+      content:
+        "Our vision is a world where everyone has the opportunity to thrive, with access the resources and support necessary for lasting change guided by compassion, integrity.",
     },
     ourVisionTab: {
-      title: 'Our Vision',
-      content: 'Our vision is a world where everyone has the opportunity to thrive, with access the resources and support necessary for lasting change guided by compassion, integrity.'
+      title: "Our Vision",
+      content:
+        "Our vision is a world where everyone has the opportunity to thrive, with access the resources and support necessary for lasting change guided by compassion, integrity.",
     },
     charityHistoryTab: {
-      title: 'Charity History',
-      content: 'Guided by compassion, integrity, and community, we work tirelessly to make this vision a reality. Together, with our supporters, partners, and volunteers, we are creating lasting impact in communities worldwide.'
-    }
+      title: "Charity History",
+      content:
+        "Guided by compassion, integrity, and community, we work tirelessly to make this vision a reality. Together, with our supporters, partners, and volunteers, we are creating lasting impact in communities worldwide.",
+    },
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token || token === '"demo-token"') {
       setIsDemoMode(true);
       setFormData(demoData);
-      console.log('🎭 Demo mode activated for vision, using demo data');
+      console.log("🎭 Demo mode activated for vision, using demo data");
     } else {
-      console.log('🔐 Real token found for vision, fetching from API');
+      console.log("🔐 Real token found for vision, fetching from API");
       fetchMissionVisionData();
     }
   }, []);
 
   // Debug form data changes for vision
   useEffect(() => {
-    console.log('🔄 Vision form data updated:', {
+    console.log("🔄 Vision form data updated:", {
       mvHeading: formData.mvHeading,
-      mvDescription: formData.mvDescription?.substring(0, 50) + '...',
+      mvDescription: formData.mvDescription?.substring(0, 50) + "...",
       hasImage: !!formData.mvImage,
       tabs: {
-        mission: formData.ourMissionTab?.title || 'Empty',
-        vision: formData.ourVisionTab?.title || 'Empty',
-        history: formData.charityHistoryTab?.title || 'Empty'
-      }
+        mission: formData.ourMissionTab?.title || "Empty",
+        vision: formData.ourVisionTab?.title || "Empty",
+        history: formData.charityHistoryTab?.title || "Empty",
+      },
     });
   }, [formData]);
 
   const fetchMissionVisionData = async () => {
     try {
       setIsLoading(true);
-      console.log('🔄 Starting About Vision Data fetch...');
-      
+      console.log("🔄 Starting About Vision Data fetch...");
+
       const response = await getAboutVisionData().unwrap();
-      console.log('📥 About Vision Data Response:', response);
-      console.log('📊 Response keys:', Object.keys(response || {}));
-      console.log('📋 Response type:', typeof response);
-      
+      console.log("📥 About Vision Data Response:", response);
+      console.log("📊 Response keys:", Object.keys(response || {}));
+      console.log("📋 Response type:", typeof response);
+
       // Check multiple possible response structures
       let data = null;
-      
-      console.log('🔍 Analyzing vision response structure:');
-      console.log('📊 Response:', JSON.stringify(response, null, 2));
-      console.log('🔑 Response keys:', response ? Object.keys(response) : 'No keys');
-      
+
+      console.log("🔍 Analyzing vision response structure:");
+      console.log("📊 Response:", JSON.stringify(response, null, 2));
+      console.log(
+        "🔑 Response keys:",
+        response ? Object.keys(response) : "No keys"
+      );
+
       if (response?.success && response?.vision) {
         data = response.vision;
-        console.log('✅ Using response.vision structure (success + vision)');
+        console.log("✅ Using response.vision structure (success + vision)");
       } else if (response?.vision) {
         data = response.vision;
-        console.log('✅ Using response.vision structure (no success flag)');
+        console.log("✅ Using response.vision structure (no success flag)");
       } else if (response?.success && response?.data) {
         data = response.data;
-        console.log('✅ Using response.data structure (with success flag)');
+        console.log("✅ Using response.data structure (with success flag)");
       } else if (response?.data && !response?.success) {
         data = response.data;
-        console.log('✅ Using response.data structure (no success flag)');
+        console.log("✅ Using response.data structure (no success flag)");
       } else if (Array.isArray(response) && response.length > 0) {
         data = response[0];
-        console.log('✅ Using first array item');
-      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        console.log("✅ Using first array item");
+      } else if (
+        response &&
+        typeof response === "object" &&
+        !response.error &&
+        !response.message &&
+        !response.success
+      ) {
         data = response;
-        console.log('✅ Using response directly as data');
+        console.log("✅ Using response directly as data");
       }
-      
-      console.log('📝 Extracted vision data:', data);
-      console.log('🔑 Vision data keys:', data ? Object.keys(data) : 'No data keys');
-      
+
+      console.log("📝 Extracted vision data:", data);
+      console.log(
+        "🔑 Vision data keys:",
+        data ? Object.keys(data) : "No data keys"
+      );
+
       if (data && Object.keys(data).length > 0) {
         // Map tabs array to individual tab objects
-        let missionTab = { title: '', content: '' };
-        let visionTab = { title: '', content: '' };
-        let historyTab = { title: '', content: '' };
+        let missionTab = { title: "", content: "" };
+        let visionTab = { title: "", content: "" };
+        let historyTab = { title: "", content: "" };
         if (Array.isArray(data.tabs)) {
           missionTab = data.tabs[0] || missionTab;
           visionTab = data.tabs[1] || visionTab;
@@ -139,30 +175,33 @@ const EditMissionVision = () => {
         historyTab = data.charityHistoryTab || data.historyTab || historyTab;
 
         const newFormData = {
-          mvHeading: data.mvHeading || data.heading || '',
-          mvDescription: data.mvDescription || data.description || '',
-          mvImage: data.mvImage || data.image || '',
+          mvHeading: data.mvHeading || data.heading || "",
+          mvDescription: data.mvDescription || data.description || "",
+          mvImage: data.mvImage || data.image || "",
           ourMissionTab: missionTab,
           ourVisionTab: visionTab,
-          charityHistoryTab: historyTab
+          charityHistoryTab: historyTab,
         };
-        console.log('🎯 Final vision form data to set:', newFormData);
+        console.log("🎯 Final vision form data to set:", newFormData);
         setFormData(newFormData);
-        toast.success('Vision section data loaded successfully');
+        toast.success("Vision section data loaded successfully");
       } else {
-        console.log('⚠️ No vision data found or empty data object');
-        console.log('📊 Full vision response debug:', JSON.stringify(response, null, 2));
+        console.log("⚠️ No vision data found or empty data object");
+        console.log(
+          "📊 Full vision response debug:",
+          JSON.stringify(response, null, 2)
+        );
         setFormData(demoData);
-        toast.info('No saved data found. Using demo data.');
+        toast.info("No saved data found. Using demo data.");
       }
     } catch (error) {
-      console.error('❌ Error fetching vision data:', error);
-      console.log('📊 Error details:', {
+      console.error("❌ Error fetching vision data:", error);
+      console.log("📊 Error details:", {
         message: error.message,
         status: error.status,
-        data: error.data
+        data: error.data,
       });
-      toast.error('Failed to load vision data. Using demo data.');
+      toast.error("Failed to load vision data. Using demo data.");
       setFormData(demoData);
     } finally {
       setIsLoading(false);
@@ -171,34 +210,36 @@ const EditMissionVision = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleTabChange = (tabName, field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [tabName]: {
         ...prev[tabName],
-        [field]: value
-      }
+        [field]: value,
+      },
     }));
   };
 
   const handleImageUpload = async (file) => {
     if (!file) return;
-    
+
     if (isDemoMode) {
       // Demo mode - use base64
       const reader = new FileReader();
       reader.onload = (e) => {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          mvImage: e.target.result
+          mvImage: e.target.result,
         }));
-        toast.success('Mission & Vision image uploaded successfully (Demo mode)');
+        toast.success(
+          "Mission & Vision image uploaded successfully (Demo mode)"
+        );
       };
       reader.readAsDataURL(file);
       return;
@@ -206,32 +247,51 @@ const EditMissionVision = () => {
 
     try {
       setUploadingImage(true);
-      
+
+      console.log("🖼️ Uploading mission & vision image:", file.name);
+      console.log("   Original size:", formatFileSize(file.size));
+
+      // Resize image to 50% quality before upload (more aggressive to avoid 413 errors)
+      const resizedFile = await resizeImage(file, 0.5);
+      console.log("   Resized to:", formatFileSize(resizedFile.size));
+      console.log(
+        "   Reduction:",
+        Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%"
+      );
+
       // Create FormData for API upload
       const formData = new FormData();
-      formData.append('files', file); // Use 'files' key for backend compatibility
-      formData.append('folder', 'about-us/mission-vision');
-      console.log('🖼️ Uploading mission & vision image:', file.name);
+      formData.append("files", resizedFile); // Use 'files' key for backend compatibility
+      formData.append("folder", "about-us/mission-vision");
+
       const response = await uploadImage(formData).unwrap();
       // Support multiple possible keys for image URL, including files[0].url
-      let imageUrl = response?.imageUrl || response?.url || response?.data?.imageUrl || response?.data?.url;
-      if (!imageUrl && Array.isArray(response?.files) && response.files[0]?.url) {
+      let imageUrl =
+        response?.imageUrl ||
+        response?.url ||
+        response?.data?.imageUrl ||
+        response?.data?.url;
+      if (
+        !imageUrl &&
+        Array.isArray(response?.files) &&
+        response.files[0]?.url
+      ) {
         imageUrl = response.files[0].url;
       }
       if (imageUrl) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          mvImage: imageUrl
+          mvImage: imageUrl,
         }));
-        toast.success('Mission & Vision image uploaded successfully!');
-        console.log('✅ Mission & Vision image uploaded:', imageUrl);
+        toast.success("Mission & Vision image uploaded successfully!");
+        console.log("✅ Mission & Vision image uploaded:", imageUrl);
       } else {
-        console.error('❌ Upload response:', response);
-        throw new Error('No image URL returned from server');
+        console.error("❌ Upload response:", response);
+        throw new Error("No image URL returned from server");
       }
     } catch (error) {
-      console.error('❌ Error uploading mission & vision image:', error);
-      toast.error('Failed to upload image. Please try again.');
+      console.error("❌ Error uploading mission & vision image:", error);
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setUploadingImage(false);
     }
@@ -239,18 +299,25 @@ const EditMissionVision = () => {
 
   const validateForm = () => {
     const errors = [];
-    
-    if (!formData.mvHeading.trim()) errors.push('Main heading is required');
-    if (!formData.mvDescription.trim()) errors.push('Main description is required');
-    if (!formData.mvImage) errors.push('Left column image is required');
-    
+
+    if (!formData.mvHeading.trim()) errors.push("Main heading is required");
+    if (!formData.mvDescription.trim())
+      errors.push("Main description is required");
+    if (!formData.mvImage) errors.push("Left column image is required");
+
     // Validate tab content
-    if (!formData.ourMissionTab.title.trim()) errors.push('Tab 1 title is required');
-    if (!formData.ourMissionTab.content.trim()) errors.push('Tab 1 content is required');
-    if (!formData.ourVisionTab.title.trim()) errors.push('Tab 2 title is required');
-    if (!formData.ourVisionTab.content.trim()) errors.push('Tab 2 content is required');
-    if (!formData.charityHistoryTab.title.trim()) errors.push('Tab 3 title is required');
-    if (!formData.charityHistoryTab.content.trim()) errors.push('Tab 3 content is required');
+    if (!formData.ourMissionTab.title.trim())
+      errors.push("Tab 1 title is required");
+    if (!formData.ourMissionTab.content.trim())
+      errors.push("Tab 1 content is required");
+    if (!formData.ourVisionTab.title.trim())
+      errors.push("Tab 2 title is required");
+    if (!formData.ourVisionTab.content.trim())
+      errors.push("Tab 2 content is required");
+    if (!formData.charityHistoryTab.title.trim())
+      errors.push("Tab 3 title is required");
+    if (!formData.charityHistoryTab.content.trim())
+      errors.push("Tab 3 content is required");
 
     return errors;
   };
@@ -263,12 +330,14 @@ const EditMissionVision = () => {
     e.preventDefault();
     const errors = validateForm();
     if (errors.length > 0) {
-      errors.forEach(error => toast.error(error));
+      errors.forEach((error) => toast.error(error));
       return;
     }
 
     if (isDemoMode) {
-      toast.success('Mission & Vision section updated successfully! (Demo mode)');
+      toast.success(
+        "Mission & Vision section updated successfully! (Demo mode)"
+      );
       return;
     }
 
@@ -280,38 +349,42 @@ const EditMissionVision = () => {
       tabs: [
         {
           title: formData.ourMissionTab.title,
-          content: formData.ourMissionTab.content
+          content: formData.ourMissionTab.content,
         },
         {
           title: formData.ourVisionTab.title,
-          content: formData.ourVisionTab.content
+          content: formData.ourVisionTab.content,
         },
         {
           title: formData.charityHistoryTab.title,
-          content: formData.charityHistoryTab.content
-        }
-      ]
+          content: formData.charityHistoryTab.content,
+        },
+      ],
     };
 
     try {
       setIsLoading(true);
-      console.log('📤 Updating About Vision Data (payload):', payload);
-      const response = await updateAboutVisionData({ 
-        id: "68ee0dce70e1bfc20b375416", 
-        data: payload 
+      console.log("📤 Updating About Vision Data (payload):", payload);
+      const response = await updateAboutVisionData({
+        id: "68ee0dce70e1bfc20b375416",
+        data: payload,
       }).unwrap();
-      console.log('✅ Update Response:', response);
+      console.log("✅ Update Response:", response);
       if (response?.success) {
-        toast.success(response.message || 'Mission & Vision section updated successfully!');
+        toast.success(
+          response.message || "Mission & Vision section updated successfully!"
+        );
         setTimeout(() => {
           fetchMissionVisionData();
         }, 1000);
       } else {
-        toast.error('Failed to update mission & vision section');
+        toast.error("Failed to update mission & vision section");
       }
     } catch (error) {
-      console.error('❌ Error updating vision data:', error);
-      toast.error(error?.data?.message || 'Failed to update mission & vision section');
+      console.error("❌ Error updating vision data:", error);
+      toast.error(
+        error?.data?.message || "Failed to update mission & vision section"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -326,16 +399,19 @@ const EditMissionVision = () => {
     );
   }
 
-    const getImageUrl = (val) =>
-     !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
- 
+  const getImageUrl = (val) =>
+    !val
+      ? ""
+      : /^https?:\/\//i.test(val)
+      ? val
+      : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
 
   return (
     <Container fluid className="px-4 py-3">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div className="d-flex align-items-center">
-          <Link 
-            to="/dash/about-us" 
+          <Link
+            to="/dash/about-us"
             className="btn btn-outline-secondary me-3 d-flex align-items-center"
           >
             <FaArrowLeft className="me-2" />
@@ -343,7 +419,9 @@ const EditMissionVision = () => {
           </Link>
           <div>
             <h2 className="mb-1">Edit Mission & Vision Section</h2>
-            <p className="text-muted mb-0">Manage the mission and vision section content</p>
+            <p className="text-muted mb-0">
+              Manage the mission and vision section content
+            </p>
           </div>
         </div>
         <div className="d-flex align-items-center gap-3">
@@ -385,7 +463,9 @@ const EditMissionVision = () => {
               <Card.Body>
                 {/* Main Heading */}
                 <Form.Group className="mb-3">
-                  <Form.Label>Main Heading <span className="text-danger">*</span></Form.Label>
+                  <Form.Label>
+                    Main Heading <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Control
                     type="text"
                     name="mvHeading"
@@ -402,7 +482,9 @@ const EditMissionVision = () => {
 
                 {/* Main Description */}
                 <Form.Group className="mb-4">
-                  <Form.Label>Main Description <span className="text-danger">*</span></Form.Label>
+                  <Form.Label>
+                    Main Description <span className="text-danger">*</span>
+                  </Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={4}
@@ -432,15 +514,23 @@ const EditMissionVision = () => {
                       <Nav.Link eventKey="history">Tab 3</Nav.Link>
                     </Nav.Item>
                   </Nav>
-                  
+
                   <Tab.Content>
                     <Tab.Pane eventKey="mission">
                       <Form.Group className="mb-3">
-                        <Form.Label>Tab Title <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Tab Title <span className="text-danger">*</span>
+                        </Form.Label>
                         <Form.Control
                           type="text"
                           value={formData.ourMissionTab.title}
-                          onChange={(e) => handleTabChange('ourMissionTab', 'title', e.target.value)}
+                          onChange={(e) =>
+                            handleTabChange(
+                              "ourMissionTab",
+                              "title",
+                              e.target.value
+                            )
+                          }
                           placeholder="Enter tab title"
                           maxLength={30}
                           required
@@ -450,23 +540,35 @@ const EditMissionVision = () => {
                         </Form.Text>
                       </Form.Group>
                       <Form.Group className="mb-3">
-                        <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Tab Content <span className="text-danger">*</span>
+                        </Form.Label>
                         {/* Use TextEditor for rich text editing */}
                         <TextEditor
                           description={formData.ourMissionTab.content}
-                          onChange={(value) => handleTabChange('ourMissionTab', 'content', value)}
+                          onChange={(value) =>
+                            handleTabChange("ourMissionTab", "content", value)
+                          }
                           placeholder="Enter tab content"
                         />
                       </Form.Group>
                     </Tab.Pane>
-                    
+
                     <Tab.Pane eventKey="vision">
                       <Form.Group className="mb-3">
-                        <Form.Label>Tab Title <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Tab Title <span className="text-danger">*</span>
+                        </Form.Label>
                         <Form.Control
                           type="text"
                           value={formData.ourVisionTab.title}
-                          onChange={(e) => handleTabChange('ourVisionTab', 'title', e.target.value)}
+                          onChange={(e) =>
+                            handleTabChange(
+                              "ourVisionTab",
+                              "title",
+                              e.target.value
+                            )
+                          }
                           placeholder="Enter tab title"
                           maxLength={30}
                           required
@@ -476,37 +578,58 @@ const EditMissionVision = () => {
                         </Form.Text>
                       </Form.Group>
                       <Form.Group className="mb-3">
-                        <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Tab Content <span className="text-danger">*</span>
+                        </Form.Label>
                         {/* Use TextEditor for rich text editing */}
                         <TextEditor
                           description={formData.ourVisionTab.content}
-                          onChange={(value) => handleTabChange('ourVisionTab', 'content', value)}
+                          onChange={(value) =>
+                            handleTabChange("ourVisionTab", "content", value)
+                          }
                           placeholder="Enter tab content"
                         />
                       </Form.Group>
                     </Tab.Pane>
-                    
+
                     <Tab.Pane eventKey="history">
                       <Form.Group className="mb-3">
-                        <Form.Label>Tab Title <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Tab Title <span className="text-danger">*</span>
+                        </Form.Label>
                         <Form.Control
                           type="text"
                           value={formData.charityHistoryTab.title}
-                          onChange={(e) => handleTabChange('charityHistoryTab', 'title', e.target.value)}
+                          onChange={(e) =>
+                            handleTabChange(
+                              "charityHistoryTab",
+                              "title",
+                              e.target.value
+                            )
+                          }
                           placeholder="Enter tab title"
                           maxLength={30}
                           required
                         />
                         <Form.Text className="text-muted">
-                          {formData.charityHistoryTab.title.length}/30 characters
+                          {formData.charityHistoryTab.title.length}/30
+                          characters
                         </Form.Text>
                       </Form.Group>
                       <Form.Group className="mb-3">
-                        <Form.Label>Tab Content <span className="text-danger">*</span></Form.Label>
+                        <Form.Label>
+                          Tab Content <span className="text-danger">*</span>
+                        </Form.Label>
                         {/* Use TextEditor for rich text editing */}
                         <TextEditor
                           description={formData.charityHistoryTab.content}
-                          onChange={(value) => handleTabChange('charityHistoryTab', 'content', value)}
+                          onChange={(value) =>
+                            handleTabChange(
+                              "charityHistoryTab",
+                              "content",
+                              value
+                            )
+                          }
                           placeholder="Enter tab content"
                         />
                       </Form.Group>
@@ -515,8 +638,8 @@ const EditMissionVision = () => {
                 </Tab.Container>
               </Card.Body>
             </Card>
-                  </Col>
-                    {/* Left Column - Image */}
+          </Col>
+          {/* Left Column - Image */}
           <Col lg={4} className="mb-4">
             <Card className="shadow-sm border-0 h-100">
               <Card.Header className="bg-info text-white">
@@ -524,14 +647,21 @@ const EditMissionVision = () => {
               </Card.Header>
               <Card.Body>
                 <Form.Group>
-                  <Form.Label>Mission & Vision Image <span className="text-danger">*</span></Form.Label>
+                  <Form.Label>
+                    Mission & Vision Image{" "}
+                    <span className="text-danger">*</span>
+                  </Form.Label>
                   <div className="text-center">
                     {formData.mvImage && (
                       <Image
                         src={getImageUrl(formData.mvImage)}
                         alt="Mission Vision Image"
                         className="img-fluid rounded mb-3"
-                        style={{ maxHeight: '400px', objectFit: 'cover', width: '100%' }}
+                        style={{
+                          maxHeight: "400px",
+                          objectFit: "cover",
+                          width: "100%",
+                        }}
                       />
                     )}
                     <Form.Control
@@ -543,12 +673,17 @@ const EditMissionVision = () => {
                     />
                     {uploadingImage && (
                       <div className="text-center mb-3">
-                        <Spinner animation="border" size="sm" className="me-2" />
+                        <Spinner
+                          animation="border"
+                          size="sm"
+                          className="me-2"
+                        />
                         <small className="text-muted">Uploading...</small>
                       </div>
                     )}
                     <Form.Text className="text-muted">
-                      This image will appear on the left side of the mission & vision section
+                      This image will appear on the left side of the mission &
+                      vision section
                     </Form.Text>
                   </div>
                 </Form.Group>

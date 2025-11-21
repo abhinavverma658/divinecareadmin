@@ -1,41 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Button, Form, Alert, Badge, Image } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import { useGetHomeCarouselMutation, useUpdateHomeCarouselMutation } from '../../features/apiSlice';
-import { getError } from '../../utils/error';
-import { toast } from 'react-toastify';
-import MotionDiv from '../../Components/MotionDiv';
-import FormField from '../../Components/FormField';
-import { FaArrowLeft, FaSave, FaImage, FaTrash, FaPlus, FaArrowUp, FaArrowDown, FaUpload, FaSpinner } from 'react-icons/fa';
-import { useSelector } from 'react-redux';
-import { selectAuth } from '../../features/authSlice';
+import React, { useEffect, useState } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Form,
+  Alert,
+  Badge,
+  Image,
+} from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+import {
+  useGetHomeCarouselMutation,
+  useUpdateHomeCarouselMutation,
+} from "../../features/apiSlice";
+import { getError } from "../../utils/error";
+import { toast } from "react-toastify";
+import MotionDiv from "../../Components/MotionDiv";
+import FormField from "../../Components/FormField";
+import {
+  FaArrowLeft,
+  FaSave,
+  FaImage,
+  FaTrash,
+  FaPlus,
+  FaArrowUp,
+  FaArrowDown,
+  FaUpload,
+  FaSpinner,
+} from "react-icons/fa";
+import { useSelector } from "react-redux";
+import { selectAuth } from "../../features/authSlice";
 
 // Get BASE_URL from env
-const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
-
-
+const BASE_URL =
+  import.meta.env.VITE_BASE_URL ||
+  "https://divine-care.ap-south-1.storage.onantryk.com";
 
 const EditHomeHero = () => {
   const navigate = useNavigate();
   const { token } = useSelector(selectAuth);
-  
-  const [getHomeCarousel, { isLoading: loadingHero }] = useGetHomeCarouselMutation();
-  const [updateHomeCarousel, { isLoading: updateLoading }] = useUpdateHomeCarouselMutation();
+
+  const [getHomeCarousel, { isLoading: loadingHero }] =
+    useGetHomeCarouselMutation();
+  const [updateHomeCarousel, { isLoading: updateLoading }] =
+    useUpdateHomeCarouselMutation();
   // Remove RTK Query uploadImage mutation, use direct fetch instead
-  
+
   const [formData, setFormData] = useState({
-    heroImage: '',
-    heroTitle: '',
-    heroHeading: '',
-    description: '',
-    facebookUrl: '',
-    instagramUrl: '',
-    xUrl: ''
+    heroImage: "",
+    heroTitle: "",
+    heroHeading: "",
+    description: "",
+    facebookUrl: "",
+    instagramUrl: "",
+    xUrl: "",
   });
-  
+
   const [hasChanges, setHasChanges] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('checking'); // 'online', 'offline', 'checking'
+  const [connectionStatus, setConnectionStatus] = useState("checking"); // 'online', 'offline', 'checking'
 
   useEffect(() => {
     fetchHeroData();
@@ -45,11 +70,16 @@ const EditHomeHero = () => {
   useEffect(() => {
     const applyRedAsterisks = () => {
       // Find all labels and form-labels
-      const labels = document.querySelectorAll('label, .form-label, h5, .text-danger');
-      labels.forEach(label => {
-        if (label.innerHTML && label.innerHTML.includes('*')) {
+      const labels = document.querySelectorAll(
+        "label, .form-label, h5, .text-danger"
+      );
+      labels.forEach((label) => {
+        if (label.innerHTML && label.innerHTML.includes("*")) {
           // Replace asterisks with red-colored span
-          label.innerHTML = label.innerHTML.replace(/\*/g, '<span style="color: red; font-weight: bold;">*</span>');
+          label.innerHTML = label.innerHTML.replace(
+            /\*/g,
+            '<span style="color: red; font-weight: bold;">*</span>'
+          );
         }
       });
     };
@@ -62,62 +92,72 @@ const EditHomeHero = () => {
   }, [formData]); // Re-run when formData changes
 
   const fetchHeroData = async () => {
-    setConnectionStatus('checking');
+    setConnectionStatus("checking");
     try {
       // Check if demo mode
       if (token && token.startsWith("demo-token")) {
-        setConnectionStatus('offline');
+        setConnectionStatus("offline");
         // Set demo hero data
         const demoData = {
-          heroImage: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-          heroTitle: 'Welcome to DivineCare home',
-          heroHeading: 'Empowering Relief & Support',
-          description: 'We provide compassionate care and support to those in need, making a difference every day.',
-          facebookUrl: 'https://facebook.com/divinecare1',
-          instagramUrl: 'https://instagram.com/divinecare1',
-          xUrl: 'https://x.com/divinecare'
+          heroImage:
+            "https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+          heroTitle: "Welcome to DivineCare home",
+          heroHeading: "Empowering Relief & Support",
+          description:
+            "We provide compassionate care and support to those in need, making a difference every day.",
+          facebookUrl: "https://facebook.com/divinecare1",
+          instagramUrl: "https://instagram.com/divinecare1",
+          xUrl: "https://x.com/divinecare",
         };
-        
+
         setFormData(demoData);
         return;
       }
 
       // Real API call for production
       const data = await getHomeCarousel().unwrap();
-      setConnectionStatus('online');
+      setConnectionStatus("online");
       if (data?.success && data?.home) {
         setFormData({
-          heroImage: data.home.heroImage || '',
-          heroTitle: data.home.heroTitle || '',
-          heroHeading: data.home.heroHeading || '', 
-          description: data.home.description || '',
-          facebookUrl: data.home.facebookUrl || '',
-          instagramUrl: data.home.instagramUrl || '',
-          xUrl: data.home.xUrl || ''
+          heroImage: data.home.heroImage || "",
+          heroTitle: data.home.heroTitle || "",
+          heroHeading: data.home.heroHeading || "",
+          description: data.home.description || "",
+          facebookUrl: data.home.facebookUrl || "",
+          instagramUrl: data.home.instagramUrl || "",
+          xUrl: data.home.xUrl || "",
         });
       }
     } catch (error) {
-      console.warn('Backend connection failed, switching to offline mode:', error);
-      setConnectionStatus('offline');
-      
+      console.warn(
+        "Backend connection failed, switching to offline mode:",
+        error
+      );
+      setConnectionStatus("offline");
+
       // Check if it's a connection error
-      if (error?.status === 'FETCH_ERROR' || error?.message?.includes('Failed to fetch')) {
-        toast.warn('Backend server is offline. You\'re now in demo mode.', {
-          position: 'top-center',
+      if (
+        error?.status === "FETCH_ERROR" ||
+        error?.message?.includes("Failed to fetch")
+      ) {
+        toast.warn("Backend server is offline. You're now in demo mode.", {
+          position: "top-center",
           autoClose: 5000,
         });
-        
+
         // Set demo data for offline mode
         const offlineData = {
-          heroImage: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-          heroTitle: 'Welcome to DivineCare (Offline Mode)',
-          heroHeading: 'Empowering Relief & Support',
-          description: 'We provide compassionate care and support to those in need, making a difference every day. (Currently in offline demo mode)',
-          facebookUrl: 'https://facebook.com/divinecare1',
-          instagramUrl: 'https://instagram.com/divinecare1',
-          xUrl: 'https://x.com/divinecare'
+          heroImage:
+            "https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+          heroTitle: "Welcome to DivineCare (Offline Mode)",
+          heroHeading: "Empowering Relief & Support",
+          description:
+            "We provide compassionate care and support to those in need, making a difference every day. (Currently in offline demo mode)",
+          facebookUrl: "https://facebook.com/divinecare1",
+          instagramUrl: "https://instagram.com/divinecare1",
+          xUrl: "https://x.com/divinecare",
         };
-        
+
         setFormData(offlineData);
       } else {
         getError(error);
@@ -128,15 +168,15 @@ const EditHomeHero = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     let newValue = value;
-    if (name === 'heroTitle' || name === 'heroHeading') {
+    if (name === "heroTitle" || name === "heroHeading") {
       newValue = value.slice(0, 30);
     }
-    if (name === 'description') {
+    if (name === "description") {
       newValue = value.slice(0, 95);
     }
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : newValue
+      [name]: type === "checkbox" ? checked : newValue,
     }));
     setHasChanges(true);
   };
@@ -149,54 +189,70 @@ const EditHomeHero = () => {
       setUploadProgress(true);
       setTimeout(() => {
         const demoUrl = `https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`;
-        setFormData(prev => ({ ...prev, heroImage: demoUrl }));
+        setFormData((prev) => ({ ...prev, heroImage: demoUrl }));
         setHasChanges(true);
         setUploadProgress(false);
-        toast.success('Image uploaded successfully! (Demo Mode)');
+        toast.success("Image uploaded successfully! (Demo Mode)");
       }, 1500);
       return;
     }
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      toast.error('Please select a valid image file (JPEG, PNG, WebP)');
+      toast.error("Please select a valid image file (JPEG, PNG, WebP)");
       return;
     }
 
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB in bytes
     if (file.size > maxSize) {
-      toast.error('Image size should be less than 5MB');
+      toast.error("Image size should be less than 5MB");
       return;
     }
 
     try {
       setUploadProgress(true);
+
+      console.log("🖼️ Uploading hero image:", file.name);
+      console.log("   Original size:", formatFileSize(file.size));
+
+      // Resize image to 50% quality before upload (more aggressive to avoid 413 errors)
+      const resizedFile = await resizeImage(file, 0.5);
+      console.log("   Resized to:", formatFileSize(resizedFile.size));
+      console.log(
+        "   Reduction:",
+        Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%"
+      );
+
       const uploadFormData = new FormData();
-      uploadFormData.append('files', file); // Backend expects 'files' field
+      uploadFormData.append("files", resizedFile); // Backend expects 'files' field
 
       const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
       const response = await fetch(`${API_BASE_URL}/upload`, {
-        method: 'POST',
+        method: "POST",
         body: uploadFormData,
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       const result = await response.json();
-      console.log('Upload result:', result);
+      console.log("Upload result:", result);
       if (result?.success && result.files?.[0]?.url) {
-        setFormData(prev => ({ ...prev, heroImage: result.files[0].url }));
+        setFormData((prev) => ({ ...prev, heroImage: result.files[0].url }));
         setHasChanges(true);
-        toast.success('Image uploaded successfully!');
+        toast.success("Image uploaded successfully!");
       } else {
-        console.error('Upload response missing image URL:', result);
-        toast.error('Upload completed but no image URL received. Please try again.');
+        console.error("Upload response missing image URL:", result);
+        toast.error(
+          "Upload completed but no image URL received. Please try again."
+        );
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload image. Please check your connection and try again.');
+      console.error("Upload error:", error);
+      toast.error(
+        "Failed to upload image. Please check your connection and try again."
+      );
     } finally {
       setUploadProgress(false);
     }
@@ -204,26 +260,30 @@ const EditHomeHero = () => {
 
   const isFormValid = () => {
     // Check required text fields
-    if (!formData.heroTitle.trim() || !formData.heroHeading.trim() || !formData.heroImage.trim()) {
+    if (
+      !formData.heroTitle.trim() ||
+      !formData.heroHeading.trim() ||
+      !formData.heroImage.trim()
+    ) {
       return false;
     }
-    
+
     return true;
   };
 
   const validateForm = () => {
     if (!formData.heroTitle.trim()) {
-      toast.error('Hero title is required');
+      toast.error("Hero title is required");
       return false;
     }
-    
+
     if (!formData.heroHeading.trim()) {
-      toast.error('Hero heading is required');
+      toast.error("Hero heading is required");
       return false;
     }
 
     if (!formData.heroImage.trim()) {
-      toast.error('Hero image is required');
+      toast.error("Hero image is required");
       return false;
     }
 
@@ -232,13 +292,13 @@ const EditHomeHero = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Prevent submission if form is not valid
     if (!isFormValid()) {
       validateForm(); // This will show specific error messages
       return;
     }
-    
+
     if (!validateForm()) {
       return;
     }
@@ -247,27 +307,30 @@ const EditHomeHero = () => {
       // Check if demo mode or offline mode
       if (token && token.startsWith("demo-token")) {
         // Simulate API call
-        toast.success('Hero section updated successfully! (Demo Mode)');
-        navigate('/dash/homepage');
+        toast.success("Hero section updated successfully! (Demo Mode)");
+        navigate("/dash/homepage");
         return;
       }
 
       // Real API call
       const data = await updateHomeCarousel({ data: formData }).unwrap();
-      toast.success(data?.message || 'Hero section updated successfully!');
-      navigate('/dash/homepage');
+      toast.success(data?.message || "Hero section updated successfully!");
+      navigate("/dash/homepage");
     } catch (error) {
-      console.error('Submit error:', error);
-      
+      console.error("Submit error:", error);
+
       // Handle connection errors gracefully
-      if (error?.status === 'FETCH_ERROR' || error?.message?.includes('Failed to fetch')) {
-        toast.warn('Backend server is offline. Changes saved locally only.', {
-          position: 'top-center',
+      if (
+        error?.status === "FETCH_ERROR" ||
+        error?.message?.includes("Failed to fetch")
+      ) {
+        toast.warn("Backend server is offline. Changes saved locally only.", {
+          position: "top-center",
           autoClose: 5000,
         });
         // In a real app, you might save to localStorage here
         setTimeout(() => {
-          navigate('/dash/homepage');
+          navigate("/dash/homepage");
         }, 2000);
       } else {
         getError(error);
@@ -276,7 +339,11 @@ const EditHomeHero = () => {
   };
 
   const getImageUrl = (val) =>
-   !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
+    !val
+      ? ""
+      : /^https?:\/\//i.test(val)
+      ? val
+      : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
 
   return (
     <MotionDiv>
@@ -286,31 +353,37 @@ const EditHomeHero = () => {
           <div>
             <Button
               variant="outline-secondary"
-              onClick={() => navigate('/dash/homepage')}
+              onClick={() => navigate("/dash/homepage")}
               className="me-3"
             >
               <FaArrowLeft className="me-1" />
               Back to Home Page
             </Button>
             <h2 className="d-inline">
-              <span style={{ color: 'var(--dark-color)' }}>Edit Hero Section</span>
+              <span style={{ color: "var(--dark-color)" }}>
+                Edit Hero Section
+              </span>
             </h2>
-            {hasChanges && <Badge bg="warning" className="ms-2">Unsaved Changes</Badge>}
-            
+            {hasChanges && (
+              <Badge bg="warning" className="ms-2">
+                Unsaved Changes
+              </Badge>
+            )}
+
             {/* Connection Status Indicator */}
-            {connectionStatus === 'offline' && (
+            {connectionStatus === "offline" && (
               <Badge bg="warning" className="ms-2">
                 <i className="fas fa-wifi-slash me-1"></i>
                 Offline Mode
               </Badge>
             )}
-            {connectionStatus === 'online' && (
+            {connectionStatus === "online" && (
               <Badge bg="success" className="ms-2">
                 <i className="fas fa-wifi me-1"></i>
                 Online
               </Badge>
             )}
-            {connectionStatus === 'checking' && (
+            {connectionStatus === "checking" && (
               <Badge bg="secondary" className="ms-2">
                 <i className="fas fa-spinner fa-spin me-1"></i>
                 Connecting...
@@ -324,7 +397,7 @@ const EditHomeHero = () => {
               disabled={updateLoading || !isFormValid()}
             >
               <FaSave className="me-1" />
-              {updateLoading ? 'Saving...' : 'Save Hero Section'}
+              {updateLoading ? "Saving..." : "Save Hero Section"}
             </Button>
           </div>
         </div>
@@ -333,17 +406,25 @@ const EditHomeHero = () => {
           {/* Form Section */}
           <Col lg={12}>
             {/* Required Fields Notice */}
-            <Alert variant={connectionStatus === 'offline' ? 'warning' : 'info'} className="mb-4">
+            <Alert
+              variant={connectionStatus === "offline" ? "warning" : "info"}
+              className="mb-4"
+            >
               <div className="d-flex align-items-center">
                 <FaImage className="me-2" />
                 <div>
-                  {connectionStatus === 'offline' ? (
+                  {connectionStatus === "offline" ? (
                     <>
-                      <strong>You are in offline mode.</strong> Backend server is not available. You can still edit the hero section, but changes will not be saved to the database.
+                      <strong>You are in offline mode.</strong> Backend server
+                      is not available. You can still edit the hero section, but
+                      changes will not be saved to the database.
                       <div className="small mt-1">
                         To connect to the backend:
                         <ul className="mb-0 mt-1">
-                          <li>Ensure your backend server is running on <code>http://localhost:5001</code></li>
+                          <li>
+                            Ensure your backend server is running on{" "}
+                            <code>http://localhost:5001</code>
+                          </li>
                           <li>Check if your API endpoints are accessible</li>
                           <li>Refresh the page once the server is online</li>
                         </ul>
@@ -351,14 +432,18 @@ const EditHomeHero = () => {
                     </>
                   ) : (
                     <>
-                      <strong>Hero section fields are required.</strong> Please add title, heading, description, and hero image.
-                      <div className="small mt-1">Fields marked with <span className="text-danger">*</span> are mandatory.</div>
+                      <strong>Hero section fields are required.</strong> Please
+                      add title, heading, description, and hero image.
+                      <div className="small mt-1">
+                        Fields marked with{" "}
+                        <span className="text-danger">*</span> are mandatory.
+                      </div>
                     </>
                   )}
                 </div>
               </div>
             </Alert>
-            
+
             <Form onSubmit={handleSubmit}>
               {/* Hero Image Section */}
               <Card className="mb-4">
@@ -368,23 +453,31 @@ const EditHomeHero = () => {
                 <Card.Body>
                   <Row>
                     <Col md={6} className="mb-3">
-                      
                       {/* File Upload Section */}
                       <div className="mt-3">
                         <label className="form-label">Upload New Image</label>
-                        <div className="border rounded p-3" style={{ backgroundColor: '#f8f9fa' }}>
+                        <div
+                          className="border rounded p-3"
+                          style={{ backgroundColor: "#f8f9fa" }}
+                        >
                           <input
                             type="file"
                             id="heroImageUpload"
                             accept="image/*"
-                            onChange={(e) => handleImageUpload(e.target.files[0])}
-                            style={{ display: 'none' }}
+                            onChange={(e) =>
+                              handleImageUpload(e.target.files[0])
+                            }
+                            style={{ display: "none" }}
                             disabled={uploadProgress}
                           />
                           <div className="text-center">
                             <Button
                               variant="outline-primary"
-                              onClick={() => document.getElementById('heroImageUpload').click()}
+                              onClick={() =>
+                                document
+                                  .getElementById("heroImageUpload")
+                                  .click()
+                              }
                               disabled={uploadProgress}
                               className="mb-2"
                             >
@@ -413,16 +506,23 @@ const EditHomeHero = () => {
                       {formData.heroImage ? (
                         <div>
                           <label className="form-label">Preview</label>
-                          <div className="border rounded" style={{ padding: '10px' }}>
+                          <div
+                            className="border rounded"
+                            style={{ padding: "10px" }}
+                          >
                             <Image
                               src={getImageUrl(formData.heroImage)}
                               alt="Hero Image"
                               fluid
                               rounded
-                              style={{ maxHeight: '200px', objectFit: 'cover', width: '100%' }}
+                              style={{
+                                maxHeight: "200px",
+                                objectFit: "cover",
+                                width: "100%",
+                              }}
                               onError={(e) => {
-                                e.target.style.border = '2px solid red';
-                                e.target.alt = 'Failed to load image';
+                                e.target.style.border = "2px solid red";
+                                e.target.alt = "Failed to load image";
                               }}
                             />
                           </div>
@@ -432,7 +532,10 @@ const EditHomeHero = () => {
                               variant="outline-danger"
                               size="sm"
                               onClick={() => {
-                                setFormData(prev => ({ ...prev, heroImage: '' }));
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  heroImage: "",
+                                }));
                                 setHasChanges(true);
                               }}
                             >
@@ -444,10 +547,19 @@ const EditHomeHero = () => {
                       ) : (
                         <div>
                           <label className="form-label">Preview</label>
-                          <div className="border rounded d-flex align-items-center justify-content-center" style={{ padding: '20px', minHeight: '200px', backgroundColor: '#f8f9fa' }}>
+                          <div
+                            className="border rounded d-flex align-items-center justify-content-center"
+                            style={{
+                              padding: "20px",
+                              minHeight: "200px",
+                              backgroundColor: "#f8f9fa",
+                            }}
+                          >
                             <div className="text-center">
                               <FaImage size={48} className="text-muted mb-2" />
-                              <div className="text-muted">No image uploaded yet</div>
+                              <div className="text-muted">
+                                No image uploaded yet
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -551,7 +663,10 @@ const EditHomeHero = () => {
               <Card className="mb-4">
                 <Card.Header>
                   <h5 className="mb-0">Social Media Links</h5>
-                  <small className="text-muted">Add your social media profiles to display on the hero section</small>
+                  <small className="text-muted">
+                    Add your social media profiles to display on the hero
+                    section
+                  </small>
                 </Card.Header>
                 <Card.Body>
                   <Row>
@@ -589,7 +704,7 @@ const EditHomeHero = () => {
                       />
                     </Col>
                   </Row>
-                  
+
                   {/* Social Media Preview */}
                   {/* <Row className="mt-3">
                     <Col>
