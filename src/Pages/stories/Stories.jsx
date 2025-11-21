@@ -1,84 +1,117 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Button, Table, Badge, Modal, Alert, Spinner } from 'react-bootstrap';
-import { useGetStoriesMutation, useDeleteStoryMutation, useToggleStoryStatusMutation } from '../../features/apiSlice';
-import { getError } from '../../utils/error';
-import { toast } from 'react-toastify';
-import MotionDiv from '../../Components/MotionDiv';
-import DeleteModal from '../../Components/DeleteModal';
-import SearchField from '../../Components/SearchField';
-import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaImage, FaCalendar, FaUser } from 'react-icons/fa';
-import { useSelector } from 'react-redux';
-import { selectAuth } from '../../features/authSlice';
-import Skeleton from 'react-loading-skeleton';
+import React, { useEffect, useState } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Table,
+  Badge,
+  Modal,
+  Alert,
+  Spinner,
+} from "react-bootstrap";
+import {
+  useGetStoriesMutation,
+  useDeleteStoryMutation,
+  useToggleStoryStatusMutation,
+} from "../../features/apiSlice";
+import { getError } from "../../utils/error";
+import { toast } from "react-toastify";
+import MotionDiv from "../../Components/MotionDiv";
+import DeleteModal from "../../Components/DeleteModal";
+import SearchField from "../../Components/SearchField";
+import { useNavigate } from "react-router-dom";
+import {
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaEye,
+  FaEyeSlash,
+  FaImage,
+  FaCalendar,
+  FaUser,
+} from "react-icons/fa";
+import { useSelector } from "react-redux";
+import { selectAuth } from "../../features/authSlice";
+import Skeleton from "react-loading-skeleton";
 
 // Get BASE_URL from env
-const BASE_URL = import.meta.env.VITE_BASE_URL ||'https://divine-care.ap-south-1.storage.onantryk.com';
+const BASE_URL =
+  import.meta.env.VITE_BASE_URL ||
+  "https://divine-care.ap-south-1.storage.onantryk.com";
 
 const Stories = () => {
   const [getStories, { isLoading }] = useGetStoriesMutation();
   const [deleteStory, { isLoading: deleteLoading }] = useDeleteStoryMutation();
-  const [toggleStoryStatus, { isLoading: toggleLoading }] = useToggleStoryStatusMutation();
-  
+  const [toggleStoryStatus, { isLoading: toggleLoading }] =
+    useToggleStoryStatusMutation();
+
   const { token } = useSelector(selectAuth);
   const navigate = useNavigate();
-  
+
   const [stories, setStories] = useState([]);
   const [filteredStories, setFilteredStories] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedStory, setSelectedStory] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const fetchStories = async () => {
     try {
-      console.log('🔄 Starting Stories Data fetch...');
-      
+      console.log("🔄 Starting Stories Data fetch...");
+
       const response = await getStories().unwrap();
-      console.log('📥 Stories Data Response:', response);
-      
+      console.log("📥 Stories Data Response:", response);
+
       // Check multiple possible response structures
       let storiesData = null;
-      
+
       if (response?.success && response?.stories) {
         storiesData = response.stories;
-        console.log('✅ Using response.stories structure');
+        console.log("✅ Using response.stories structure");
       } else if (response?.stories) {
         storiesData = response.stories;
-        console.log('✅ Using response.stories structure (no success flag)');
+        console.log("✅ Using response.stories structure (no success flag)");
       } else if (response?.success && response?.data) {
         storiesData = response.data;
-        console.log('✅ Using response.data structure');
+        console.log("✅ Using response.data structure");
       } else if (response?.data && !response?.success) {
         storiesData = response.data;
-        console.log('✅ Using response.data structure (no success flag)');
+        console.log("✅ Using response.data structure (no success flag)");
       } else if (Array.isArray(response)) {
         storiesData = response;
-        console.log('✅ Using response directly as array');
-      } else if (response && typeof response === 'object' && !response.error && !response.message && !response.success) {
+        console.log("✅ Using response directly as array");
+      } else if (
+        response &&
+        typeof response === "object" &&
+        !response.error &&
+        !response.message &&
+        !response.success
+      ) {
         storiesData = response;
-        console.log('✅ Using response directly as data');
+        console.log("✅ Using response directly as data");
       }
-      
+
       if (Array.isArray(storiesData) && storiesData.length >= 0) {
-        console.log('🎯 Setting stories data:', storiesData);
+        console.log("🎯 Setting stories data:", storiesData);
         setStories(storiesData);
         setFilteredStories(storiesData);
-        
+
         if (storiesData.length === 0) {
-          toast.info('No stories found. Create your first story!');
+          toast.info("No stories found. Create your first story!");
         } else {
           toast.success(`${storiesData.length} stories loaded successfully`);
         }
       } else {
-        console.log('⚠️ No stories data found');
+        console.log("⚠️ No stories data found");
         setStories([]);
         setFilteredStories([]);
-        toast.info('No stories found.');
+        toast.info("No stories found.");
       }
     } catch (error) {
-      console.error('❌ Error fetching stories data:', error);
-      toast.error('Failed to load stories. Please try again.');
+      console.error("❌ Error fetching stories data:", error);
+      toast.error("Failed to load stories. Please try again.");
       setStories([]);
       setFilteredStories([]);
     }
@@ -89,16 +122,18 @@ const Stories = () => {
   }, [token]);
 
   useEffect(() => {
-    if (searchTerm && searchTerm.trim() !== '') {
+    if (searchTerm && searchTerm.trim() !== "") {
       const searchLower = searchTerm.toLowerCase();
-      const filtered = stories.filter(story => {
-        const title = (story.title || '').toLowerCase();
-        const content = (story.content || '').toLowerCase();
-        const author = (story.author || '').toLowerCase();
-        
-        return title.includes(searchLower) || 
-               content.includes(searchLower) || 
-               author.includes(searchLower);
+      const filtered = stories.filter((story) => {
+        const title = (story.title || "").toLowerCase();
+        const content = (story.content || "").toLowerCase();
+        const author = (story.author || "").toLowerCase();
+
+        return (
+          title.includes(searchLower) ||
+          content.includes(searchLower) ||
+          author.includes(searchLower)
+        );
       });
       setFilteredStories(filtered);
     } else {
@@ -110,9 +145,13 @@ const Stories = () => {
     try {
       if (token && token.startsWith("demo-token")) {
         // Demo mode - simulate deletion
-        setStories(prev => prev.filter(story => story._id !== selectedStory._id));
-        setFilteredStories(prev => prev.filter(story => story._id !== selectedStory._id));
-        toast.success('Story deleted successfully (Demo)');
+        setStories((prev) =>
+          prev.filter((story) => story._id !== selectedStory._id)
+        );
+        setFilteredStories((prev) =>
+          prev.filter((story) => story._id !== selectedStory._id)
+        );
+        toast.success("Story deleted successfully (Demo)");
         setShowDeleteModal(false);
         setSelectedStory(null);
         return;
@@ -120,7 +159,7 @@ const Stories = () => {
 
       // Real API call
       const data = await deleteStory(selectedStory._id).unwrap();
-      toast.success(data?.message || 'Story deleted successfully');
+      toast.success(data?.message || "Story deleted successfully");
       fetchStories();
       setShowDeleteModal(false);
       setSelectedStory(null);
@@ -133,21 +172,27 @@ const Stories = () => {
     try {
       if (token && token.startsWith("demo-token")) {
         // Demo mode - simulate status toggle
-        const updatedStories = stories.map(s => 
-          s._id === story._id ? { ...s, isPublished: !(s.isPublished === false) } : s
+        const updatedStories = stories.map((s) =>
+          s._id === story._id
+            ? { ...s, isPublished: !(s.isPublished === false) }
+            : s
         );
         setStories(updatedStories);
         setFilteredStories(updatedStories);
-        toast.success(`Story ${story.isPublished === false ? 'published' : 'unpublished'} successfully (Demo)`);
+        toast.success(
+          `Story ${
+            story.isPublished === false ? "published" : "unpublished"
+          } successfully (Demo)`
+        );
         return;
       }
 
       // Real API call
-      const data = await toggleStoryStatus({ 
-        id: story._id, 
-        isPublished: !(story.isPublished === false)
+      const data = await toggleStoryStatus({
+        id: story._id,
+        isPublished: !(story.isPublished === false),
       }).unwrap();
-      toast.success(data?.message || 'Story status updated successfully');
+      toast.success(data?.message || "Story status updated successfully");
       fetchStories();
     } catch (error) {
       getError(error);
@@ -155,34 +200,40 @@ const Stories = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const truncateContent = (content, maxLength = 100) => {
     if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
+    return content.substring(0, maxLength) + "...";
   };
 
   const getStats = () => {
     // Stories are published by default when posted (unless explicitly set to draft)
-    const published = stories.filter(story => story.isPublished !== false).length;
-    const drafts = stories.filter(story => story.isPublished === false).length;
-    
+    const published = stories.filter(
+      (story) => story.isPublished !== false
+    ).length;
+    const drafts = stories.filter(
+      (story) => story.isPublished === false
+    ).length;
+
     return { published, drafts, total: stories.length };
   };
 
   const stats = getStats();
 
   const getImageUrl = (val) =>
-  !val ? '' : /^https?:\/\//i.test(val) ? val : `${BASE_URL.replace(/\/$/, '')}/${val.replace(/^\/+/, '')}`;
-
-
+    !val
+      ? ""
+      : /^https?:\/\//i.test(val)
+      ? val
+      : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
 
   return (
     <MotionDiv>
@@ -191,8 +242,8 @@ const Stories = () => {
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2>
-              <span style={{ color: 'var(--dark-color)' }}>Stories</span>{' '}
-              <span style={{ color: 'var(--dark-color)' }}>Management</span>
+              <span style={{ color: "var(--dark-color)" }}>Stories</span>{" "}
+              <span style={{ color: "var(--dark-color)" }}>Management</span>
             </h2>
             <p className="text-muted mb-0">
               Manage your company stories and share your journey with the world
@@ -200,7 +251,7 @@ const Stories = () => {
           </div>
           <Button
             variant="primary"
-            onClick={() => navigate('/dash/stories/add')}
+            onClick={() => navigate("/dash/stories/add")}
           >
             <FaPlus className="me-1" />
             Add New Story
@@ -276,14 +327,13 @@ const Stories = () => {
                   <FaImage size={50} className="text-muted mb-3" />
                   <h5>No Stories Found</h5>
                   <p className="mb-3">
-                    {searchTerm ? 
-                      'No stories match your search criteria.' : 
-                      'You haven\'t created any stories yet.'
-                    }
+                    {searchTerm
+                      ? "No stories match your search criteria."
+                      : "You haven't created any stories yet."}
                   </p>
-                  <Button 
-                    variant="primary" 
-                    onClick={() => navigate('/dash/stories/add')}
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate("/dash/stories/add")}
                   >
                     <FaPlus className="me-1" />
                     Create Your First Story
@@ -313,22 +363,22 @@ const Stories = () => {
                                   src={getImageUrl(story.image)}
                                   alt={story.title}
                                   style={{
-                                    width: '60px',
-                                    height: '60px',
-                                    objectFit: 'cover',
-                                    borderRadius: '8px'
+                                    width: "60px",
+                                    height: "60px",
+                                    objectFit: "cover",
+                                    borderRadius: "8px",
                                   }}
                                   onError={(e) => {
-                                    e.target.style.display = 'none';
+                                    e.target.style.display = "none";
                                   }}
                                 />
                               ) : (
                                 <div
                                   className="d-flex align-items-center justify-content-center bg-light"
                                   style={{
-                                    width: '60px',
-                                    height: '60px',
-                                    borderRadius: '8px'
+                                    width: "60px",
+                                    height: "60px",
+                                    borderRadius: "8px",
                                   }}
                                 >
                                   <FaImage className="text-muted" />
@@ -337,8 +387,20 @@ const Stories = () => {
                             </div>
                             <div>
                               <h6 className="mb-1">{story.title}</h6>
-                              <div className="text-muted small mb-0" style={{ maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                <span dangerouslySetInnerHTML={{ __html: truncateContent(story.content, 80) }} />
+                              <div
+                                className="text-muted small mb-0"
+                                style={{
+                                  maxWidth: "350px",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <span
+                                  dangerouslySetInnerHTML={{
+                                    __html: truncateContent(story.content, 80),
+                                  }}
+                                />
                               </div>
                               {story.readTime && (
                                 <small className="text-muted">
@@ -356,8 +418,16 @@ const Stories = () => {
                           </div>
                         </td>
                         <td>
-                          <Badge bg={story.isPublished !== false ? 'success' : 'warning'}>
-                            {story.isPublished !== false ? 'Published' : 'Draft'}
+                          <Badge
+                            bg={
+                              story.isPublished !== false
+                                ? "success"
+                                : "warning"
+                            }
+                          >
+                            {story.isPublished !== false
+                              ? "Published"
+                              : "Draft"}
                           </Badge>
                         </td>
                         <td>
@@ -381,19 +451,33 @@ const Stories = () => {
                             <Button
                               variant="outline-primary"
                               size="sm"
-                              onClick={() => navigate(`/dash/stories/edit/${story._id}`)}
+                              onClick={() =>
+                                navigate(`/dash/stories/edit/${story._id}`)
+                              }
                               title="Edit Story"
                             >
                               <FaEdit />
                             </Button>
                             <Button
-                              variant={story.isPublished !== false ? 'outline-warning' : 'outline-success'}
+                              variant={
+                                story.isPublished !== false
+                                  ? "outline-warning"
+                                  : "outline-success"
+                              }
                               size="sm"
                               onClick={() => handleToggleStatus(story)}
                               disabled={toggleLoading}
-                              title={story.isPublished !== false ? 'Unpublish' : 'Publish'}
+                              title={
+                                story.isPublished !== false
+                                  ? "Unpublish"
+                                  : "Publish"
+                              }
                             >
-                              {story.isPublished !== false ? <FaEyeSlash /> : <FaEye />}
+                              {story.isPublished !== false ? (
+                                <FaEyeSlash />
+                              ) : (
+                                <FaEye />
+                              )}
                             </Button>
                             <Button
                               variant="outline-danger"
@@ -418,17 +502,61 @@ const Stories = () => {
         </Card>
 
         {/* Delete Modal */}
-        <DeleteModal
+        <Modal
           show={showDeleteModal}
           onHide={() => setShowDeleteModal(false)}
-          onConfirm={handleDeleteStory}
-          title="Delete Story"
-          message={`Are you sure you want to delete "${selectedStory?.title}"? This action cannot be undone.`}
-          isLoading={deleteLoading}
-        />
+          centered
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <FaTrash className="text-danger me-2" />
+              Delete Story
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div className="text-center mb-3">
+              <FaTrash size={50} className="text-danger mb-3" />
+              <p className="mb-0">
+                Are you sure you want to delete "{selectedStory?.title}"? This
+                action cannot be undone.
+              </p>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSelectedStory(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDeleteStory}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
         {/* Preview Modal */}
-        <Modal show={showPreviewModal} onHide={() => setShowPreviewModal(false)} size="lg" centered>
+        <Modal
+          show={showPreviewModal}
+          onHide={() => setShowPreviewModal(false)}
+          size="lg"
+          centered
+        >
           <Modal.Header closeButton>
             <Modal.Title>Story Preview</Modal.Title>
           </Modal.Header>
@@ -440,7 +568,11 @@ const Stories = () => {
                     src={getImageUrl(selectedStory.image)}
                     alt={selectedStory.title}
                     className="img-fluid rounded mb-3"
-                    style={{ width: '100%', maxHeight: '300px', objectFit: 'cover' }}
+                    style={{
+                      width: "100%",
+                      maxHeight: "300px",
+                      objectFit: "cover",
+                    }}
                   />
                 )}
                 <h3>{selectedStory.title}</h3>
@@ -457,18 +589,23 @@ const Stories = () => {
                   )}
                 </div>
                 <div className="story-content">
-                  <div dangerouslySetInnerHTML={{ __html: selectedStory.content }} />
+                  <div
+                    dangerouslySetInnerHTML={{ __html: selectedStory.content }}
+                  />
                 </div>
               </div>
             )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowPreviewModal(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowPreviewModal(false)}
+            >
               Close
             </Button>
             {selectedStory && (
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={() => {
                   setShowPreviewModal(false);
                   navigate(`/dash/stories/edit/${selectedStory._id}`);

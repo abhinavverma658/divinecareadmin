@@ -62,6 +62,58 @@ const EditHomeHero = () => {
   const [uploadProgress, setUploadProgress] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("checking"); // 'online', 'offline', 'checking'
 
+  // Helper function to format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  };
+
+  // Helper function to resize image
+  const resizeImage = (file, quality = 0.5) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = document.createElement("img");
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+
+          // Set canvas dimensions to image dimensions
+          canvas.width = img.width;
+          canvas.height = img.height;
+
+          // Draw image on canvas
+          ctx.drawImage(img, 0, 0);
+
+          // Convert canvas to blob with specified quality
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                // Create a new file from blob
+                const resizedFile = new File([blob], file.name, {
+                  type: file.type,
+                  lastModified: Date.now(),
+                });
+                resolve(resizedFile);
+              } else {
+                reject(new Error("Canvas to Blob conversion failed"));
+              }
+            },
+            file.type,
+            quality
+          );
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   useEffect(() => {
     fetchHeroData();
   }, []);
@@ -94,27 +146,7 @@ const EditHomeHero = () => {
   const fetchHeroData = async () => {
     setConnectionStatus("checking");
     try {
-      // Check if demo mode
-      if (token && token.startsWith("demo-token")) {
-        setConnectionStatus("offline");
-        // Set demo hero data
-        const demoData = {
-          heroImage:
-            "https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-          heroTitle: "Welcome to DivineCare home",
-          heroHeading: "Empowering Relief & Support",
-          description:
-            "We provide compassionate care and support to those in need, making a difference every day.",
-          facebookUrl: "https://facebook.com/divinecare1",
-          instagramUrl: "https://instagram.com/divinecare1",
-          xUrl: "https://x.com/divinecare",
-        };
-
-        setFormData(demoData);
-        return;
-      }
-
-      // Real API call for production
+      // Real API call
       const data = await getHomeCarousel().unwrap();
       setConnectionStatus("online");
       if (data?.success && data?.home) {
@@ -184,19 +216,6 @@ const EditHomeHero = () => {
   const handleImageUpload = async (file) => {
     if (!file) return;
 
-    // Check if demo mode - simulate upload
-    if (token && token.startsWith("demo-token")) {
-      setUploadProgress(true);
-      setTimeout(() => {
-        const demoUrl = `https://images.unsplash.com/photo-1559827260-dc66d52bef19?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80`;
-        setFormData((prev) => ({ ...prev, heroImage: demoUrl }));
-        setHasChanges(true);
-        setUploadProgress(false);
-        toast.success("Image uploaded successfully! (Demo Mode)");
-      }, 1500);
-      return;
-    }
-
     // Validate file type
     const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
@@ -228,14 +247,22 @@ const EditHomeHero = () => {
       const uploadFormData = new FormData();
       uploadFormData.append("files", resizedFile); // Backend expects 'files' field
 
-      const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
-      const response = await fetch(`${API_BASE_URL}/upload`, {
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL || "http://localhost:5001";
+      console.log("📤 Uploading to:", `${API_BASE_URL}/api/upload`);
+
+      const response = await fetch(`${API_BASE_URL}/api/upload`, {
         method: "POST",
         body: uploadFormData,
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+
       const result = await response.json();
       console.log("Upload result:", result);
       if (result?.success && result.files?.[0]?.url) {
@@ -304,14 +331,6 @@ const EditHomeHero = () => {
     }
 
     try {
-      // Check if demo mode or offline mode
-      if (token && token.startsWith("demo-token")) {
-        // Simulate API call
-        toast.success("Hero section updated successfully! (Demo Mode)");
-        navigate("/dash/homepage");
-        return;
-      }
-
       // Real API call
       const data = await updateHomeCarousel({ data: formData }).unwrap();
       toast.success(data?.message || "Hero section updated successfully!");
