@@ -72,7 +72,12 @@ const EditHomeHero = () => {
   };
 
   // Helper function to resize image
-  const resizeImage = (file, quality = 0.7, maxWidth = 1920, maxHeight = 1080) => {
+  const resizeImage = (
+    file,
+    quality = 0.7,
+    maxWidth = 1920,
+    maxHeight = 1080
+  ) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -110,16 +115,20 @@ const EditHomeHero = () => {
             (blob) => {
               if (blob) {
                 // Create a new file from blob
-                const resizedFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                });
+                const resizedFile = new File(
+                  [blob],
+                  file.name.replace(/\.\w+$/, ".jpg"),
+                  {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  }
+                );
                 resolve(resizedFile);
               } else {
                 reject(new Error("Canvas to Blob conversion failed"));
               }
             },
-            'image/jpeg',
+            "image/jpeg",
             quality
           );
         };
