@@ -72,7 +72,12 @@ const EditHomeHero = () => {
   };
 
   // Helper function to resize image
-  const resizeImage = (file, quality = 0.5) => {
+  const resizeImage = (
+    file,
+    quality = 0.7,
+    maxWidth = 1920,
+    maxHeight = 1080
+  ) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -83,28 +88,47 @@ const EditHomeHero = () => {
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
 
-          // Set canvas dimensions to image dimensions
-          canvas.width = img.width;
-          canvas.height = img.height;
+          // Calculate new dimensions while maintaining aspect ratio
+          let width = img.width;
+          let height = img.height;
 
-          // Draw image on canvas
-          ctx.drawImage(img, 0, 0);
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+
+          // Set canvas to new dimensions
+          canvas.width = width;
+          canvas.height = height;
+
+          // Draw image on canvas with new dimensions
+          ctx.drawImage(img, 0, 0, width, height);
 
           // Convert canvas to blob with specified quality
+          // Force JPEG for better compression
           canvas.toBlob(
             (blob) => {
               if (blob) {
                 // Create a new file from blob
-                const resizedFile = new File([blob], file.name, {
-                  type: file.type,
-                  lastModified: Date.now(),
-                });
+                const resizedFile = new File(
+                  [blob],
+                  file.name.replace(/\.\w+$/, ".jpg"),
+                  {
+                    type: "image/jpeg",
+                    lastModified: Date.now(),
+                  }
+                );
                 resolve(resizedFile);
               } else {
                 reject(new Error("Canvas to Blob conversion failed"));
               }
             },
-            file.type,
+            "image/jpeg",
             quality
           );
         };
@@ -236,8 +260,8 @@ const EditHomeHero = () => {
       console.log("🖼️ Uploading hero image:", file.name);
       console.log("   Original size:", formatFileSize(file.size));
 
-      // Resize image to 50% quality before upload (more aggressive to avoid 413 errors)
-      const resizedFile = await resizeImage(file, 0.5);
+      // Resize image: max 1920x1080, 70% quality JPEG (optimized for hero images)
+      const resizedFile = await resizeImage(file, 0.7, 1920, 1080);
       console.log("   Resized to:", formatFileSize(resizedFile.size));
       console.log(
         "   Reduction:",
