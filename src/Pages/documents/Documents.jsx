@@ -442,7 +442,35 @@ const Documents = () => {
                 <Card className="h-100 shadow-sm">
                   <Card.Header className="d-flex justify-content-between align-items-center py-2 px-3">
                     <strong className="text-truncate me-2 small" style={{ minWidth: 0, flex: 1 }} title={field.label}>{field.label}</strong>
-                    <Button variant="link" size="sm" className="text-danger p-0 flex-shrink-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash size={14} /></Button>
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="text-danger p-0 flex-shrink-0" 
+                      onClick={async () => {
+                        const docs = getDocsForKey(field.key);
+                        // Delete all documents from backend
+                        for (const d of docs) {
+                          const idToDelete = d && (d._id || d.id || d.docId);
+                          if (idToDelete) {
+                            try {
+                              await deleteDocument(idToDelete).unwrap();
+                            } catch (err) {
+                              console.error('Delete remote failed', err);
+                            }
+                          }
+                        }
+                        // Remove from local state
+                        setCustomDocuments(prev => prev.filter(d => d.key !== field.key));
+                        setUploadedDocs(prev => {
+                          const copy = { ...prev };
+                          delete copy[field.key];
+                          return copy;
+                        });
+                        toast.success('Custom document removed');
+                      }}
+                    >
+                      <FaTrash size={14} />
+                    </Button>
                   </Card.Header>
                   <Card.Body className="p-2 p-sm-3">
                     <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
@@ -468,7 +496,7 @@ const Documents = () => {
               </Col>
             ))}
 
-            {documentFields.map(field => (
+            {documentFields.filter(field => getDocsForKey(field.key).length > 0).map(field => (
               <Col xs={12} sm={6} md={4} lg={3} key={field.key}>
                 <Card className="h-100 shadow-sm">
                   <Card.Header className="py-2 px-3"><strong className="text-truncate d-block small" title={field.label}>{field.label}</strong></Card.Header>
