@@ -224,8 +224,11 @@ const EditHomeHero = () => {
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     let newValue = value;
-    if (name === "heroTitle" || name === "heroHeading") {
+    if (name === "heroTitle") {
       newValue = value.slice(0, 30);
+    }
+    if (name === "heroHeading") {
+      newValue = value.slice(0, 35);
     }
     if (name === "description") {
       newValue = value.slice(0, 95);
@@ -643,10 +646,10 @@ const EditHomeHero = () => {
                         onChange={handleInputChange}
                         placeholder="Enter the hero heading/subtitle..."
                         required={true}
-                        maxLength={30}
+                        maxLength={35}
                       />
                       <div className="text-end text-muted small mb-2">
-                        {formData.heroHeading.length} / 30 characters
+                        {formData.heroHeading.length} / 35 characters
                       </div>
                     </Col>
                     <Col md={12}>
