@@ -445,7 +445,7 @@ const Documents = () => {
                     <Button variant="link" size="sm" className="text-danger p-0 shrink-0" onClick={() => { setCustomDocuments(prev => prev.filter(d => d.key !== field.key)); setUploadedDocs(prev => { const copy = { ...prev }; delete copy[field.key]; return copy; }); }}><FaTrash /></Button>
                   </Card.Header>
                   <Card.Body className="p-3">
-                    <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
+                    <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={30} />
                     {getDocsForKey(field.key).length > 0 && (
                       <div className="uploaded-file-info mt-3">
                         {getDocsForKey(field.key).map((d, idx) => (
@@ -454,7 +454,7 @@ const Documents = () => {
                               <FaFile className="me-2 text-primary shrink-0" size={20} />
                               <span className="small" style={{ minWidth: 0, flex: 1, wordBreak: 'break-all', overflowWrap: 'break-word' }}>{getFileName(d && d.url)}</span>
                             </div>
-                            <div className="d-flex gap-1shrink-0">
+                            <div className="d-flex gap-1 shrink-0">
                               <Button variant="outline-primary" size="sm" onClick={() => handleView(d.url)}><FaEye size={14} /></Button>
                               <Button variant="outline-success" size="sm" onClick={() => handleSaveDocument(field.key, idx)}><FaSave size={14} /></Button>
                               <Button variant="outline-danger" size="sm" onClick={() => handleDeleteAt(field.key, idx)}><FaTrash size={14} /></Button>
@@ -473,7 +473,7 @@ const Documents = () => {
                 <Card className="h-100 shadow-sm">
                   <Card.Header className="overflow-hidden"><strong className="text-truncate d-block">{field.label}</strong></Card.Header>
                   <Card.Body className="p-3">
-                    <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={10} />
+                    <ImageUpload value={(getDocsForKey(field.key)[0] && getDocsForKey(field.key)[0].url) || ''} onChange={val => handleUpload(field.key, val)} label={`Upload ${field.label}`} buttonText="Select File" showPreview={false} maxSize={30} />
                     {getDocsForKey(field.key).length > 0 && (
                       <div className="uploaded-file-info mt-3">
                         {getDocsForKey(field.key).map((d, idx) => (
@@ -508,7 +508,7 @@ const Documents = () => {
                 </Form.Group>
                 <Form.Group className="mb-3">
                   
-                  <ImageUpload value={newDocFile ? 'file-selected' : ''} onChange={handleAddDocFileSelect} label="Upload File" buttonText={newDocFile ? 'Change File' : 'Select File'} showPreview={false} maxSize={10} />
+                  <ImageUpload value={newDocFile ? 'file-selected' : ''} onChange={handleAddDocFileSelect} label="Upload File" buttonText={newDocFile ? 'Change File' : 'Select File'} showPreview={false} maxSize={30} />
                   {newDocFile && (<small className="text-muted d-block mt-2">Selected: {newDocFile.name || getFileName(newDocFile.url)}</small>)}
                 </Form.Group>
                 <Button variant="primary" onClick={handleAddCustomDocument} className="w-100" disabled={!newDocName.trim() || !newDocFile}>Add Document</Button>
