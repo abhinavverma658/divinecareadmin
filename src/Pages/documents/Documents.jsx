@@ -495,8 +495,6 @@ const Documents = () => {
                 </Card>
               </Col>
             ))}
-
-=======
             {documentFields.filter(field => getDocsForKey(field.key).length > 0).map(field => (
               <Col xs={12} sm={6} md={4} lg={3} key={field.key}>
                 <Card className="h-100 shadow-sm">
