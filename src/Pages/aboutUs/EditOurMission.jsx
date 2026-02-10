@@ -97,7 +97,7 @@ const EditOurMission = () => {
       console.log("📊 Response:", JSON.stringify(response, null, 2));
       console.log(
         "🔑 Response keys:",
-        response ? Object.keys(response) : "No keys"
+        response ? Object.keys(response) : "No keys",
       );
 
       if (response?.success && response?.mission) {
@@ -129,7 +129,7 @@ const EditOurMission = () => {
       console.log("📝 Extracted mission data:", data);
       console.log(
         "🔑 Mission data keys:",
-        data ? Object.keys(data) : "No data keys"
+        data ? Object.keys(data) : "No data keys",
       );
 
       if (data && Object.keys(data).length > 0) {
@@ -148,8 +148,8 @@ const EditOurMission = () => {
           missionPoints: Array.isArray(data.missionPoints)
             ? data.missionPoints
             : Array.isArray(data.points)
-            ? data.points
-            : ["", "", "", ""],
+              ? data.points
+              : ["", "", "", ""],
         };
 
         console.log("🎯 Final mission form data to set:", newFormData);
@@ -159,7 +159,7 @@ const EditOurMission = () => {
         console.log("⚠️ No mission data found or empty data object");
         console.log(
           "📊 Full mission response debug:",
-          JSON.stringify(response, null, 2)
+          JSON.stringify(response, null, 2),
         );
         setFormData(demoData);
         toast.info("No saved data found. Using demo data.");
@@ -223,7 +223,7 @@ const EditOurMission = () => {
       console.log("   Resized to:", formatFileSize(resizedFile.size));
       console.log(
         "   Reduction:",
-        Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%"
+        Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%",
       );
 
       // Create FormData for API upload (renamed to avoid conflict with state)
@@ -273,10 +273,10 @@ const EditOurMission = () => {
       errors.push("Mission description is required");
     if (!formData.missionImage) errors.push("Mission image is required");
 
-    // Check if all mission points are filled
-    formData.missionPoints.forEach((point, index) => {
-      if (!point.trim()) errors.push(`Mission point ${index + 1} is required`);
-    });
+    // // Check if all mission points are filled
+    // formData.missionPoints.forEach((point, index) => {
+    //   if (!point.trim()) errors.push(`Mission point ${index + 1} is required`);
+    // });
 
     return errors;
   };
@@ -316,7 +316,7 @@ const EditOurMission = () => {
       console.log("✅ Update Response:", response);
       if (response?.success) {
         toast.success(
-          response.message || "Mission section updated successfully!"
+          response.message || "Mission section updated successfully!",
         );
         // Refresh data to show updated values
         setTimeout(() => {
@@ -346,8 +346,8 @@ const EditOurMission = () => {
     !val
       ? ""
       : /^https?:\/\//i.test(val)
-      ? val
-      : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
+        ? val
+        : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
 
   return (
     <Container fluid className="px-4 py-3">
@@ -447,17 +447,13 @@ const EditOurMission = () => {
                 <h6 className="mb-3">Mission Points</h6>
                 {formData.missionPoints.map((point, index) => (
                   <Form.Group key={index} className="mb-3">
-                    <Form.Label>
-                      Mission Point {index + 1}{" "}
-                      <span className="text-danger">*</span>
-                    </Form.Label>
+                    <Form.Label>Mission Point {index + 1} </Form.Label>
                     <Form.Control
                       type="text"
                       value={point}
                       onChange={(e) => handlePointChange(index, e.target.value)}
                       placeholder={`Enter mission point ${index + 1}`}
                       maxLength={100}
-                      required
                     />
                     <Form.Text className="text-muted">
                       {point.length}/100 characters

@@ -93,7 +93,7 @@ const AddEditEvent = () => {
         response?.event?.images ||
           response?.events?.[0]?.images ||
           response?.data?.images ||
-          "No images found in response"
+          "No images found in response",
       );
 
       // Check multiple possible response structures
@@ -162,15 +162,15 @@ const AddEditEvent = () => {
           startDate: formatDateForInput(eventData.startDate),
           endDate: formatDateForInput(eventData.endDate),
           registrationDeadline: formatDateForInput(
-            eventData.registrationDeadline
+            eventData.registrationDeadline,
           ),
           location: eventData.location || "",
           venue: eventData.venueDetails || eventData.venue || "", // Handle both venueDetails and venue
           images: Array.isArray(eventData.images)
             ? eventData.images
             : eventData.image
-            ? [eventData.image]
-            : [],
+              ? [eventData.image]
+              : [],
           featuredImage: eventData.featuredImage || eventData.image || "", // Handle both featuredImage and image
           isActive:
             typeof eventData.isActive === "boolean" ? eventData.isActive : true,
@@ -191,8 +191,8 @@ const AddEditEvent = () => {
           Array.isArray(eventData.images) && eventData.images.length > 0
             ? eventData.images
             : eventData.image
-            ? [eventData.image]
-            : [];
+              ? [eventData.image]
+              : [];
 
         console.log("🖼️ Setting image previews:", imageArray);
         setImagePreviews(imageArray);
@@ -217,7 +217,7 @@ const AddEditEvent = () => {
       // Don't navigate away immediately, show error but allow form to render
       toast.error(
         error?.data?.message ||
-          "Failed to load event. You can still create a new event."
+          "Failed to load event. You can still create a new event.",
       );
 
       // Set default form data to prevent blank page
@@ -250,13 +250,13 @@ const AddEditEvent = () => {
   useEffect(() => {
     const applyRedAsterisks = () => {
       const labels = document.querySelectorAll(
-        "label, .form-label, h5, .text-danger"
+        "label, .form-label, h5, .text-danger",
       );
       labels.forEach((label) => {
         if (label.innerHTML && label.innerHTML.includes("*")) {
           label.innerHTML = label.innerHTML.replace(
             /\*/g,
-            '<span style="color: red; font-weight: bold;">*</span>'
+            '<span style="color: red; font-weight: bold;">*</span>',
           );
         }
       });
@@ -320,7 +320,7 @@ const AddEditEvent = () => {
         console.log("   Resized to:", formatFileSize(resizedFile.size));
         console.log(
           "   Reduction:",
-          Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%"
+          Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%",
         );
 
         const uploadFormData = new FormData();
@@ -416,24 +416,12 @@ const AddEditEvent = () => {
       toast.error("Event title is required");
       return;
     }
-    if (!formData.description.trim()) {
-      toast.error("Event description is required");
-      return;
-    }
     if (!formData.startDate) {
       toast.error("Start date and time is required");
       return;
     }
     if (!formData.endDate) {
       toast.error("End date and time is required");
-      return;
-    }
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      toast.error("End date must be after start date");
-      return;
-    }
-    if (!formData.location.trim()) {
-      toast.error("Event location is required");
       return;
     }
 
@@ -475,13 +463,13 @@ const AddEditEvent = () => {
       console.log("📦 Current formData.images state:", formData.images);
       console.log(
         "🔍 Full submitData as JSON:",
-        JSON.stringify(submitData, null, 2)
+        JSON.stringify(submitData, null, 2),
       );
 
       // API call
       console.log(
         "🌐 Calling API - Method:",
-        id ? "PUT (update)" : "POST (create)"
+        id ? "PUT (update)" : "POST (create)",
       );
       console.log("🌐 API Endpoint:", id ? `/events/${id}` : "/events");
       console.log("🌐 Request body:", submitData);
@@ -501,13 +489,13 @@ const AddEditEvent = () => {
       }
 
       toast.success(
-        response?.message || `Event ${id ? "updated" : "created"} successfully`
+        response?.message || `Event ${id ? "updated" : "created"} successfully`,
       );
       navigate("/dash/events");
     } catch (error) {
       console.error("❌ Error submitting event:", error);
       toast.error(
-        error?.data?.message || `Failed to ${id ? "update" : "create"} event`
+        error?.data?.message || `Failed to ${id ? "update" : "create"} event`,
       );
     }
   };
@@ -598,7 +586,7 @@ const AddEditEvent = () => {
           </div>
         </div>
 
-        <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit} noValidate>
           <Row>
             <Col lg={8}>
               {/* Basic Information */}
@@ -624,10 +612,9 @@ const AddEditEvent = () => {
                   <FormField
                     type="text"
                     name="shortDescription"
-                    label="Short Description *"
+                    label="Short Description"
                     value={formData.shortDescription}
                     onChange={handleChange}
-                    required
                     placeholder="Brief one-line description for event cards"
                     maxLength="200"
                   />
@@ -636,10 +623,7 @@ const AddEditEvent = () => {
                   </Form.Text>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>
-                      Detailed Description{" "}
-                      <span className="text-danger">*</span>
-                    </Form.Label>
+                    <Form.Label>Detailed Description</Form.Label>
                     <TextEditor
                       value={formData.description}
                       onChange={handleDescriptionChange}
@@ -666,7 +650,6 @@ const AddEditEvent = () => {
                         label="Start Date *"
                         value={formData.startDate}
                         onChange={handleChange}
-                        min={new Date().toISOString().split("T")[0]}
                         required
                       />
                     </Col>
@@ -677,7 +660,6 @@ const AddEditEvent = () => {
                         label="End Date *"
                         value={formData.endDate}
                         onChange={handleChange}
-                        min={new Date().toISOString().split("T")[0]}
                         required
                       />
                     </Col>
@@ -699,10 +681,9 @@ const AddEditEvent = () => {
                       <FormField
                         type="text"
                         name="location"
-                        label="Location *"
+                        label="Location"
                         value={formData.location}
                         onChange={handleChange}
-                        required
                         placeholder="e.g., New York, NY or Virtual Platform"
                         maxLength="100"
                       />
@@ -714,7 +695,7 @@ const AddEditEvent = () => {
                       <FormField
                         type="text"
                         name="venue"
-                        label="Venue Details *"
+                        label="Venue Details"
                         value={formData.venue}
                         onChange={handleChange}
                         placeholder="e.g., Conference Hall A or Zoom Meeting Room"
@@ -869,8 +850,8 @@ const AddEditEvent = () => {
                       {isLoading_
                         ? "Saving..."
                         : id
-                        ? "Update Event"
-                        : "Create Event"}
+                          ? "Update Event"
+                          : "Create Event"}
                     </Button>
                     <Button
                       type="button"

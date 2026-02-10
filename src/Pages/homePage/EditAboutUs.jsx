@@ -149,14 +149,14 @@ const EditAboutUs = () => {
     const applyRedAsterisks = () => {
       // Find all labels and form-labels
       const labels = document.querySelectorAll(
-        "label, .form-label, h5, .text-danger"
+        "label, .form-label, h5, .text-danger",
       );
       labels.forEach((label) => {
         if (label.innerHTML && label.innerHTML.includes("*")) {
           // Replace asterisks with red-colored span
           label.innerHTML = label.innerHTML.replace(
             /\*/g,
-            '<span style="color: red; font-weight: bold;">*</span>'
+            '<span style="color: red; font-weight: bold;">*</span>',
           );
         }
       });
@@ -305,7 +305,7 @@ const EditAboutUs = () => {
     setFormData((prev) => ({
       ...prev,
       keyPointers: prev.keyPointers.map((pointer, index) =>
-        index === pointerIndex ? { ...pointer, [field]: value } : pointer
+        index === pointerIndex ? { ...pointer, [field]: value } : pointer,
       ),
     }));
     setHasChanges(true);
@@ -324,7 +324,7 @@ const EditAboutUs = () => {
       console.log("   Resized to:", formatFileSize(resizedFile.size));
       console.log(
         "   Reduction:",
-        Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%"
+        Math.round(((file.size - resizedFile.size) / file.size) * 100) + "%",
       );
 
       // Prepare FormData for upload
@@ -368,7 +368,7 @@ const EditAboutUs = () => {
         pointer.heading &&
         pointer.heading.trim() &&
         pointer.description &&
-        pointer.description.trim()
+        pointer.description.trim(),
     );
   };
 
@@ -444,8 +444,8 @@ const EditAboutUs = () => {
     !val
       ? ""
       : /^https?:\/\//i.test(val)
-      ? val
-      : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
+        ? val
+        : `${BASE_URL.replace(/\/$/, "")}/${val.replace(/^\/+/, "")}`;
 
   return (
     <MotionDiv>
@@ -534,10 +534,10 @@ const EditAboutUs = () => {
                         placeholder="Enter the main description..."
                         rows={3}
                         required={true}
-                        maxLength={225}
+                        maxLength={800}
                       />
                       <small className="text-muted">
-                        {formData.mainDescription.length}/225 characters
+                        {formData.mainDescription.length}/800 characters
                       </small>
                     </Col>
                   </Row>
@@ -559,10 +559,10 @@ const EditAboutUs = () => {
                         onChange={handleInputChange}
                         placeholder="Enter the top right description..."
                         rows={4}
-                        maxLength={225}
+                        maxLength={350}
                       />
                       <small className="text-muted">
-                        {formData.topRightDescription.length}/225 characters
+                        {formData.topRightDescription.length}/350 characters
                       </small>
                     </Col>
                   </Row>
@@ -588,10 +588,10 @@ const EditAboutUs = () => {
                             <span className="badge bg-primary ms-2">
                               {React.createElement(
                                 getIconComponent(pointer.icon),
-                                { size: 14, className: "me-1" }
+                                { size: 14, className: "me-1" },
                               )}
                               {availableIcons.find(
-                                (icon) => icon.name === pointer.icon
+                                (icon) => icon.name === pointer.icon,
                               )?.label || "Selected Icon"}
                             </span>
                           )}
@@ -609,7 +609,7 @@ const EditAboutUs = () => {
                                 handlePointerChange(
                                   index,
                                   "icon",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               options={availableIcons.map((iconOption) => ({
@@ -629,11 +629,11 @@ const EditAboutUs = () => {
                                 <div className="d-flex align-items-center">
                                   {React.createElement(
                                     getIconComponent(pointer.icon),
-                                    { size: 24, className: "me-2" }
+                                    { size: 24, className: "me-2" },
                                   )}
                                   <span>
                                     {availableIcons.find(
-                                      (icon) => icon.name === pointer.icon
+                                      (icon) => icon.name === pointer.icon,
                                     )?.label || "Selected Icon"}
                                   </span>
                                 </div>
@@ -650,7 +650,7 @@ const EditAboutUs = () => {
                                 handlePointerChange(
                                   index,
                                   "heading",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               placeholder="Enter pointer heading..."
@@ -671,7 +671,7 @@ const EditAboutUs = () => {
                                 handlePointerChange(
                                   index,
                                   "description",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               placeholder="Enter pointer description..."
@@ -680,7 +680,7 @@ const EditAboutUs = () => {
                               maxLength={150}
                             />
                             <small className="text-muted">
-                              {pointer.description?.length || 0}/150x characters
+                              {pointer.description?.length || 0}/150 characters
                             </small>
                           </Col>
                         </Row>
