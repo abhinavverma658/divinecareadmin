@@ -477,6 +477,180 @@ const baseQuery = async (args, api, extraOptions) => {
       }
     }),
 
+    // Accept a job applicant
+    acceptJobApplicant: builder.mutation({
+      queryFn: async ({ careerId, applicantId }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${careerId}/applicants/${applicantId}/accept`;
+          console.log('🔄 Accepting applicant:', { endpoint, careerId, applicantId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Accept applicant response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('acceptJobApplicant error:', error);
+          throw error;
+        }
+      }
+    }),
+
+    // Reject a job applicant
+    rejectJobApplicant: builder.mutation({
+      queryFn: async ({ careerId, applicantId }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${careerId}/applicants/${applicantId}/reject`;
+          console.log('🔄 Rejecting applicant:', { endpoint, careerId, applicantId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Reject applicant response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('rejectJobApplicant error:', error);
+          throw error;
+        }
+      }
+    }),
+
+    // Delete a job applicant
+    deleteJobApplicant: builder.mutation({
+      queryFn: async ({ careerId, applicantId }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${careerId}/applicants/${applicantId}`;
+          console.log('🔄 Deleting applicant:', { endpoint, careerId, applicantId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Delete applicant response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('deleteJobApplicant error:', error);
+          throw error;
+        }
+      }
+    }),
+
+    // Get a job applicant by ID
+    getJobApplicantById: builder.mutation({
+      queryFn: async ({ careerId, applicantId }, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/${careerId}/applicants/${applicantId}`;
+          console.log('🔄 Fetching applicant details:', { endpoint, careerId, applicantId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Get applicant details response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getJobApplicantById error:', error);
+          throw error;
+        }
+      }
+    }),
+
+    // Get all accepted candidates (post-acceptance forms)
+    getAcceptedCandidates: builder.mutation({
+      queryFn: async (arg, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/post-acceptance-forms`;
+          console.log('🔄 Fetching accepted candidates:', { endpoint, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Accepted candidates response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getAcceptedCandidates error:', error);
+          throw error;
+        }
+      }
+    }),
+
+    // Get post-acceptance form by applicant ID
+    getPostAcceptanceForm: builder.mutation({
+      queryFn: async (applicantId, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/applicants/${applicantId}/post-acceptance-form`;
+          console.log('🔄 Fetching post-acceptance form:', { endpoint, applicantId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Post-acceptance form response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('getPostAcceptanceForm error:', error);
+          throw error;
+        }
+      }
+    }),
+
     // Event registrations
     getEventRegistrations: builder.mutation({
       query: () => ({
@@ -2350,11 +2524,46 @@ const baseQuery = async (args, api, extraOptions) => {
       }),
     }),
     createDocumentSingle: builder.mutation({
-      query: (data) => ({
-        url: `/documents/single`,
-        method: "POST",
-        body: data,
-      }),
+      queryFn: async (formData, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+
+          const response = await fetch(`${baseUrl}/documents/single`, {
+            method: 'POST',
+            headers: {
+              // Don't set Content-Type so browser can set multipart/form-data boundary
+              ...(cleanToken && { Authorization: `Bearer ${cleanToken}` }),
+            },
+            body: formData,
+          });
+
+          const text = await response.text();
+          let data;
+          try {
+            data = text ? JSON.parse(text) : {};
+          } catch (jsonErr) {
+            // Response is not JSON (could be HTML error page)
+            data = { success: false, raw: text };
+          }
+
+          if (response.ok) {
+            return { data };
+          }
+
+          // Non-2xx response
+          return {
+            error: {
+              status: response.status,
+              data,
+            },
+          };
+        } catch (error) {
+          console.error('createDocumentSingle error:', error);
+          return { error };
+        }
+      },
     }),
     updateDocument: builder.mutation({
       query: ({ id, data }) => ({
@@ -2395,6 +2604,19 @@ const baseQuery = async (args, api, extraOptions) => {
       query: () => ({
         url: "/documents/categories",
         method: "GET",
+      }),
+    }),
+    createDocumentCategory: builder.mutation({
+      query: (data) => ({
+        url: "/documents/categories",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    deleteDocumentCategory: builder.mutation({
+      query: (id) => ({
+        url: `/documents/categories/${id}`,
+        method: "DELETE",
       }),
     }),
     getDocumentStats: builder.mutation({
@@ -2706,6 +2928,12 @@ export const {
   useGetCareersMutation,
   useGetCareerByIdMutation,
   useGetCareerApplicantsMutation,
+  useAcceptJobApplicantMutation,
+  useRejectJobApplicantMutation,
+  useDeleteJobApplicantMutation,
+  useGetJobApplicantByIdMutation,
+  useGetAcceptedCandidatesMutation,
+  useGetPostAcceptanceFormMutation,
   useUpdateCareerMutation,
   useDeleteCareerMutation,
   useGetEventRegistrationsByEventIdMutation,
@@ -2812,6 +3040,8 @@ export const {
   useToggleDocumentStatusMutation,
   useToggleDocumentPublicMutation,
   useGetDocumentCategoriesMutation,
+  useCreateDocumentCategoryMutation,
+  useDeleteDocumentCategoryMutation,
   useGetDocumentStatsMutation,
   useUploadDocumentMutation,
   useGetHomeEventsDataMutation,

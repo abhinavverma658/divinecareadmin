@@ -20,6 +20,10 @@ import {
   useUpdateCareerMutation,
   useDeleteCareerMutation,
   useGetCareerApplicantsMutation,
+  useAcceptJobApplicantMutation,
+  useRejectJobApplicantMutation,
+  useDeleteJobApplicantMutation,
+  useGetJobApplicantByIdMutation,
 } from "../../features/apiSlice";
 import { getError } from "../../utils/error";
 import { toast } from "react-toastify";
@@ -47,6 +51,7 @@ import {
   FaFilter,
   FaEdit,
   FaUsers,
+  FaCheck,
 } from "react-icons/fa";
 // FaUsers imported above
 import { useSelector } from "react-redux";
@@ -70,8 +75,15 @@ const JobApplications = () => {
     useUpdateCareerMutation();
   const [deleteCareer, { isLoading: deleteJobLoading }] =
     useDeleteCareerMutation();
-  const [getCareerApplicants, { isLoading: applicantsLoading }] =
-    useGetCareerApplicantsMutation();
+  const [getCareerApplicants] = useGetCareerApplicantsMutation();
+  const [acceptJobApplicant, { isLoading: acceptLoading }] =
+    useAcceptJobApplicantMutation();
+  const [rejectJobApplicant, { isLoading: rejectLoading }] =
+    useRejectJobApplicantMutation();
+  const [deleteJobApplicant, { isLoading: deleteApplicantLoading }] =
+    useDeleteJobApplicantMutation();
+  const [getJobApplicantById, { isLoading: applicantDetailsLoading }] =
+    useGetJobApplicantByIdMutation();
 
   const [applications, setApplications] = useState([]);
   const [filteredApplications, setFilteredApplications] = useState([]);
@@ -111,8 +123,16 @@ const JobApplications = () => {
   const [selectedJobToDelete, setSelectedJobToDelete] = useState(null);
   const [showApplicantsModal, setShowApplicantsModal] = useState(false);
   const [applicants, setApplicants] = useState([]);
+  const [applicantsModalLoading, setApplicantsModalLoading] = useState(false);
   const [selectedJobForApplicants, setSelectedJobForApplicants] =
     useState(null);
+  const [selectedApplicantToDelete, setSelectedApplicantToDelete] =
+    useState(null);
+  const [showDeleteApplicantModal, setShowDeleteApplicantModal] =
+    useState(false);
+  const [showApplicantDetailsModal, setShowApplicantDetailsModal] =
+    useState(false);
+  const [applicantDetails, setApplicantDetails] = useState(null);
 
   // Demo data for job applications
   const demoApplications = [
@@ -351,29 +371,51 @@ const JobApplications = () => {
           const response = await getCareerApplicants(job._id).unwrap();
           const applicants = response?.applicants || [];
 
+          // Log first applicant to debug status field
+          if (applicants.length > 0) {
+            console.log("Sample applicant data:", applicants[0]);
+          }
+
           // Map applicants to include job position
-          return applicants.map((applicant) => ({
-            _id: applicant._id,
-            name: applicant.name || "",
-            firstName: applicant.name?.split(" ")[0] || applicant.name || "",
-            lastName: applicant.name?.split(" ").slice(1).join(" ") || "",
-            email: applicant.email || "",
-            phone: applicant.contactNumber || "",
-            contactNumber: applicant.contactNumber || "",
-            position: job.title || "",
-            department: job.department || "",
-            location: applicant.address || "",
-            address: applicant.address || "",
-            resumeKey: applicant.resumeKey || applicant.resume || "",
-            resumeUrl: applicant.resume || applicant.resumeKey || "",
-            resumeFileName: `${
-              applicant.name?.replace(/\s+/g, "-") || "resume"
-            }.pdf`,
-            coverLetter: applicant.coverLetter || "",
-            status: "pending", // Default status
-            appliedDate: applicant.createdAt || new Date().toISOString(),
-            jobId: job._id,
-          }));
+          return applicants.map((applicant) => {
+            // Check for status in different possible field names
+            const backendStatus =
+              applicant.status ||
+              applicant.applicationStatus ||
+              applicant.candidateStatus ||
+              applicant.state ||
+              "pending";
+
+            // Get status from localStorage (persists across refreshes)
+            const localStorageKey = `applicant_status_${applicant._id}`;
+            const localStatus = localStorage.getItem(localStorageKey);
+
+            // Use localStorage status if available, otherwise use backend status
+            const finalStatus = localStatus || backendStatus;
+
+            return {
+              _id: applicant._id,
+              name: applicant.name || "",
+              firstName: applicant.name?.split(" ")[0] || applicant.name || "",
+              lastName: applicant.name?.split(" ").slice(1).join(" ") || "",
+              email: applicant.email || "",
+              phone: applicant.contactNumber || "",
+              contactNumber: applicant.contactNumber || "",
+              position: job.title || "",
+              department: job.department || "",
+              location: applicant.address || "",
+              address: applicant.address || "",
+              resumeKey: applicant.resumeKey || applicant.resume || "",
+              resumeUrl: applicant.resume || applicant.resumeKey || "",
+              resumeFileName: `${
+                applicant.name?.replace(/\s+/g, "-") || "resume"
+              }.pdf`,
+              coverLetter: applicant.coverLetter || "",
+              status: finalStatus, // Use localStorage or backend status
+              appliedDate: applicant.createdAt || new Date().toISOString(),
+              jobId: job._id,
+            };
+          });
         } catch (error) {
           console.warn(`Failed to fetch applicants for job ${job._id}:`, error);
           return [];
@@ -385,7 +427,7 @@ const JobApplications = () => {
 
       // Sort by appliedDate - latest first
       allApplications.sort(
-        (a, b) => new Date(b.appliedDate) - new Date(a.appliedDate)
+        (a, b) => new Date(b.appliedDate) - new Date(a.appliedDate),
       );
 
       setApplications(allApplications);
@@ -402,7 +444,7 @@ const JobApplications = () => {
       ) {
         console.warn(
           "Backend error when fetching job applications — suppressing toast",
-          msg
+          msg,
         );
         // Set empty applications on error
         setApplications([]);
@@ -421,7 +463,7 @@ const JobApplications = () => {
       reviewed: applicationsData.filter((app) => app.status === "reviewed")
         .length,
       shortlisted: applicationsData.filter(
-        (app) => app.status === "shortlisted"
+        (app) => app.status === "shortlisted",
       ).length,
       rejected: applicationsData.filter((app) => app.status === "rejected")
         .length,
@@ -516,7 +558,7 @@ const JobApplications = () => {
       console.log("Deleting job:", selectedJobToDelete);
       if (token && token.startsWith("demo-token")) {
         setJobs((prev) =>
-          prev.filter((j) => j._id !== selectedJobToDelete._id)
+          prev.filter((j) => j._id !== selectedJobToDelete._id),
         );
         toast.success("Job deleted (demo mode)");
         setShowDeleteJobModal(false);
@@ -581,7 +623,7 @@ const JobApplications = () => {
       ) {
         console.warn(
           "Backend error when fetching careers — suppressing toast",
-          msg
+          msg,
         );
         // Set empty jobs array on error
         setJobs([]);
@@ -599,7 +641,7 @@ const JobApplications = () => {
       filtered = filtered.filter((app) =>
         `${app.firstName} ${app.lastName}`
           .toLowerCase()
-          .includes(searchTerm.toLowerCase())
+          .includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -627,7 +669,7 @@ const JobApplications = () => {
                 status: newStatus,
                 lastUpdated: new Date().toISOString(),
               }
-            : app
+            : app,
         );
         setApplications(updatedApplications);
         calculateStats(updatedApplications);
@@ -635,13 +677,86 @@ const JobApplications = () => {
         return;
       }
 
-      // Real API call
+      // Find the application to get jobId
+      const application = applications.find((app) => app._id === applicationId);
+      if (!application) {
+        toast.error("Application not found");
+        return;
+      }
+
+      const careerId = application.jobId;
+      if (!careerId) {
+        toast.error("Job information not found for this application");
+        return;
+      }
+
+      // If accepting candidate (status is "hired"), use the accept endpoint
+      if (newStatus === "hired") {
+        console.log("Accepting candidate:", {
+          careerId,
+          applicantId: applicationId,
+        });
+        const result = await acceptJobApplicant({
+          careerId,
+          applicantId: applicationId,
+        }).unwrap();
+        console.log("Accept API response:", result);
+
+        // Save status to localStorage for persistence
+        localStorage.setItem(`applicant_status_${applicationId}`, "hired");
+
+        // Update local state immediately
+        const updatedApplications = applications.map((app) =>
+          app._id === applicationId
+            ? { ...app, status: "hired", lastUpdated: new Date().toISOString() }
+            : app,
+        );
+        setApplications(updatedApplications);
+        calculateStats(updatedApplications);
+
+        toast.success("Candidate accepted and notified successfully!");
+        return;
+      }
+
+      // If rejecting candidate, use the reject endpoint
+      if (newStatus === "rejected") {
+        console.log("Rejecting candidate:", {
+          careerId,
+          applicantId: applicationId,
+        });
+        const result = await rejectJobApplicant({
+          careerId,
+          applicantId: applicationId,
+        }).unwrap();
+        console.log("Reject API response:", result);
+
+        // Save status to localStorage for persistence
+        localStorage.setItem(`applicant_status_${applicationId}`, "rejected");
+
+        // Update local state immediately
+        const updatedApplications = applications.map((app) =>
+          app._id === applicationId
+            ? {
+                ...app,
+                status: "rejected",
+                lastUpdated: new Date().toISOString(),
+              }
+            : app,
+        );
+        setApplications(updatedApplications);
+        calculateStats(updatedApplications);
+
+        toast.success("Candidate Rejected");
+        return;
+      }
+
+      // For other status updates, use the regular update endpoint
       await updateJobApplicationStatus({
         id: applicationId,
         status: newStatus,
       }).unwrap();
       toast.success(`Application status updated to ${newStatus}`);
-      fetchJobApplications();
+      await fetchJobApplications();
     } catch (error) {
       getError(error);
     }
@@ -689,7 +804,7 @@ const JobApplications = () => {
       // Demo mode handling
       if (token && token.startsWith("demo-token")) {
         const updatedApplications = applications.filter(
-          (app) => app._id !== selectedApplication._id
+          (app) => app._id !== selectedApplication._id,
         );
         setApplications(updatedApplications);
         setFilteredApplications(updatedApplications);
@@ -832,18 +947,99 @@ const JobApplications = () => {
   const openApplicantsModal = async (jobId, jobTitle) => {
     setSelectedJobForApplicants(jobTitle || null);
     setApplicants([]);
+    setApplicantsModalLoading(true);
+    setShowApplicantsModal(true); // Show modal immediately
+
     try {
+      console.log("Fetching applicants for job:", jobId);
       const res = await getCareerApplicants(jobId).unwrap();
+      console.log("Applicants API response:", res);
+
       // res may be { data: { success: true, applicants: [...] } } or { success: true, applicants: [...] }
       const payload = res?.data || res || {};
       let list = [];
-      if (Array.isArray(payload)) list = payload;
-      else if (Array.isArray(payload.applicants)) list = payload.applicants;
-      else if (Array.isArray(payload.data)) list = payload.data;
+
+      if (Array.isArray(payload)) {
+        list = payload;
+      } else if (Array.isArray(payload.applicants)) {
+        list = payload.applicants;
+      } else if (Array.isArray(payload.data)) {
+        list = payload.data;
+      }
+
+      // Add careerId to each applicant for deletion
+      list = list.map((applicant) => ({
+        ...applicant,
+        careerId: jobId,
+      }));
+
+      // Sort by createdAt in descending order (latest first)
+      list.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      console.log("Processed applicants list:", list);
       setApplicants(list);
-      setShowApplicantsModal(true);
     } catch (error) {
-      const msg = getError(error) || "Failed to fetch applicants";
+      console.error("Error fetching applicants:", error);
+      const msg =
+        error?.data?.message || error?.message || "Failed to fetch applicants";
+      toast.error(msg);
+      setApplicants([]);
+    } finally {
+      setApplicantsModalLoading(false);
+    }
+  };
+
+  const handleDeleteApplicant = async () => {
+    try {
+      if (!selectedApplicantToDelete) return;
+
+      const { applicantId, careerId, applicantName } =
+        selectedApplicantToDelete;
+
+      console.log("Deleting applicant:", { careerId, applicantId });
+
+      await deleteJobApplicant({ careerId, applicantId }).unwrap();
+
+      toast.success(`Applicant ${applicantName} deleted successfully!`);
+
+      // Remove from local state
+      setApplicants((prev) => prev.filter((a) => a._id !== applicantId));
+
+      // Close modal
+      setShowDeleteApplicantModal(false);
+      setSelectedApplicantToDelete(null);
+
+      // Refresh applications list
+      fetchJobApplications();
+    } catch (error) {
+      console.error("Error deleting applicant:", error);
+      const msg =
+        error?.data?.message || error?.message || "Failed to delete applicant";
+      toast.error(msg);
+      setShowDeleteApplicantModal(false);
+    }
+  };
+
+  const handleViewApplicant = async (applicantId, careerId) => {
+    try {
+      console.log("Fetching applicant details:", { careerId, applicantId });
+
+      const res = await getJobApplicantById({ careerId, applicantId }).unwrap();
+      console.log("Applicant details response:", res);
+
+      const details = res?.applicant || res?.data?.applicant || res;
+      setApplicantDetails(details);
+      setShowApplicantDetailsModal(true);
+    } catch (error) {
+      console.error("Error fetching applicant details:", error);
+      const msg =
+        error?.data?.message ||
+        error?.message ||
+        "Failed to fetch applicant details";
       toast.error(msg);
     }
   };
@@ -870,8 +1066,8 @@ const JobApplications = () => {
                 color === "#28a745"
                   ? "success"
                   : color === "#dc3545"
-                  ? "danger"
-                  : "primary"
+                    ? "danger"
+                    : "primary"
               }
             />
           )}
@@ -1042,6 +1238,8 @@ const JobApplications = () => {
                 "Phone No.",
                 "Position Applied For",
                 "View Resume",
+                "Select/Reject",
+                "View/Delete",
               ]}
               isSearch={false}
               loading={isLoading}
@@ -1078,7 +1276,7 @@ const JobApplications = () => {
                             app.resumeKey || app.resumeUrl,
                             app.name
                               ? `${app.name}-resume.pdf`
-                              : app.resumeFileName || "resume.pdf"
+                              : app.resumeFileName,
                           )
                         }
                         title="Download Resume"
@@ -1088,11 +1286,77 @@ const JobApplications = () => {
                         Download
                       </Button>
                     </td>
+                    <td className="text-center">
+                      {app.status === "hired" ? (
+                        <Badge bg="success" className="py-2 px-3">
+                          <FaCheckCircle className="me-1" />
+                          Selected
+                        </Badge>
+                      ) : app.status === "rejected" ? (
+                        <Badge bg="danger" className="py-2 px-3">
+                          <FaTimes className="me-1" />
+                          Rejected
+                        </Badge>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => handleStatusUpdate(app._id, "hired")}
+                            title="Accept Candidate"
+                            className="me-2"
+                          >
+                            <FaCheck />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() =>
+                              handleStatusUpdate(app._id, "rejected")
+                            }
+                            title="Reject Candidate"
+                          >
+                            <FaTimes />
+                          </Button>
+                        </>
+                      )}
+                    </td>
+                    <td className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => handleViewApplicant(app._id, app.jobId)}
+                        title="View Applicant Details"
+                        className="me-2 d-inline-flex align-items-center justify-content-center"
+                        style={{ width: "32px", height: "32px", padding: "0" }}
+                      >
+                        <FaEye />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline-danger"
+                        onClick={() => {
+                          setSelectedApplicantToDelete({
+                            applicantId: app._id,
+                            careerId: app.jobId,
+                            applicantName:
+                              app.name ||
+                              `${app.firstName || ""} ${app.lastName || ""}`.trim(),
+                          });
+                          setShowDeleteApplicantModal(true);
+                        }}
+                        title="Delete Applicant"
+                        className="d-inline-flex align-items-center justify-content-center"
+                        style={{ width: "32px", height: "32px", padding: "0" }}
+                      >
+                        <FaTrash />
+                      </Button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     No job applications found
                   </td>
                 </tr>
@@ -1372,64 +1636,125 @@ const JobApplications = () => {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            {applicantsLoading ? (
-              <div className="text-center text-muted">
+            {applicantsModalLoading ? (
+              <div className="text-center text-muted py-4">
                 Loading applicants...
               </div>
             ) : applicants.length === 0 ? (
-              <div className="text-center text-muted">
+              <div className="text-center text-muted py-4">
                 No applicants found for this job.
               </div>
             ) : (
               <div className="list-group">
-                {applicants.map((a) => (
-                  <div
-                    key={a._id || a.id || Math.random()}
-                    className="list-group-item"
-                  >
-                    <div className="d-flex justify-content-between align-items-start">
-                      <div>
-                        <h6 className="mb-1">
-                          {a.name ||
-                            `${a.firstName || ""} ${a.lastName || ""}`.trim() ||
-                            "Unnamed"}
-                        </h6>
-                        <small className="text-muted d-block">{a.email}</small>
-                        <small className="text-muted d-block">
-                          {a.contactNumber || a.phone}
-                        </small>
-                        {a.address && (
-                          <div className="text-muted">{a.address}</div>
-                        )}
-                      </div>
-                      <div className="text-end">
-                        {a.resume && (
-                          <a
-                            href={a.resume}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn btn-sm btn-outline-primary me-2"
-                          >
-                            View Resume
-                          </a>
-                        )}
-                        <div className="text-muted small">
-                          {a.createdAt
-                            ? new Date(a.createdAt).toLocaleString()
-                            : ""}
+                {applicants.map((a, index) => {
+                  // Safety check - skip if applicant is null/undefined
+                  if (!a) return null;
+
+                  return (
+                    <div
+                      key={a._id || a.id || `applicant-${index}`}
+                      className="list-group-item"
+                    >
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div className="flex-grow-1">
+                          <h6 className="mb-1">
+                            {a.name ||
+                              `${a.firstName || ""} ${a.lastName || ""}`.trim() ||
+                              "Unnamed"}
+                          </h6>
+                          <small className="text-muted d-block">
+                            {a.email || "No email provided"}
+                          </small>
+                          <small className="text-muted d-block">
+                            {a.contactNumber || a.phone || "No phone provided"}
+                          </small>
+                          {a.address && (
+                            <div className="text-muted small mt-1">
+                              <FaMapMarkerAlt className="me-1" />
+                              {typeof a.address === "string"
+                                ? a.address
+                                : `${a.address.street || ""} ${a.address.city || ""} ${a.address.state || ""} ${a.address.zipCode || ""} ${a.address.country || ""}`.trim() ||
+                                  "Address provided"}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-end ms-3">
+                          {(a.resume || a.resumeKey) && (
+                            <a
+                              href={a.resume || a.resumeKey}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-sm btn-outline-primary mb-3"
+                            >
+                              <FaEye className="me-1" />
+                              View Resume
+                            </a>
+                          )}
+                          <div className="d-flex align-items-center justify-content-end gap-2 mt-2">
+                            {a.createdAt && (
+                              <div className="text-muted small me-2">
+                                Applied:{" "}
+                                {new Date(a.createdAt).toLocaleDateString()}
+                              </div>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline-primary"
+                              onClick={() =>
+                                handleViewApplicant(a._id, a.careerId)
+                              }
+                              title="View Applicant Details"
+                              className="d-flex align-items-center justify-content-center"
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                padding: "0",
+                              }}
+                            >
+                              <FaEye />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-danger"
+                              onClick={() => {
+                                setSelectedApplicantToDelete({
+                                  applicantId: a._id,
+                                  careerId: a.careerId,
+                                  applicantName: a.name || "this applicant",
+                                });
+                                setShowDeleteApplicantModal(true);
+                              }}
+                              title="Delete Applicant"
+                              className="d-flex align-items-center justify-content-center"
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                padding: "0",
+                              }}
+                            >
+                              <FaTrash />
+                            </Button>
+                          </div>
                         </div>
                       </div>
+                      {a.coverLetter && (
+                        <div className="mt-3 pt-2 border-top">
+                          <strong className="small">Cover Letter:</strong>
+                          <div
+                            className="mt-1 text-muted small"
+                            style={{
+                              whiteSpace: "pre-wrap",
+                              maxHeight: "150px",
+                              overflow: "auto",
+                            }}
+                          >
+                            {a.coverLetter}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {a.coverLetter && (
-                      <div
-                        className="mt-2 text-muted"
-                        style={{ whiteSpace: "pre-wrap" }}
-                      >
-                        {a.coverLetter}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Modal.Body>
@@ -1462,6 +1787,210 @@ const JobApplications = () => {
           description={`Are you sure you want to delete the job "${selectedJobToDelete?.title}"? This action cannot be undone.`}
           loading={deleteJobLoading}
         />
+        {/* Delete Applicant Confirmation */}
+        <DeleteModal
+          show={showDeleteApplicantModal}
+          onHide={() => setShowDeleteApplicantModal(false)}
+          onDiscard={() => setShowDeleteApplicantModal(false)}
+          onConfirm={handleDeleteApplicant}
+          title="Delete Applicant"
+          description={`Are you sure you want to delete applicant "${selectedApplicantToDelete?.applicantName}"? This action cannot be undone.`}
+          loading={deleteApplicantLoading}
+        />
+
+        {/* Applicant Details Modal */}
+        <Modal
+          show={showApplicantDetailsModal}
+          onHide={() => setShowApplicantDetailsModal(false)}
+          size="lg"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>
+              Applicant Details - {applicantDetails?.name || "Loading..."}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {applicantDetailsLoading ? (
+              <div className="text-center text-muted py-4">
+                Loading applicant details...
+              </div>
+            ) : applicantDetails ? (
+              <div>
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <h6 className="text-muted mb-2">Contact Information</h6>
+                    <div className="mb-2">
+                      <strong>Name:</strong> {applicantDetails.name}
+                    </div>
+                    <div className="mb-2">
+                      <strong>Email:</strong>{" "}
+                      <a href={`mailto:${applicantDetails.email}`}>
+                        {applicantDetails.email}
+                      </a>
+                    </div>
+                    <div className="mb-2">
+                      <strong>Phone:</strong>{" "}
+                      <a href={`tel:${applicantDetails.phoneNumber}`}>
+                        {applicantDetails.phoneNumber}
+                      </a>
+                    </div>
+                    {applicantDetails.dateContacted && (
+                      <div className="mb-2">
+                        <strong>Date Contacted:</strong>{" "}
+                        {new Date(
+                          applicantDetails.dateContacted,
+                        ).toLocaleDateString()}
+                      </div>
+                    )}
+                  </Col>
+                  <Col md={6}>
+                    <h6 className="text-muted mb-2">Address</h6>
+                    {applicantDetails.address ? (
+                      <>
+                        <div>{applicantDetails.address.street}</div>
+                        <div>
+                          {applicantDetails.address.state}{" "}
+                          {applicantDetails.address.zipCode}
+                        </div>
+                        <div>{applicantDetails.address.country}</div>
+                      </>
+                    ) : (
+                      <div className="text-muted">No address provided</div>
+                    )}
+                  </Col>
+                </Row>
+
+                <hr />
+
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <h6 className="text-muted mb-2">Qualifications</h6>
+                    <div className="mb-2">
+                      <strong>Vaccinated:</strong>{" "}
+                      {applicantDetails.vaccinated ? (
+                        <Badge bg="success">Yes</Badge>
+                      ) : (
+                        <Badge bg="secondary">No</Badge>
+                      )}
+                    </div>
+                    <div className="mb-2">
+                      <strong>First Aid/CPR:</strong>{" "}
+                      {applicantDetails.firstAidCpr ? (
+                        <Badge bg="success">Yes</Badge>
+                      ) : (
+                        <Badge bg="secondary">No</Badge>
+                      )}
+                    </div>
+                    <div className="mb-2">
+                      <strong>M&T DDA:</strong>{" "}
+                      {applicantDetails.mandtDda ? (
+                        <Badge bg="success">Yes</Badge>
+                      ) : (
+                        <Badge bg="secondary">No</Badge>
+                      )}
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <h6 className="text-muted mb-2">Experience & Licenses</h6>
+                    <div className="mb-2">
+                      <strong>Driver's License:</strong>{" "}
+                      {applicantDetails.driversLicense ? (
+                        <Badge bg="success">Yes</Badge>
+                      ) : (
+                        <Badge bg="secondary">No</Badge>
+                      )}
+                    </div>
+                    <div className="mb-2">
+                      <strong>Disabilities Experience:</strong>{" "}
+                      {applicantDetails.disabilitiesExperience ? (
+                        <Badge bg="success">Yes</Badge>
+                      ) : (
+                        <Badge bg="secondary">No</Badge>
+                      )}
+                    </div>
+                    <div className="mb-2">
+                      <strong>Schedule Interview:</strong>{" "}
+                      {applicantDetails.scheduleInterview ? (
+                        <Badge bg="primary">Yes</Badge>
+                      ) : (
+                        <Badge bg="secondary">No</Badge>
+                      )}
+                    </div>
+                  </Col>
+                </Row>
+
+                <hr />
+
+                {applicantDetails.interestedShifts &&
+                  applicantDetails.interestedShifts.length > 0 && (
+                    <>
+                      <h6 className="text-muted mb-2">Interested Shifts</h6>
+                      <div className="mb-3">
+                        {applicantDetails.interestedShifts.map((shift, idx) => (
+                          <Badge key={idx} bg="info" className="me-2 mb-2 p-2">
+                            {shift}
+                          </Badge>
+                        ))}
+                      </div>
+                      <hr />
+                    </>
+                  )}
+
+                {applicantDetails.coverLetter && (
+                  <>
+                    <h6 className="text-muted mb-2">Cover Letter</h6>
+                    <div
+                      className="p-3 bg-light rounded mb-3"
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        maxHeight: "200px",
+                        overflow: "auto",
+                      }}
+                    >
+                      {applicantDetails.coverLetter}
+                    </div>
+                    <hr />
+                  </>
+                )}
+
+                <Row>
+                  <Col md={6}>
+                    <div className="mb-2">
+                      <strong>Status:</strong>{" "}
+                      {applicantDetails.status === "accepted" ? (
+                        <Badge bg="success">Accepted</Badge>
+                      ) : applicantDetails.status === "rejected" ? (
+                        <Badge bg="danger">Rejected</Badge>
+                      ) : (
+                        <Badge bg="warning">Pending</Badge>
+                      )}
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    {applicantDetails.createdAt && (
+                      <div className="mb-2">
+                        <strong>Applied:</strong>{" "}
+                        {new Date(applicantDetails.createdAt).toLocaleString()}
+                      </div>
+                    )}
+                  </Col>
+                </Row>
+              </div>
+            ) : (
+              <div className="text-center text-muted py-4">
+                No details available
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setShowApplicantDetailsModal(false)}
+            >
+              Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
       </Container>
     </MotionDiv>
   );

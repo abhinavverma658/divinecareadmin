@@ -63,6 +63,12 @@ const linkList = [
     text: "Careers",
     url: "/dash/job-applications",
   },
+  // Users
+  {
+    icon: <FaUsers className="icon-md" />,
+    text: "Users",
+    url: "/dash/users",
+  },
   // Stories
   {
     icon: <FaBookOpen className="icon-md" />,

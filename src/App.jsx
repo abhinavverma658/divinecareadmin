@@ -34,6 +34,7 @@ import Services from "./Pages/services/Services.jsx";
 import AddEditService from "./Pages/services/AddEditService.jsx";
 import JobApplications from "./Pages/jobApplications/JobApplications.jsx";
 import ViewJobApplication from "./Pages/jobApplications/ViewJobApplication.jsx";
+import Users from "./Pages/users/Users.jsx";
 import Events from "./Pages/events/Events.jsx";
 import AddEditEvent from "./Pages/events/AddEditEvent.jsx";
 import ViewEventParticipants from "./Pages/events/ViewEventParticipants.jsx";
@@ -83,6 +84,7 @@ function App() {
     { path: "/dash/services/edit/:id", comp: <AddEditService /> },
     { path: "/dash/job-applications", comp: <JobApplications /> },
     { path: "/dash/job-applications/view/:id", comp: <ViewJobApplication /> },
+    { path: "/dash/users", comp: <Users /> },
     { path: "/dash/events", comp: <Events /> },
     { path: "/dash/events/add", comp: <AddEditEvent /> },
     { path: "/dash/events/edit/:id", comp: <AddEditEvent /> },
