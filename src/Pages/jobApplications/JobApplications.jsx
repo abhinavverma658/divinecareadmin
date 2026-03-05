@@ -379,19 +379,34 @@ const JobApplications = () => {
           // Map applicants to include job position
           return applicants.map((applicant) => {
             // Check for status in different possible field names
-            const backendStatus =
+            let backendStatus =
               applicant.status ||
               applicant.applicationStatus ||
               applicant.candidateStatus ||
               applicant.state ||
               "pending";
 
-            // Get status from localStorage (persists across refreshes)
-            const localStorageKey = `applicant_status_${applicant._id}`;
-            const localStatus = localStorage.getItem(localStorageKey);
+            // Normalize status values - map backend status to frontend expected values
+            // Backend may use "accepted" but frontend uses "hired"
+            if (backendStatus === "accepted") {
+              backendStatus = "hired";
+            }
 
-            // Use localStorage status if available, otherwise use backend status
-            const finalStatus = localStatus || backendStatus;
+            console.log(
+              `Applicant ${applicant.name}: backend status = ${applicant.status}, normalized = ${backendStatus}`,
+            );
+
+            // Handle resumeKey - check if it's a relative path and construct full URL
+            let resumeKey = applicant.resumeKey || applicant.resume || "";
+            if (resumeKey && !resumeKey.startsWith("http")) {
+              // If it's a relative path, construct the full URL
+              const baseURL =
+                "https://divine-care.ap-south-1.storage.onantryk.com";
+              const relativePath = resumeKey.startsWith("/")
+                ? resumeKey
+                : `/${resumeKey}`;
+              resumeKey = `${baseURL}${relativePath}`;
+            }
 
             return {
               _id: applicant._id,
@@ -399,19 +414,22 @@ const JobApplications = () => {
               firstName: applicant.name?.split(" ")[0] || applicant.name || "",
               lastName: applicant.name?.split(" ").slice(1).join(" ") || "",
               email: applicant.email || "",
-              phone: applicant.contactNumber || "",
-              contactNumber: applicant.contactNumber || "",
+              phone: applicant.contactNumber || applicant.phoneNumber || "",
+              contactNumber:
+                applicant.contactNumber || applicant.phoneNumber || "",
+              phoneNumber:
+                applicant.phoneNumber || applicant.contactNumber || "",
               position: job.title || "",
               department: job.department || "",
               location: applicant.address || "",
               address: applicant.address || "",
-              resumeKey: applicant.resumeKey || applicant.resume || "",
-              resumeUrl: applicant.resume || applicant.resumeKey || "",
+              resumeKey: resumeKey,
+              resumeUrl: resumeKey,
               resumeFileName: `${
                 applicant.name?.replace(/\s+/g, "-") || "resume"
               }.pdf`,
               coverLetter: applicant.coverLetter || "",
-              status: finalStatus, // Use localStorage or backend status
+              status: backendStatus, // Use backend status directly
               appliedDate: applicant.createdAt || new Date().toISOString(),
               jobId: job._id,
             };
@@ -702,19 +720,10 @@ const JobApplications = () => {
         }).unwrap();
         console.log("Accept API response:", result);
 
-        // Save status to localStorage for persistence
-        localStorage.setItem(`applicant_status_${applicationId}`, "hired");
-
-        // Update local state immediately
-        const updatedApplications = applications.map((app) =>
-          app._id === applicationId
-            ? { ...app, status: "hired", lastUpdated: new Date().toISOString() }
-            : app,
-        );
-        setApplications(updatedApplications);
-        calculateStats(updatedApplications);
-
         toast.success("Candidate accepted and notified successfully!");
+
+        // Refetch applications to get updated status from backend
+        await fetchJobApplications();
         return;
       }
 
@@ -730,23 +739,10 @@ const JobApplications = () => {
         }).unwrap();
         console.log("Reject API response:", result);
 
-        // Save status to localStorage for persistence
-        localStorage.setItem(`applicant_status_${applicationId}`, "rejected");
-
-        // Update local state immediately
-        const updatedApplications = applications.map((app) =>
-          app._id === applicationId
-            ? {
-                ...app,
-                status: "rejected",
-                lastUpdated: new Date().toISOString(),
-              }
-            : app,
-        );
-        setApplications(updatedApplications);
-        calculateStats(updatedApplications);
-
         toast.success("Candidate Rejected");
+
+        // Refetch applications to get updated status from backend
+        await fetchJobApplications();
         return;
       }
 
@@ -967,11 +963,41 @@ const JobApplications = () => {
         list = payload.data;
       }
 
-      // Add careerId to each applicant for deletion
-      list = list.map((applicant) => ({
-        ...applicant,
-        careerId: jobId,
-      }));
+      // Add careerId to each applicant for deletion and fix resume URLs
+      list = list.map((applicant) => {
+        // Handle resumeKey - check if it's a relative path and construct full URL
+        let resumeKey = applicant.resumeKey || applicant.resume || "";
+        if (resumeKey && !resumeKey.startsWith("http")) {
+          // If it's a relative path, construct the full URL
+          const baseURL = "https://divine-care.ap-south-1.storage.onantryk.com";
+          const relativePath = resumeKey.startsWith("/")
+            ? resumeKey
+            : `/${resumeKey}`;
+          resumeKey = `${baseURL}${relativePath}`;
+        }
+
+        // Normalize status - backend uses "accepted", frontend expects "hired"
+        let status =
+          applicant.status ||
+          applicant.applicationStatus ||
+          applicant.candidateStatus ||
+          applicant.state ||
+          "pending";
+        if (status === "accepted") {
+          status = "hired";
+        }
+        console.log(
+          `Modal Applicant ${applicant.name}: backend status = ${applicant.status}, normalized = ${status}`,
+        );
+
+        return {
+          ...applicant,
+          careerId: jobId,
+          resumeKey: resumeKey,
+          resume: resumeKey,
+          status: status,
+        };
+      });
 
       // Sort by createdAt in descending order (latest first)
       list.sort((a, b) => {
@@ -1261,7 +1287,7 @@ const JobApplications = () => {
                     </td>
                     <td>
                       <span className="text-muted">
-                        {app.contactNumber || app.phone}
+                        {app.contactNumber || app.phoneNumber}
                       </span>
                     </td>
                     <td>
@@ -1271,19 +1297,47 @@ const JobApplications = () => {
                       <Button
                         size="sm"
                         variant="outline-primary"
-                        onClick={() =>
-                          handleDownloadResume(
-                            app.resumeKey || app.resumeUrl,
-                            app.name
-                              ? `${app.name}-resume.pdf`
-                              : app.resumeFileName,
-                          )
-                        }
-                        title="Download Resume"
-                        disabled={!app.resumeKey && !app.resumeUrl}
+                        onClick={() => {
+                          if (app.resumeKey) {
+                            console.log("Opening resume URL:", app.resumeKey);
+                            console.log("Full applicant data:", app);
+                            try {
+                              const url = app.resumeKey;
+                              const newWindow = window.open(
+                                url,
+                                "_blank",
+                                "noopener,noreferrer",
+                              );
+                              if (
+                                !newWindow ||
+                                newWindow.closed ||
+                                typeof newWindow.closed === "undefined"
+                              ) {
+                                // toast.error(
+                                //   "Pop-up blocked. Please allow pop-ups for this site.",
+                                // );
+                              }
+                            } catch (error) {
+                              console.error("Error opening resume:", error);
+                              toast.error(
+                                "Failed to open resume: " + error.message,
+                              );
+                            }
+                          } else {
+                            console.warn(
+                              "No resume URL available for applicant:",
+                              app,
+                            );
+                            toast.error(
+                              "No resume available for this applicant",
+                            );
+                          }
+                        }}
+                        title="View Resume"
+                        disabled={!app.resumeKey}
                       >
-                        <FaDownload className="me-1" />
-                        Download
+                        <FaEye className="me-1" />
+                        View Resume
                       </Button>
                     </td>
                     <td className="text-center">
@@ -1666,7 +1720,7 @@ const JobApplications = () => {
                             {a.email || "No email provided"}
                           </small>
                           <small className="text-muted d-block">
-                            {a.contactNumber || a.phone || "No phone provided"}
+                            {a.contactNumber || "No phone provided"}
                           </small>
                           {a.address && (
                             <div className="text-muted small mt-1">
@@ -1679,9 +1733,9 @@ const JobApplications = () => {
                           )}
                         </div>
                         <div className="text-end ms-3">
-                          {(a.resume || a.resumeKey) && (
+                          {a.resumeKey && (
                             <a
-                              href={a.resume || a.resumeKey}
+                              href={a.resumeKey}
                               target="_blank"
                               rel="noreferrer"
                               className="btn btn-sm btn-outline-primary mb-3"

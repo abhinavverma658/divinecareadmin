@@ -324,8 +324,21 @@ const Documents = () => {
             }
 
             const resolvedId = doc._id || doc.id || doc.docId || null;
+
+            // Handle relative vs absolute URLs
+            let documentUrl = doc.fileUrl || "";
+            if (documentUrl && !documentUrl.startsWith("http")) {
+              // If it's a relative path, construct the full URL
+              const baseURL =
+                "https://divine-care.ap-south-1.storage.onantryk.com";
+              const relativePath = documentUrl.startsWith("/")
+                ? documentUrl
+                : `/${documentUrl}`;
+              documentUrl = `${baseURL}${relativePath}`;
+            }
+
             const entry = {
-              url: doc.fileUrl,
+              url: documentUrl,
               mimeType: doc.mimeType,
               title: doc.title || "",
               id: resolvedId,
@@ -881,13 +894,9 @@ const Documents = () => {
       handleFetchDocumentById(documentId).then((doc) => {
         console.log("Fetched doc for view:", doc);
         if (doc && doc.fileUrl) {
-          // Open the fresh URL from the API response
+          // Open the fresh URL from the API response using openDocumentUrl to handle relative paths
           console.log("Opening fileUrl:", doc.fileUrl);
-          try {
-            window.open(encodeURI(doc.fileUrl), "_blank");
-          } catch {
-            window.open(doc.fileUrl, "_blank");
-          }
+          openDocumentUrl(doc.fileUrl);
         } else if (url) {
           // Fallback to provided URL if API fetch fails
           console.log("Fallback to provided url:", url);
@@ -913,42 +922,15 @@ const Documents = () => {
     const realUrl = typeof url === "object" && url.url ? url.url : url;
     console.log("realUrl:", realUrl);
 
-    // Check if it's already a full URL
-    if (/^https?:\/\//i.test(realUrl)) {
-      console.log("Already a full URL, opening directly:", realUrl);
-      try {
-        window.open(realUrl, "_blank", "noopener,noreferrer");
-      } catch (err) {
-        console.error("Failed to open URL:", err);
-        toast.error("Failed to open document");
-      }
-      return;
+    // Handle relative vs absolute URLs
+    let finalUrl = realUrl;
+    if (finalUrl && !finalUrl.startsWith("http")) {
+      // If it's a relative path, construct the full URL
+      const baseURL = "https://divine-care.ap-south-1.storage.onantryk.com";
+      const relativePath = finalUrl.startsWith("/") ? finalUrl : `/${finalUrl}`;
+      finalUrl = `${baseURL}${relativePath}`;
     }
 
-    // If not a full URL, try to construct it with base URL
-    const base =
-      typeof import.meta !== "undefined" &&
-      import.meta.env &&
-      import.meta.env.VITE_BASE_URL
-        ? import.meta.env.VITE_BASE_URL
-        : "";
-    console.log("base:", base);
-
-    if (!base) {
-      console.warn("No VITE_BASE_URL configured and URL is relative:", realUrl);
-      toast.error("Document URL configuration error");
-      return;
-    }
-
-    const makeAbsolute = (u) => {
-      if (!u) return u;
-      if (/^https?:\/\//i.test(u) || /^\/\//.test(u)) return u;
-      if (!base) return u;
-      const b = base.replace(/\/$/, "");
-      if (u.startsWith("/")) return b + u;
-      return b + "/" + u;
-    };
-    const finalUrl = makeAbsolute(realUrl);
     console.log("finalUrl to open:", finalUrl);
 
     try {
