@@ -387,7 +387,7 @@ export default function SideNavbar({ isExpanded, sidebarHandler }) {
                             <span className="ms-1">Gallery</span>
                           </Link>
                         </li>
-                        <li className="dropdown-item">
+                        {/* <li className="dropdown-item">
                           <Link
                             to="/dash/homepage/team-members"
                             className={`dropdown-link ${
@@ -399,7 +399,7 @@ export default function SideNavbar({ isExpanded, sidebarHandler }) {
                             <span className="nav-icon">•</span>
                             <span className="ms-1">Team Members</span>
                           </Link>
-                        </li>
+                        </li> */}
                       </ul>
                     </div>
                   )}
