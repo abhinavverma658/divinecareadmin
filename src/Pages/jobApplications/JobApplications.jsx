@@ -1302,7 +1302,14 @@ const JobApplications = () => {
                             console.log("Opening resume URL:", app.resumeKey);
                             console.log("Full applicant data:", app);
                             try {
-                              const url = app.resumeKey;
+                              let url = app.resumeKey;
+                              // Check if it's a .doc or .docx file and use Microsoft Office Web Viewer
+                              if (
+                                url.toLowerCase().endsWith(".docx") ||
+                                url.toLowerCase().endsWith(".doc")
+                              ) {
+                                url = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+                              }
                               const newWindow = window.open(
                                 url,
                                 "_blank",
@@ -1735,7 +1742,12 @@ const JobApplications = () => {
                         <div className="text-end ms-3">
                           {a.resumeKey && (
                             <a
-                              href={a.resumeKey}
+                              href={
+                                a.resumeKey.toLowerCase().endsWith(".docx") ||
+                                a.resumeKey.toLowerCase().endsWith(".doc")
+                                  ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(a.resumeKey)}`
+                                  : a.resumeKey
+                              }
                               target="_blank"
                               rel="noreferrer"
                               className="btn btn-sm btn-outline-primary mb-3"
