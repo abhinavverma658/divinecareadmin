@@ -65,7 +65,12 @@ const Users = () => {
           email: form.personalInfo?.contactEmail || "",
           // Store full data for details view
           fullData: form,
-        }));
+        })).sort((a, b) => {
+          // Sort by createdAt in descending order (newest first)
+          const dateA = new Date(a.fullData?.createdAt || 0);
+          const dateB = new Date(b.fullData?.createdAt || 0);
+          return dateB - dateA;
+        });
 
         setUsers(mappedUsers);
         setIsLoading(false);

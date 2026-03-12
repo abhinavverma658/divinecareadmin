@@ -1979,13 +1979,24 @@ const JobApplications = () => {
                   applicantDetails.interestedShifts.length > 0 && (
                     <>
                       <h6 className="text-muted mb-2">Interested Shifts</h6>
-                      <div className="mb-3">
+                      <ul className="mb-3">
                         {applicantDetails.interestedShifts.map((shift, idx) => (
-                          <Badge key={idx} bg="info" className="me-2 mb-2 p-2">
+                          <Badge
+                            key={idx}
+                            bg="info"
+                            className="me-2 mb-2 p-2"
+                            style={{
+                              fontSize: "0.9rem",
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                              maxWidth: "100%",
+                              display: "inline-block",
+                            }}
+                          >
                             {shift}
                           </Badge>
                         ))}
-                      </div>
+                      </ul>
                       <hr />
                     </>
                   )}
