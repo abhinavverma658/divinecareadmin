@@ -651,6 +651,35 @@ const baseQuery = async (args, api, extraOptions) => {
       }
     }),
 
+    // Delete post-acceptance form
+    deletePostAcceptanceForm: builder.mutation({
+      queryFn: async (formId, { getState }) => {
+        try {
+          const token = getState().auth.token;
+          const cleanToken = token ? token.replace(/"/g, '') : null;
+          const baseUrl = getBaseUrl();
+          const endpoint = `${baseUrl}/careers/post-acceptance-forms/${formId}`;
+          console.log('🔄 Deleting post-acceptance form:', { endpoint, formId, hasToken: !!cleanToken });
+          const response = await fetch(endpoint, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(cleanToken && { 'Authorization': `Bearer ${cleanToken}` }),
+            },
+          });
+          const text = await response.text();
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch (e) { data = text; }
+          console.log('🔁 Delete post-acceptance form response:', { status: response.status, ok: response.ok, data });
+          if (response.ok) return { data };
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+        } catch (error) {
+          console.error('deletePostAcceptanceForm error:', error);
+          throw error;
+        }
+      }
+    }),
+
     // Event registrations
     getEventRegistrations: builder.mutation({
       query: () => ({
@@ -2934,6 +2963,7 @@ export const {
   useGetJobApplicantByIdMutation,
   useGetAcceptedCandidatesMutation,
   useGetPostAcceptanceFormMutation,
+  useDeletePostAcceptanceFormMutation,
   useUpdateCareerMutation,
   useDeleteCareerMutation,
   useGetEventRegistrationsByEventIdMutation,

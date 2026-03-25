@@ -12,6 +12,7 @@ import {
 } from "react-bootstrap";
 import {
   FaEye,
+  FaTrash,
   FaUser,
   FaEnvelope,
   FaPhone,
@@ -23,6 +24,7 @@ import { toast } from "react-toastify";
 import {
   useGetAcceptedCandidatesMutation,
   useGetPostAcceptanceFormMutation,
+  useDeletePostAcceptanceFormMutation,
 } from "../../features/apiSlice";
 
 const Users = () => {
@@ -31,9 +33,13 @@ const Users = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formDetails, setFormDetails] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [getAcceptedCandidates] = useGetAcceptedCandidatesMutation();
   const [getPostAcceptanceForm] = useGetPostAcceptanceFormMutation();
+  const [deletePostAcceptanceForm] = useDeletePostAcceptanceFormMutation();
 
   // Prevent double fetch in React.StrictMode
   const hasFetchedRef = useRef(false);
@@ -53,24 +59,26 @@ const Users = () => {
         const formsData = response.forms || [];
 
         // Map only necessary data to avoid large object spreading
-        const mappedUsers = formsData.map((form) => ({
-          _id: form._id,
-          applicant: form.applicant,
-          name: `${form.personalInfo?.firstName || ""} ${form.personalInfo?.lastName || ""}`.trim(),
-          position:
-            typeof form.positionAppliedFor === "object" &&
-            form.positionAppliedFor !== null
-              ? form.positionAppliedFor.title || "N/A"
-              : form.positionAppliedFor || "N/A",
-          email: form.personalInfo?.contactEmail || "",
-          // Store full data for details view
-          fullData: form,
-        })).sort((a, b) => {
-          // Sort by createdAt in descending order (newest first)
-          const dateA = new Date(a.fullData?.createdAt || 0);
-          const dateB = new Date(b.fullData?.createdAt || 0);
-          return dateB - dateA;
-        });
+        const mappedUsers = formsData
+          .map((form) => ({
+            _id: form._id,
+            applicant: form.applicant,
+            name: `${form.personalInfo?.firstName || ""} ${form.personalInfo?.lastName || ""}`.trim(),
+            position:
+              typeof form.positionAppliedFor === "object" &&
+              form.positionAppliedFor !== null
+                ? form.positionAppliedFor.title || "N/A"
+                : form.positionAppliedFor || "N/A",
+            email: form.personalInfo?.contactEmail || "",
+            // Store full data for details view
+            fullData: form,
+          }))
+          .sort((a, b) => {
+            // Sort by createdAt in descending order (newest first)
+            const dateA = new Date(a.fullData?.createdAt || 0);
+            const dateB = new Date(b.fullData?.createdAt || 0);
+            return dateB - dateA;
+          });
 
         setUsers(mappedUsers);
         setIsLoading(false);
@@ -96,6 +104,37 @@ const Users = () => {
       setFormDetails(null);
       toast.error("Form details not available");
     }
+  };
+
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete?._id) return;
+
+    setIsDeleting(true);
+    try {
+      await deletePostAcceptanceForm(userToDelete._id).unwrap();
+      toast.success("Candidate deleted successfully");
+
+      // Remove the deleted user from the list
+      setUsers((prevUsers) => prevUsers.filter((u) => u._id !== userToDelete._id));
+
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+    } catch (error) {
+      console.error("Error deleting candidate:", error);
+      toast.error(error?.data?.message || "Failed to delete candidate");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setUserToDelete(null);
   };
 
   return (
@@ -128,6 +167,7 @@ const Users = () => {
                 "Accepted Candidate Name",
                 "Position Applied",
                 "View Details",
+                "Delete",
               ]}
               isSearch={false}
               loading={isLoading}
@@ -157,6 +197,18 @@ const Users = () => {
                         style={{ width: "32px", height: "32px", padding: "0" }}
                       >
                         <FaEye />
+                      </Button>
+                    </td>
+                    <td className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline-danger"
+                        onClick={() => handleDeleteClick(user)}
+                        title="Delete candidate"
+                        className="d-inline-flex align-items-center justify-content-center"
+                        style={{ width: "32px", height: "32px", padding: "0" }}
+                      >
+                        <FaTrash />
                       </Button>
                     </td>
                   </tr>
@@ -1190,6 +1242,59 @@ const Users = () => {
               onClick={() => setShowDetailsModal(false)}
             >
               Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          show={showDeleteModal}
+          onHide={handleDeleteCancel}
+          centered
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Confirm Delete</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>Are you sure you want to delete this candidate?</p>
+            <p className="text-muted mb-0">
+              <strong>Name:</strong> {userToDelete?.name || "N/A"}
+            </p>
+            <p className="text-muted">
+              <strong>Position:</strong> {userToDelete?.position || "N/A"}
+            </p>
+            <p className="text-danger">
+              This action cannot be undone.
+            </p>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={handleDeleteCancel}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Spinner
+                    as="span"
+                    animation="border"
+                    size="sm"
+                    role="status"
+                    aria-hidden="true"
+                    className="me-2"
+                  />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </Modal.Footer>
         </Modal>
