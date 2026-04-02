@@ -66,7 +66,7 @@ const linkList = [
   // Users
   {
     icon: <FaUsers className="icon-md" />,
-    text: "Users",
+    text: "Accepted Candidates",
     url: "/dash/users",
   },
   // Stories
