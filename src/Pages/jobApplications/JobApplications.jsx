@@ -9,6 +9,7 @@ import {
   Form,
   Modal,
   ProgressBar,
+  Pagination,
 } from "react-bootstrap";
 import {
   useGetJobApplicationsMutation,
@@ -133,6 +134,10 @@ const JobApplications = () => {
   const [showApplicantDetailsModal, setShowApplicantDetailsModal] =
     useState(false);
   const [applicantDetails, setApplicantDetails] = useState(null);
+
+  // Table pagination
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Demo data for job applications
   const demoApplications = [
@@ -676,6 +681,18 @@ const JobApplications = () => {
     setFilteredApplications(filtered);
   }, [applications, searchTerm, statusFilter, positionFilter]);
 
+  // Reset to first page when filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, positionFilter]);
+
+  // Clamp current page when result set shrinks
+  useEffect(() => {
+    const total = filteredApplications?.length || 0;
+    const pages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+    if (currentPage > pages) setCurrentPage(pages);
+  }, [filteredApplications, currentPage]);
+
   const handleStatusUpdate = async (applicationId, newStatus) => {
     try {
       // Demo mode handling
@@ -1102,6 +1119,49 @@ const JobApplications = () => {
     </Card>
   );
 
+  const totalFiltered = filteredApplications?.length || 0;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndexExclusive = startIndex + ITEMS_PER_PAGE;
+  const paginatedApplications = (filteredApplications || []).slice(
+    startIndex,
+    endIndexExclusive,
+  );
+
+  const goToPage = (page) => {
+    const next = Math.min(Math.max(page, 1), totalPages);
+    setCurrentPage(next);
+  };
+
+  const getPageItems = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, "ellipsis", totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [
+        1,
+        "ellipsis",
+        totalPages - 4,
+        totalPages - 3,
+        totalPages - 2,
+        totalPages - 1,
+        totalPages,
+      ];
+    }
+    return [
+      1,
+      "ellipsis",
+      currentPage - 1,
+      currentPage,
+      currentPage + 1,
+      "ellipsis",
+      totalPages,
+    ];
+  };
+
   return (
     <MotionDiv>
       <Container fluid>
@@ -1271,10 +1331,10 @@ const JobApplications = () => {
               loading={isLoading}
             >
               {filteredApplications && filteredApplications.length > 0 ? (
-                filteredApplications.map((app, index) => (
+                paginatedApplications.map((app, index) => (
                   <tr key={app._id || index}>
                     <td className="text-center">
-                      <strong>{index + 1}</strong>
+                      <strong>{startIndex + index + 1}</strong>
                     </td>
                     <td>
                       <h6 className="mb-0">
@@ -1424,6 +1484,49 @@ const JobApplications = () => {
               )}
             </CustomTable>
           </Card.Body>
+
+          {totalFiltered > ITEMS_PER_PAGE && (
+            <Card.Footer className="d-flex justify-content-between align-items-center">
+              <small className="text-muted">
+                Showing {totalFiltered === 0 ? 0 : startIndex + 1}–
+                {Math.min(endIndexExclusive, totalFiltered)} of {totalFiltered}
+              </small>
+              <Pagination className="mb-0">
+                <Pagination.First
+                  disabled={currentPage === 1}
+                  onClick={() => goToPage(1)}
+                />
+                <Pagination.Prev
+                  disabled={currentPage === 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                />
+
+                {getPageItems().map((item, idx) => {
+                  if (item === "ellipsis") {
+                    return <Pagination.Ellipsis key={`e-${idx}`} disabled />;
+                  }
+                  return (
+                    <Pagination.Item
+                      key={item}
+                      active={item === currentPage}
+                      onClick={() => goToPage(item)}
+                    >
+                      {item}
+                    </Pagination.Item>
+                  );
+                })}
+
+                <Pagination.Next
+                  disabled={currentPage === totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                />
+                <Pagination.Last
+                  disabled={currentPage === totalPages}
+                  onClick={() => goToPage(totalPages)}
+                />
+              </Pagination>
+            </Card.Footer>
+          )}
         </Card>
 
         {/* Delete Confirmation Modal */}
